@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dcms
+      POSTGRES_PASSWORD: dcms
+      POSTGRES_DB: dcms
+    ports:
+      - "15432:5432"
+    volumes:
+      - dcms_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dcms -d dcms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://dcms:dcms@postgres:5432/dcms?schema=public"
+      JWT_SECRET: "change-this-to-a-long-random-string"
+      JWT_EXPIRES_IN: "8h"
+      PORT: "3001"
+      SUPER_ADMIN_USERNAME: "admin"
+      SUPER_ADMIN_PASSWORD: "ChangeMe123!"
+    ports:
+      - "3001:3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:3001/api/v1"
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  dcms_postgres_data:

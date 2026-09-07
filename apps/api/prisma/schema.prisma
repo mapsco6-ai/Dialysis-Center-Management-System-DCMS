@@ -1,0 +1,218 @@
+// Phase 0 (Foundation) schema: Users, Roles, Permissions, Audit.
+// Later phases append their own models here (Patient, DialysisSession, ...)
+// without touching what's already defined, per docs/PROJECT-PHASES-PLAN.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  passwordHash String
+  fullName     String
+  pin          String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  roles          UserRole[]
+  auditLogs      AuditLog[]
+  clinicalAlerts ClinicalAlert[]
+  timelineEvents PatientTimelineEvent[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  module      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// Append-only. No update/delete path is exposed anywhere in the API on purpose
+// (docs/MODULES-SPEC.md: "غير قابل للتعديل أو الحذف من أي واجهة").
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actorRole  String
+  action     String
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  reason     String?
+  device     String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 1 (Patient Registry): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+  TRANSFERRED
+}
+
+enum VascularAccessType {
+  FISTULA
+  CATHETER
+  GRAFT
+}
+
+enum AlertSeverity {
+  CRITICAL
+  IMPORTANT
+  INFORMATION
+}
+
+model Patient {
+  id String @id @default(uuid())
+
+  // humanNumber is a DB-level auto-incrementing sequence used only to derive
+  // patientCode (e.g. P-000352) with zero collision risk under bulk import,
+  // even across many concurrent inserts. It is never shown to end users.
+  humanNumber Int     @unique @default(autoincrement())
+  patientCode String  @unique
+  barcode     String  @unique
+
+  fullName String
+  gender   Gender
+  dateOfBirth DateTime
+
+  phone      String?
+  address    String?
+  fileNumber String?
+
+  registeredAt DateTime      @default(now())
+  status       PatientStatus @default(ACTIVE)
+
+  dialysisStartDate      DateTime?
+  dryWeight              Decimal?            @db.Decimal(5, 2)
+  vascularAccessType     VascularAccessType?
+  vascularAccessLocation String?
+
+  diagnoses           String?
+  chronicDiseases     Json?
+  allergies           String?
+  medicalNotes        String?
+  specialInstructions String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  alerts         ClinicalAlert[]
+  timelineEvents PatientTimelineEvent[]
+
+  @@index([fullName])
+  @@index([fileNumber])
+  @@index([phone])
+  @@map("patients")
+}
+
+// Never deleted. A new alert logically supersedes an old one; the old one is
+// closed via resolvedAt but stays in the record (docs/MODULES-SPEC.md).
+model ClinicalAlert {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  severity AlertSeverity
+  category String
+  message  String
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([patientId])
+  @@map("clinical_alerts")
+}
+
+// Append-only spine every module writes to (docs/PROJECT-PHASES-PLAN.md
+// philosophy #1: "المريض هو المحور"). No update/delete path is ever exposed.
+model PatientTimelineEvent {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  type    String
+  payload Json?
+
+  performedById String?
+  performedBy   User?   @relation(fields: [performedById], references: [id])
+  performedAt   DateTime @default(now())
+
+  sourceModule String
+
+  @@index([patientId, performedAt])
+  @@map("patient_timeline_events")
+}

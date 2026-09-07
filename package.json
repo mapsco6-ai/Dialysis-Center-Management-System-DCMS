@@ -1,0 +1,17 @@
+{
+  "name": "dcms",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=@dcms/api",
+    "dev:web": "npm run dev --workspace=@dcms/web",
+    "build:api": "npm run build --workspace=@dcms/api",
+    "build:web": "npm run build --workspace=@dcms/web",
+    "prisma:migrate": "npm run prisma:migrate --workspace=@dcms/api",
+    "prisma:seed": "npm run prisma:seed --workspace=@dcms/api"
+  }
+}

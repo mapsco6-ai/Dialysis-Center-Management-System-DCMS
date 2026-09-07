@@ -1,0 +1,4 @@
+fullName,gender,dateOfBirth,phone,address,fileNumber,dialysisStartDate,vascularAccessType,dryWeight,allergies,medicalNotes
+Zainab Kareem,FEMALE,1975-03-02,07709876543,Baghdad,F-2001,2020-01-15,FISTULA,62.0,,Diabetic
+Hussein Jasim,MALE,1968-11-20,07701112233,Basra,F-2002,2019-06-01,CATHETER,75.3,Penicillin,
+Marwa Adel,FEMALE,1990-07-09,07715556677,Erbil,F-2003,2022-02-10,GRAFT,58.7,,
