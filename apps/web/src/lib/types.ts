@@ -70,6 +70,7 @@ export interface Shift {
   cleaningEnd: string;
   nominalCapacity: number;
   reservedCapacity: number;
+  lateThresholdMinutes: number;
 }
 
 export interface DialysisPlanEntry {
@@ -86,7 +87,7 @@ export interface DialysisPlanEntry {
 export interface DialysisScheduleEntry {
   id: string;
   patientId: string;
-  patient: { id: string; fullName: string; patientCode: string; barcode: string };
+  patient: { id: string; fullName: string; patientCode: string; barcode: string; fileNumber: string | null };
   scheduledDate: string;
   shiftId: string;
   shift: Shift;
@@ -95,4 +96,8 @@ export interface DialysisScheduleEntry {
   extraReason: string | null;
   emergencySourceHospital: string | null;
   emergencyReason: string | null;
+  checkInTime: string | null;
+  checkInStationId: string | null;
+  lateMinutes: number | null;
+  absentMarkedAt: string | null;
 }

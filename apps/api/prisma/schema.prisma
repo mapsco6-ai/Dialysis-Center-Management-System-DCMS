@@ -30,7 +30,8 @@ model User {
   auditLogs          AuditLog[]
   clinicalAlerts     ClinicalAlert[]
   timelineEvents     PatientTimelineEvent[]
-  requestedSchedules DialysisSchedule[]
+  requestedSchedules DialysisSchedule[] @relation("ScheduleRequestedByDoctor")
+  checkedInSchedules DialysisSchedule[] @relation("ScheduleCheckedInBy")
 
   @@map("users")
 }
@@ -278,6 +279,11 @@ model Shift {
   nominalCapacity  Int @default(0)
   reservedCapacity Int @default(0)
 
+  // Admin-configured per docs/MODULES-SPEC.md Phase 3 ("حد زمني تحدده
+  // الإدارة"): a check-in later than this many minutes after dialysisStart
+  // is marked LATE instead of ARRIVED.
+  lateThresholdMinutes Int @default(30)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -332,15 +338,31 @@ model DialysisSchedule {
   shiftId       String
   shift         Shift    @relation(fields: [shiftId], references: [id])
 
+  // Lifecycle stage, independent of `type` (which just tags *why* the row
+  // exists). Every row - REGULAR, EXTRA, or EMERGENCY alike - starts
+  // SCHEDULED and moves through the same ARRIVED/LATE/ABSENT lifecycle
+  // (docs/PROJECT-PHASES-PLAN.md Phase 3).
   status ScheduleStatus @default(SCHEDULED)
   type   ScheduleType   @default(REGULAR)
 
   extraReason         String?
   requestedByDoctorId String?
-  requestedByDoctor   User?   @relation(fields: [requestedByDoctorId], references: [id])
+  requestedByDoctor   User?   @relation("ScheduleRequestedByDoctor", fields: [requestedByDoctorId], references: [id])
 
   emergencySourceHospital String?
   emergencyReason         String?
+
+  // Phase 3 (Reception): docs/MODULES-SPEC.md - added to DialysisSchedule
+  // rather than a new model.
+  checkInTime      DateTime?
+  checkInByUserId  String?
+  checkInByUser    User?     @relation("ScheduleCheckedInBy", fields: [checkInByUserId], references: [id])
+  checkInStationId String?
+  lateMinutes      Int?
+  // Set only by the automatic (not manual) absence check - see
+  // SchedulingService.ensureAbsencesMarked. Kept even if the patient later
+  // shows up and checks in late, as a historical fact (append-or-amend).
+  absentMarkedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

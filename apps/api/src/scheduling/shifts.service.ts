@@ -26,6 +26,7 @@ export class ShiftsService {
       data: {
         nominalCapacity: dto.nominalCapacity,
         reservedCapacity: dto.reservedCapacity ?? existing.reservedCapacity,
+        lateThresholdMinutes: dto.lateThresholdMinutes ?? existing.lateThresholdMinutes,
       },
     });
 
@@ -35,8 +36,16 @@ export class ShiftsService {
       action: "SHIFT_CAPACITY_UPDATED",
       entityType: "Shift",
       entityId: id,
-      oldValue: { nominalCapacity: existing.nominalCapacity, reservedCapacity: existing.reservedCapacity },
-      newValue: { nominalCapacity: shift.nominalCapacity, reservedCapacity: shift.reservedCapacity },
+      oldValue: {
+        nominalCapacity: existing.nominalCapacity,
+        reservedCapacity: existing.reservedCapacity,
+        lateThresholdMinutes: existing.lateThresholdMinutes,
+      },
+      newValue: {
+        nominalCapacity: shift.nominalCapacity,
+        reservedCapacity: shift.reservedCapacity,
+        lateThresholdMinutes: shift.lateThresholdMinutes,
+      },
     });
 
     return shift;

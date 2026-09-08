@@ -39,6 +39,9 @@ const PERMISSIONS = [
   { key: "scheduling.manage", module: "scheduling", description: "Manage dialysis plans and view the daily schedule" },
   { key: "dialysis.emergency.create", module: "scheduling", description: "Create emergency dialysis sessions" },
   { key: "shift.manage", module: "scheduling", description: "Edit shift capacity configuration" },
+
+  // Phase 3 (Reception)
+  { key: "attendance.checkin", module: "attendance", description: "Scan patients in and record check-in" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

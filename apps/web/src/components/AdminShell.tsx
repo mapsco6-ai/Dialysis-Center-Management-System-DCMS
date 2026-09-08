@@ -32,9 +32,14 @@ export function AdminShell({
                 المرضى
               </Link>
             )}
-            {user.permissions.includes("scheduling.manage") && (
+            {(user.permissions.includes("scheduling.manage") || user.permissions.includes("attendance.checkin")) && (
               <Link href="/admin/schedule" className="text-slate-600 hover:text-slate-900">
                 الجدول اليومي
+              </Link>
+            )}
+            {user.permissions.includes("attendance.checkin") && (
+              <Link href="/admin/reception" className="text-slate-600 hover:text-slate-900">
+                الاستقبال
               </Link>
             )}
           </nav>
