@@ -17,6 +17,20 @@ export function clearToken() {
   document.cookie = `${TOKEN_COOKIE}=; path=/; max-age=0`;
 }
 
+// Carries the HTTP status so callers can tell "not authenticated" (401) apart
+// from "forbidden" (403), "not found" (404), or a real server/network fault -
+// collapsing all of those into one generic failure state misleads the user
+// (docs review DCMS-021).
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getToken();
   const headers = new Headers(options.headers);
@@ -27,7 +41,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(body.message ?? "Request failed");
+    throw new ApiError(body.message ?? "Request failed", response.status);
   }
 
   return response.json();

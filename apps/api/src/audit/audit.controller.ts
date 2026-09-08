@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator";
@@ -11,7 +11,7 @@ export class AuditController {
 
   @Get()
   @RequirePermissions("audit.view")
-  findAll() {
-    return this.auditService.findAll();
+  findAll(@Query("limit") limit?: string, @Query("cursor") cursor?: string) {
+    return this.auditService.findAll({ limit: limit ? Number(limit) : undefined, cursor });
   }
 }

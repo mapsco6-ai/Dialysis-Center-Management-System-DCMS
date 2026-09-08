@@ -1,3 +1,8 @@
+// Must be the very first import: other modules (JwtModule.register, etc.)
+// read process.env.* synchronously at import time, before Nest's own
+// ConfigModule would otherwise get a chance to load .env (docs review
+// DCMS-002 follow-up - relying on import-order luck there was fragile).
+import "dotenv/config";
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";

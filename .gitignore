@@ -21,3 +21,6 @@ Thumbs.db
 !.vscode/extensions.json
 
 apps/api/generated/
+
+# Local DB dumps from scripts/backup-db.sh - may contain real patient data.
+backups/

@@ -7,7 +7,10 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from "class-validator";
+import { IsNotFutureDateString } from "../../common/validators/not-future-date.validator";
 
 export class CreatePatientDto {
   @IsString()
@@ -18,6 +21,7 @@ export class CreatePatientDto {
   gender!: Gender;
 
   @IsDateString()
+  @IsNotFutureDateString()
   dateOfBirth!: string;
 
   @IsOptional()
@@ -34,10 +38,16 @@ export class CreatePatientDto {
 
   @IsOptional()
   @IsDateString()
+  @IsNotFutureDateString()
   dialysisStartDate?: string;
 
+  // Bounds are a basic sanity check (reject negative/typo values like 9999),
+  // not a clinically-approved range - confirm real limits with medical staff
+  // before relying on this for anything beyond catching data-entry mistakes.
   @IsOptional()
   @IsNumber()
+  @Min(1)
+  @Max(300)
   dryWeight?: number;
 
   @IsOptional()

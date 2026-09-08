@@ -56,3 +56,43 @@ export interface PatientTimelineEvent {
   performedAt: string;
   sourceModule: string;
 }
+
+export type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
+export type ScheduleStatus = "SCHEDULED" | "ARRIVED" | "LATE" | "ABSENT" | "CANCELLED" | "EXTRA" | "EMERGENCY";
+export type ScheduleType = "REGULAR" | "EXTRA" | "EMERGENCY";
+
+export interface Shift {
+  id: string;
+  name: "SHIFT_1" | "SHIFT_2" | "SHIFT_3" | "SHIFT_4";
+  dialysisStart: string;
+  dialysisEnd: string;
+  cleaningStart: string;
+  cleaningEnd: string;
+  nominalCapacity: number;
+  reservedCapacity: number;
+}
+
+export interface DialysisPlanEntry {
+  id: string;
+  patientId: string;
+  weekday: Weekday;
+  shiftId: string;
+  shift: Shift;
+  isActive: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface DialysisScheduleEntry {
+  id: string;
+  patientId: string;
+  patient: { id: string; fullName: string; patientCode: string; barcode: string };
+  scheduledDate: string;
+  shiftId: string;
+  shift: Shift;
+  status: ScheduleStatus;
+  type: ScheduleType;
+  extraReason: string | null;
+  emergencySourceHospital: string | null;
+  emergencyReason: string | null;
+}

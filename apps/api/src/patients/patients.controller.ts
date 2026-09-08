@@ -8,6 +8,7 @@ import { PatientsService } from "./patients.service";
 import { CreatePatientDto } from "./dto/create-patient.dto";
 import { UpdatePatientDto } from "./dto/update-patient.dto";
 import { CreateAlertDto } from "./dto/create-alert.dto";
+import { ResolveAlertDto } from "./dto/resolve-alert.dto";
 
 @Controller("patients")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -79,5 +80,16 @@ export class PatientsController {
     @CurrentUser() actor: AuthenticatedUser,
   ) {
     return this.patientsService.createAlert(id, dto, actor);
+  }
+
+  @Patch(":id/alerts/:alertId/resolve")
+  @RequirePermissions("patient.alert.manage")
+  resolveAlert(
+    @Param("id") id: string,
+    @Param("alertId") alertId: string,
+    @Body() dto: ResolveAlertDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.patientsService.resolveAlert(id, alertId, actor, dto.reason);
   }
 }

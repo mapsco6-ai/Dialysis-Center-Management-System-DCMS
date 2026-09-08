@@ -1,15 +1,23 @@
+# Requires a .env file next to this one - copy .env.example to .env and fill
+# in real secrets first (docker compose reads .env automatically).
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: dcms
-      POSTGRES_PASSWORD: dcms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required, see .env.example}
       POSTGRES_DB: dcms
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD is required, see .env.example}
+      TZ: "Asia/Baghdad"
     ports:
-      - "15432:5432"
+      # Bound to localhost only - Postgres is never exposed on the network
+      # (docs review DCMS-002). Use `docker compose exec postgres psql ...`
+      # for local admin access, or an SSH tunnel for remote access.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-15432}:5432"
     volumes:
       - dcms_postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dcms -d dcms"]
       interval: 5s
@@ -25,12 +33,20 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql://dcms:dcms@postgres:5432/dcms?schema=public"
-      JWT_SECRET: "change-this-to-a-long-random-string"
+      # Owner connection - used only by Prisma CLI (migrate/seed/harden) at
+      # container startup, never by the running server (see prisma.service.ts).
+      DATABASE_URL: "postgresql://dcms:${POSTGRES_PASSWORD:?}@postgres:5432/dcms?schema=public"
+      # Restricted connection - what the running server actually uses.
+      APP_DATABASE_URL: "postgresql://dcms_app:${APP_DB_PASSWORD:?}@postgres:5432/dcms?schema=public"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required, see .env.example}
       JWT_EXPIRES_IN: "8h"
       PORT: "3001"
-      SUPER_ADMIN_USERNAME: "admin"
-      SUPER_ADMIN_PASSWORD: "ChangeMe123!"
+      SUPER_ADMIN_USERNAME: ${SUPER_ADMIN_USERNAME:-admin}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?SUPER_ADMIN_PASSWORD is required, see .env.example}
+      # "Today" for scheduling is the center's local calendar day, not UTC's -
+      # this must match wherever the center actually operates (see
+      # apps/api/src/scheduling/date.util.ts).
+      TZ: "Asia/Baghdad"
     ports:
       - "3001:3001"
 
@@ -39,7 +55,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: "http://localhost:3001/api/v1"
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v1}
     restart: unless-stopped
     depends_on:
       - api

@@ -19,13 +19,18 @@ model User {
   pin          String?
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  // Bumped on logout (and could be bumped on deactivation/password reset) so
+  // every JWT issued before that moment is rejected immediately by
+  // JwtStrategy, instead of staying valid until its natural expiry.
+  tokenVersion Int       @default(0)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  roles          UserRole[]
-  auditLogs      AuditLog[]
-  clinicalAlerts ClinicalAlert[]
-  timelineEvents PatientTimelineEvent[]
+  roles              UserRole[]
+  auditLogs          AuditLog[]
+  clinicalAlerts     ClinicalAlert[]
+  timelineEvents     PatientTimelineEvent[]
+  requestedSchedules DialysisSchedule[]
 
   @@map("users")
 }
@@ -99,6 +104,7 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([actorId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -165,8 +171,10 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  alerts         ClinicalAlert[]
-  timelineEvents PatientTimelineEvent[]
+  alerts            ClinicalAlert[]
+  timelineEvents    PatientTimelineEvent[]
+  dialysisPlans     DialysisPlan[]
+  dialysisSchedules DialysisSchedule[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -215,4 +223,129 @@ model PatientTimelineEvent {
 
   @@index([patientId, performedAt])
   @@map("patient_timeline_events")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 (Scheduling): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+enum ShiftName {
+  SHIFT_1
+  SHIFT_2
+  SHIFT_3
+  SHIFT_4
+}
+
+enum Weekday {
+  SUN
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+}
+
+enum ScheduleStatus {
+  SCHEDULED
+  ARRIVED
+  LATE
+  ABSENT
+  CANCELLED
+  EXTRA
+  EMERGENCY
+}
+
+enum ScheduleType {
+  REGULAR
+  EXTRA
+  EMERGENCY
+}
+
+// Fixed, seeded data (docs/MODULES-SPEC.md: "بيانات ثابتة وليست قابلة للتعديل
+// اليومي من المستخدم العادي"). nominalCapacity/reservedCapacity are the only
+// mutable fields in this phase - a manually-entered stand-in for real machine
+// counts until Phase 5 wires this up to actual Machine records.
+model Shift {
+  id String @id @default(uuid())
+
+  name          ShiftName @unique
+  dialysisStart String // "HH:MM", 24h
+  dialysisEnd   String
+  cleaningStart String
+  cleaningEnd   String
+
+  nominalCapacity  Int @default(0)
+  reservedCapacity Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plans     DialysisPlan[]
+  schedules DialysisSchedule[]
+
+  @@map("shifts")
+}
+
+// The patient's standing weekly plan (1-4 sessions/week). Setting a new plan
+// closes out the previous entries (isActive=false, effectiveTo=now) instead
+// of deleting them, per the append-or-amend rule.
+model DialysisPlan {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  weekday Weekday
+  shiftId String
+  shift   Shift   @relation(fields: [shiftId], references: [id])
+
+  isActive      Boolean   @default(true)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  schedules DialysisSchedule[]
+
+  @@index([patientId])
+  @@map("dialysis_plans")
+}
+
+// The materialized daily schedule. REGULAR rows are generated on demand from
+// active DialysisPlans the first time a given date is queried (see
+// SchedulingService.ensureGenerated) rather than by a wall-clock cron job -
+// simpler than standing up job infrastructure this early, and behaves
+// identically from the API's point of view. EXTRA/EMERGENCY rows are created
+// directly by staff/doctor request and are never auto-generated.
+model DialysisSchedule {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  planId String?
+  plan   DialysisPlan? @relation(fields: [planId], references: [id])
+
+  scheduledDate DateTime @db.Date
+  shiftId       String
+  shift         Shift    @relation(fields: [shiftId], references: [id])
+
+  status ScheduleStatus @default(SCHEDULED)
+  type   ScheduleType   @default(REGULAR)
+
+  extraReason         String?
+  requestedByDoctorId String?
+  requestedByDoctor   User?   @relation(fields: [requestedByDoctorId], references: [id])
+
+  emergencySourceHospital String?
+  emergencyReason         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([patientId, scheduledDate, shiftId])
+  @@index([scheduledDate])
+  @@map("dialysis_schedules")
 }

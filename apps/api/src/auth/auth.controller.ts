@@ -15,13 +15,13 @@ export class AuthController {
     return this.authService.login(dto.username, dto.password);
   }
 
-  // Stateless JWT: nothing to invalidate server-side in Phase 0.
-  // Kept as a real endpoint so the client always has one place to call on sign-out.
+  // Bumps tokenVersion, which immediately invalidates every outstanding JWT
+  // for this account (not just the one used here) - see jwt.strategy.ts.
   @Post("logout")
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  logout() {
-    return { success: true };
+  logout(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.logout(user.id);
   }
 
   @Get("me")
