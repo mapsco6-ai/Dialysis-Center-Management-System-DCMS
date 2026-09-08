@@ -9,6 +9,7 @@ import { CreateEmergencySessionDto } from "./dto/create-emergency-session.dto";
 import { CheckInDto } from "./dto/check-in.dto";
 import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 import { combineLocalDateAndTime, toDateOnly, todayDateOnly, weekdayOf } from "./date.util";
+import { SYSTEM_USERNAME } from "../common/system-user";
 
 const SCHEDULE_INCLUDE = {
   patient: { select: { id: true, fullName: true, patientCode: true, barcode: true, fileNumber: true } },
@@ -26,6 +27,16 @@ export class SchedulingService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
   ) {}
+
+  // Memoized: the system user's id never changes at runtime.
+  private systemUserId?: string;
+  private async getSystemUserId(): Promise<string> {
+    if (!this.systemUserId) {
+      const user = await this.prisma.user.findUniqueOrThrow({ where: { username: SYSTEM_USERNAME } });
+      this.systemUserId = user.id;
+    }
+    return this.systemUserId;
+  }
 
   private async requirePatient(patientId: string) {
     const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
@@ -158,15 +169,59 @@ export class SchedulingService {
   private async ensureAbsencesMarked(date: Date) {
     const now = new Date();
     const shifts = await this.prisma.shift.findMany();
+    let systemUserId: string | undefined;
 
     for (const shift of shifts) {
       const shiftEnd = combineLocalDateAndTime(date, shift.dialysisEnd);
       if (shiftEnd > now) continue;
 
-      await this.prisma.dialysisSchedule.updateMany({
+      const candidates = await this.prisma.dialysisSchedule.findMany({
         where: { scheduledDate: date, shiftId: shift.id, status: "SCHEDULED" },
-        data: { status: "ABSENT", absentMarkedAt: now },
+        select: { id: true, patientId: true },
       });
+      if (candidates.length === 0) continue;
+
+      systemUserId ??= await this.getSystemUserId();
+
+      // One row at a time, conditional on still being SCHEDULED: this is
+      // read continuously by polling clients, so two overlapping reads could
+      // otherwise both "win" and double-log the same transition. Every row
+      // that does flip gets its own audit + timeline event - this was
+      // silently skipped before (docs review DCMS-038), leaving a
+      // clinically-relevant transition with zero trace in the patient's
+      // history.
+      for (const candidate of candidates) {
+        await this.prisma.$transaction(async (tx) => {
+          const result = await tx.dialysisSchedule.updateMany({
+            where: { id: candidate.id, status: "SCHEDULED" },
+            data: { status: "ABSENT", absentMarkedAt: now },
+          });
+          if (result.count === 0) return; // another concurrent read already marked it
+
+          await this.auditService.log(
+            {
+              actorId: systemUserId!,
+              actorRole: "SYSTEM",
+              action: "PATIENT_MARKED_ABSENT",
+              entityType: "DialysisSchedule",
+              entityId: candidate.id,
+              oldValue: { status: "SCHEDULED" },
+              newValue: { status: "ABSENT", absentMarkedAt: now },
+            },
+            tx,
+          );
+
+          await tx.patientTimelineEvent.create({
+            data: {
+              patientId: candidate.patientId,
+              type: "PATIENT_MARKED_ABSENT",
+              payload: { scheduleId: candidate.id, shiftId: shift.id },
+              performedById: null,
+              sourceModule: "scheduling",
+            },
+          });
+        });
+      }
     }
   }
 
@@ -213,14 +268,35 @@ export class SchedulingService {
       );
     }
 
+    // Ordinary reception check-in only makes sense for today's own schedule -
+    // a receptionist scanning someone physically present can't be confirming
+    // a session that hasn't happened yet or is from a past day. Backdated
+    // corrections need their own audited/permissioned path (not built yet),
+    // not this endpoint (docs review DCMS-037).
+    if (toDateOnly(schedule.scheduledDate).getTime() !== todayDateOnly().getTime()) {
+      throw new ConflictException(
+        "This schedule entry is not for today - check-in only applies to today's own schedule",
+      );
+    }
+
     const now = new Date();
     const scheduledStart = combineLocalDateAndTime(schedule.scheduledDate, schedule.shift.dialysisStart);
-    const lateMinutes = Math.max(0, Math.round((now.getTime() - scheduledStart.getTime()) / 60000));
-    const newStatus: ScheduleStatus = lateMinutes > schedule.shift.lateThresholdMinutes ? "LATE" : "ARRIVED";
+    // Compare the exact (unrounded) elapsed time against the threshold so a
+    // policy of "LATE past 30 minutes" actually triggers at 30:00.001, not
+    // ~30:30 due to rounding first (docs review DCMS-039). Round only the
+    // value stored/displayed.
+    const exactLateMinutes = Math.max(0, (now.getTime() - scheduledStart.getTime()) / 60000);
+    const lateMinutes = Math.round(exactLateMinutes);
+    const newStatus: ScheduleStatus = exactLateMinutes > schedule.shift.lateThresholdMinutes ? "LATE" : "ARRIVED";
 
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.dialysisSchedule.update({
-        where: { id: scheduleId },
+      // Atomic, conditional on still being in a checkinable state - closes
+      // the race where two concurrent check-ins both read SCHEDULED before
+      // either writes and both would otherwise succeed, the second silently
+      // overwriting the first's time/station/user (docs review: reproduced
+      // DCMS-004 specifically against this method).
+      const result = await tx.dialysisSchedule.updateMany({
+        where: { id: scheduleId, status: { in: CHECKINABLE_STATUSES } },
         data: {
           status: newStatus,
           checkInTime: now,
@@ -228,6 +304,16 @@ export class SchedulingService {
           checkInStationId: dto.stationId,
           lateMinutes,
         },
+      });
+
+      if (result.count === 0) {
+        throw new ConflictException(
+          "This schedule entry was already checked in by a concurrent request",
+        );
+      }
+
+      const updated = await tx.dialysisSchedule.findUniqueOrThrow({
+        where: { id: scheduleId },
         include: SCHEDULE_INCLUDE,
       });
 
@@ -248,7 +334,7 @@ export class SchedulingService {
         data: {
           patientId: schedule.patientId,
           type: newStatus === "LATE" ? "PATIENT_CHECKED_IN_LATE" : "PATIENT_CHECKED_IN",
-          payload: { scheduleId, lateMinutes, stationId: dto.stationId ?? null },
+          payload: { scheduleId, lateMinutes, stationId: dto.stationId },
           performedById: actor.id,
           sourceModule: "reception",
         },

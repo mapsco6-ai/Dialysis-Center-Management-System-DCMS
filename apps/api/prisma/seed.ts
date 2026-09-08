@@ -1,7 +1,9 @@
 import "dotenv/config";
+import * as crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
 import * as argon2 from "argon2";
 import { ROLES, PERMISSIONS } from "@dcms/shared";
+import { SYSTEM_USERNAME } from "../src/common/system-user";
 
 const prisma = new PrismaClient();
 
@@ -67,6 +69,19 @@ async function main() {
     },
     update: {},
     create: { userId: superAdminUser.id, roleId: superAdminRole.id },
+  });
+
+  // FK anchor for automated actions (see src/common/system-user.ts). Never
+  // logs in: isActive is false and the password hash is random/unrecorded.
+  await prisma.user.upsert({
+    where: { username: SYSTEM_USERNAME },
+    update: {},
+    create: {
+      username: SYSTEM_USERNAME,
+      passwordHash: await argon2.hash(crypto.randomBytes(32).toString("hex")),
+      fullName: "System (automated)",
+      isActive: false,
+    },
   });
 
   // Phase 2: the four fixed shifts (docs/project-plan.md section 5).

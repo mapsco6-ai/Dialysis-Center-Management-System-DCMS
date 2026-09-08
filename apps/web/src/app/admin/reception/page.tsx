@@ -1,11 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
 import { DialysisScheduleEntry, Patient } from "@/lib/types";
+
+const STATION_STORAGE_KEY = "dcms_reception_station_id";
 
 const statusLabel: Record<string, string> = {
   SCHEDULED: "متوقع",
@@ -23,6 +25,28 @@ export default function ReceptionPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+
+  // Per-browser station name, set once per desk (docs review DCMS-040: a
+  // shared hardcoded literal for every reception device recorded nothing
+  // real). This is not device authentication - it's the minimum needed so
+  // check-in events are attributable to *a* named station at all.
+  const [stationId, setStationId] = useState("");
+  useEffect(() => {
+    try {
+      setStationId(localStorage.getItem(STATION_STORAGE_KEY) ?? "");
+    } catch {
+      // localStorage unavailable (private mode, blocked) - station must be typed each session
+    }
+  }, []);
+
+  function handleStationChange(value: string) {
+    setStationId(value);
+    try {
+      localStorage.setItem(STATION_STORAGE_KEY, value);
+    } catch {
+      // best-effort only
+    }
+  }
 
   async function loadByBarcode(code: string) {
     const data = await apiFetch(`/reception/scan/${encodeURIComponent(code)}`);
@@ -50,12 +74,16 @@ export default function ReceptionPage() {
 
   async function handleCheckIn(scheduleId: string) {
     if (!patient) return;
+    if (!stationId.trim()) {
+      setError("حدد اسم محطة الاستقبال أولاً");
+      return;
+    }
     setCheckingInId(scheduleId);
     setError(null);
     try {
       await apiFetch(`/sessions/${scheduleId}/check-in`, {
         method: "POST",
-        body: JSON.stringify({ stationId: "RECEPTION-1" }),
+        body: JSON.stringify({ stationId: stationId.trim() }),
       });
       await loadByBarcode(patient.barcode);
     } catch (err) {
@@ -72,6 +100,16 @@ export default function ReceptionPage() {
   return (
     <AdminShell user={user}>
       <h1 className="text-xl font-semibold text-slate-800">الاستقبال — مسح الباركود</h1>
+
+      <div className="mt-4 max-w-md">
+        <label className="mb-1 block text-xs text-slate-500">محطة الاستقبال (تُحفظ بهذا الجهاز)</label>
+        <input
+          value={stationId}
+          onChange={(e) => handleStationChange(e.target.value)}
+          placeholder="مثال: استقبال-1"
+          className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none"
+        />
+      </div>
 
       <form onSubmit={handleScan} className="mt-4 flex max-w-md gap-2">
         <input
@@ -144,7 +182,8 @@ export default function ReceptionPage() {
                   {s.status === "SCHEDULED" || s.status === "ABSENT" ? (
                     <button
                       onClick={() => handleCheckIn(s.id)}
-                      disabled={checkingInId === s.id}
+                      disabled={checkingInId === s.id || !stationId.trim()}
+                      title={!stationId.trim() ? "حدد اسم محطة الاستقبال أولاً" : undefined}
                       className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
                       تسجيل حضور

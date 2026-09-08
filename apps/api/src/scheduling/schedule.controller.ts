@@ -1,9 +1,9 @@
-import { BadRequestException, Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { ScheduleStatus } from "@prisma/client";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequireAnyPermission } from "../common/decorators/require-any-permission.decorator";
 import { SchedulingService } from "./scheduling.service";
+import { GetScheduleQueryDto } from "./dto/get-schedule-query.dto";
 
 // Viewable by full scheduling managers AND reception staff (who only hold
 // attendance.checkin) - it's the same status board both need to see.
@@ -23,12 +23,14 @@ export class ScheduleController {
     return this.schedulingService.getScheduleForToday();
   }
 
+  // GetScheduleQueryDto is validated by the global ValidationPipe before this
+  // body ever runs - an invalid date/status now gets a clean 400 instead of
+  // a 500 from Prisma, and (more importantly) instead of quietly triggering
+  // getScheduleForDate's side-effect writes (schedule generation, absence
+  // marking) on garbage input (docs review DCMS-041).
   @Get()
   @RequireAnyPermission(...VIEW_PERMISSIONS)
-  getByDate(@Query("date") date?: string, @Query("status") status?: ScheduleStatus) {
-    if (!date) {
-      throw new BadRequestException("Query parameter 'date' is required (YYYY-MM-DD)");
-    }
-    return this.schedulingService.getScheduleForDate(date, status);
+  getByDate(@Query() query: GetScheduleQueryDto) {
+    return this.schedulingService.getScheduleForDate(query.date, query.status);
   }
 }
