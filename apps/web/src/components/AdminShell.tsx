@@ -66,6 +66,13 @@ export function AdminShell({
                 الطبيب
               </Link>
             )}
+            {(user.permissions.includes("lab.queue.view") ||
+              user.permissions.includes("lab.result.create") ||
+              user.permissions.includes("lab.catalog.manage")) && (
+              <Link href="/admin/lab" className="text-slate-600 hover:text-slate-900">
+                المختبر
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>

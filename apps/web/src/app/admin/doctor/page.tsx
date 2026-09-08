@@ -9,6 +9,10 @@ import {
   ClinicalNote,
   DoctorOrder,
   DoctorOrderType,
+  LabOrder,
+  LabPanel,
+  LabTest,
+  LabTrendPoint,
   Patient,
   PatientTimelineEvent,
   Prescription,
@@ -46,12 +50,18 @@ export default function DoctorPage() {
   const [orders, setOrders] = useState<DoctorOrder[]>([]);
   const [notes, setNotes] = useState<ClinicalNote[]>([]);
   const [timeline, setTimeline] = useState<PatientTimelineEvent[]>([]);
+  const [labOrders, setLabOrders] = useState<LabOrder[]>([]);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [labPanels, setLabPanels] = useState<LabPanel[]>([]);
 
   async function loadPatientData(p: Patient) {
     apiFetch(`/patients/${p.id}/prescriptions`).then(setPrescriptions).catch(() => setPrescriptions([]));
     apiFetch(`/doctor-orders?patientId=${p.id}`).then(setOrders).catch(() => setOrders([]));
     apiFetch(`/patients/${p.id}/clinical-notes`).then(setNotes).catch(() => setNotes([]));
     apiFetch(`/patients/${p.id}/timeline`).then(setTimeline).catch(() => setTimeline([]));
+    apiFetch(`/lab/orders?patientId=${p.id}`).then(setLabOrders).catch(() => setLabOrders([]));
+    apiFetch("/lab/tests").then(setLabTests).catch(() => setLabTests([]));
+    apiFetch("/lab/panels").then(setLabPanels).catch(() => setLabPanels([]));
   }
 
   async function handleScan(e: FormEvent) {
@@ -141,9 +151,14 @@ export default function DoctorPage() {
             )}
             {tab === "dialysis" && <DialysisTab patientId={patient.id} />}
             {tab === "labs" && (
-              <p className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-400">
-                غير متاح بعد - سيُبنى في الفيز 9 (المختبر).
-              </p>
+              <LabsTab
+                patientId={patient.id}
+                labOrders={labOrders}
+                labTests={labTests}
+                labPanels={labPanels}
+                canRequest={user.permissions.includes("lab.request")}
+                onChanged={refreshAll}
+              />
             )}
             {tab === "medications" && (
               <MedicationsTab
@@ -305,6 +320,165 @@ function DialysisTab({ patientId }: { patientId: string }) {
         <Link href="/admin/schedule" className="text-slate-700 hover:underline">الجدول اليومي</Link>
         <Link href={`/admin/patients/${patientId}`} className="text-slate-700 hover:underline">ملف المريض</Link>
       </div>
+    </div>
+  );
+}
+
+const labItemStatusLabel: Record<string, string> = {
+  ORDERED: "بانتظار سحب العينة",
+  SAMPLE_COLLECTED: "تم سحب العينة",
+  PROCESSING: "قيد المعالجة",
+  RESULT_ENTERED: "أُدخلت النتيجة",
+  FINAL: "نهائية",
+  AMENDED: "مُعدَّلة",
+  CANCELLED: "ملغاة",
+};
+
+function LabsTab({
+  patientId,
+  labOrders,
+  labTests,
+  labPanels,
+  canRequest,
+  onChanged,
+}: {
+  patientId: string;
+  labOrders: LabOrder[];
+  labTests: LabTest[];
+  labPanels: LabPanel[];
+  canRequest: boolean;
+  onChanged: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [showRequest, setShowRequest] = useState(false);
+  const [mode, setMode] = useState<"panel" | "tests">("panel");
+  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [trendTestId, setTrendTestId] = useState("");
+  const [trend, setTrend] = useState<LabTrendPoint[] | null>(null);
+
+  async function handleRequest(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    setBusy(true);
+    setError(null);
+    try {
+      const body: Record<string, unknown> = { patientId };
+      if (mode === "panel") body.labPanelId = form.get("labPanelId");
+      else body.labTestIds = selectedTestIds;
+      await apiFetch("/lab/orders", { method: "POST", body: JSON.stringify(body) });
+      setShowRequest(false);
+      setSelectedTestIds([]);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر إنشاء طلب التحليل");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadTrend(testId: string) {
+    setTrendTestId(testId);
+    if (!testId) {
+      setTrend(null);
+      return;
+    }
+    try {
+      const data = await apiFetch(`/lab/tests/${testId}/trend?patientId=${patientId}&limit=5`);
+      setTrend(data);
+    } catch {
+      setTrend([]);
+    }
+  }
+
+  function toggleTest(id: string) {
+    setSelectedTestIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  }
+
+  return (
+    <div className="space-y-4">
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-500">حلقات التحاليل (Lab Episodes)</h2>
+          {canRequest && (
+            <button onClick={() => setShowRequest((v) => !v)} className="text-xs font-medium text-slate-600 hover:underline">
+              + طلب تحليل
+            </button>
+          )}
+        </div>
+
+        {showRequest && (
+          <form onSubmit={handleRequest} className="mt-2 space-y-2 rounded-md bg-slate-50 p-3">
+            <div className="flex gap-3 text-xs">
+              <label className="flex items-center gap-1">
+                <input type="radio" checked={mode === "panel"} onChange={() => setMode("panel")} /> مجموعة تحاليل
+              </label>
+              <label className="flex items-center gap-1">
+                <input type="radio" checked={mode === "tests"} onChange={() => setMode("tests")} /> تحاليل منفردة
+              </label>
+            </div>
+            {mode === "panel" ? (
+              <select name="labPanelId" required className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs">
+                <option value="">اختر المجموعة...</option>
+                {labPanels.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.tests.length} تحليل)</option>
+                ))}
+              </select>
+            ) : (
+              <div className="max-h-32 overflow-y-auto rounded-md border border-slate-100 p-2">
+                {labTests.map((t) => (
+                  <label key={t.id} className="flex items-center gap-2 py-0.5 text-xs">
+                    <input type="checkbox" checked={selectedTestIds.includes(t.id)} onChange={() => toggleTest(t.id)} />
+                    {t.code} — {t.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">إرسال الطلب</button>
+          </form>
+        )}
+
+        <ul className="mt-3 space-y-2 text-sm">
+          {labOrders.map((order) => (
+            <li key={order.id} className="rounded-md border border-slate-100 p-3">
+              <p className="mb-1 text-xs font-medium text-slate-500">
+                {order.episodeCode} — {new Date(order.orderedAt).toLocaleString()} — {order.orderedByDoctor?.fullName}
+              </p>
+              <ul className="space-y-1">
+                {order.items.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between text-xs">
+                    <span>
+                      {item.labTest.name}: {item.results[0] ? item.results[0].value : "-"}{" "}
+                      <span className="text-slate-400">[{labItemStatusLabel[item.status] ?? item.status}]</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+          {labOrders.length === 0 && <li className="text-slate-400">لا توجد طلبات تحاليل بعد</li>}
+        </ul>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 className="mb-2 text-sm font-semibold text-slate-500">اتجاه القيمة عبر الزمن (Trend)</h2>
+        <select value={trendTestId} onChange={(e) => loadTrend(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-xs">
+          <option value="">اختر تحليلاً...</option>
+          {labTests.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        {trend && (
+          <ul className="mt-2 space-y-1 text-xs text-slate-600">
+            {trend.map((p, i) => (
+              <li key={i}>{new Date(p.date).toLocaleDateString()} — {p.value} ({p.episodeCode})</li>
+            ))}
+            {trend.length === 0 && <li className="text-slate-400">لا توجد نتائج نهائية لهذا التحليل بعد</li>}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -51,6 +51,8 @@ model User {
   prescriptions        Prescription[]
   medicationsGiven     MedicationAdministration[]
   clinicalNotes        ClinicalNote[]
+  labOrdersRequested   LabOrder[]
+  labResultsEntered    LabResult[]
 
   @@map("users")
 }
@@ -202,6 +204,7 @@ model Patient {
   doctorOrders       DoctorOrder[]
   prescriptions      Prescription[]
   clinicalNotes      ClinicalNote[]
+  labOrders          LabOrder[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -1086,4 +1089,136 @@ model ClinicalNote {
 
   @@index([patientId, createdAt])
   @@map("clinical_notes")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9 (Laboratory): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+// Deliberately NOT seeded (unlike Shift/StockLocation) - the real catalog of
+// tests/reference ranges is a fact about the actual lab, not something this
+// codebase should invent, same reasoning as InventoryItem/Ward.
+model LabTest {
+  id String @id @default(uuid())
+
+  code String  @unique
+  name String
+  unit String?
+
+  referenceRangeLow  Decimal? @db.Decimal(10, 3)
+  referenceRangeHigh Decimal? @db.Decimal(10, 3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  panels     LabPanelTest[]
+  orderItems LabOrderItem[]
+
+  @@map("lab_tests")
+}
+
+// A configurable named group of tests (docs: "مثل Monthly Dialysis Panel")
+// ordered together in one action.
+model LabPanel {
+  id   String @id @default(uuid())
+  name String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tests LabPanelTest[]
+
+  @@map("lab_panels")
+}
+
+model LabPanelTest {
+  labPanelId String
+  labPanel   LabPanel @relation(fields: [labPanelId], references: [id], onDelete: Cascade)
+  labTestId  String
+  labTest    LabTest  @relation(fields: [labTestId], references: [id], onDelete: Cascade)
+
+  @@id([labPanelId, labTestId])
+  @@map("lab_panel_tests")
+}
+
+enum LabOrderItemStatus {
+  ORDERED
+  SAMPLE_COLLECTED
+  PROCESSING
+  RESULT_ENTERED
+  FINAL
+  AMENDED
+  CANCELLED
+}
+
+// One LabOrder groups every item requested together, and episodeCode is
+// what lets every result from the same request/date display as a single
+// Lab Episode (docs/MODULES-SPEC.md: "يجمّع كل نتائج نفس الطلب/التاريخ").
+model LabOrder {
+  id String @id @default(uuid())
+
+  // Same zero-collision-under-concurrency trick as Patient.patientCode: a
+  // DB-level auto-incrementing sequence derives episodeCode, instead of
+  // generating a "unique enough" code in application code.
+  humanNumber Int    @unique @default(autoincrement())
+  episodeCode String @unique
+
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  orderedByDoctorId String
+  orderedByDoctor   User     @relation(fields: [orderedByDoctorId], references: [id])
+  orderedAt         DateTime @default(now())
+
+  items LabOrderItem[]
+
+  @@map("lab_orders")
+}
+
+model LabOrderItem {
+  id String @id @default(uuid())
+
+  labOrderId String
+  labOrder   LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+  labTestId  String
+  labTest    LabTest  @relation(fields: [labTestId], references: [id])
+
+  status LabOrderItemStatus @default(ORDERED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  results LabResult[]
+
+  @@index([labOrderId])
+  @@index([status])
+  @@map("lab_order_items")
+}
+
+// Append-or-Amend, same rule as DialysisReading (docs/MODULES-SPEC.md: "لا
+// اعتماد ثانٍ حالياً - من يُدخل النتيجة يجعلها Final مباشرة"... "تعديل نتيجة
+// Final لا يستبدلها - ينشئ AMENDED جديدة"). A result is never mutated in
+// place; amending creates a new row pointing back at the one it corrects.
+model LabResult {
+  id String @id @default(uuid())
+
+  labOrderItemId String
+  labOrderItem   LabOrderItem @relation(fields: [labOrderItemId], references: [id], onDelete: Cascade)
+
+  value   String
+  isFinal Boolean @default(true)
+
+  enteredById String
+  enteredBy   User   @relation(fields: [enteredById], references: [id])
+
+  amendedFromId String?    @unique
+  amendedFrom   LabResult? @relation("ResultAmendment", fields: [amendedFromId], references: [id])
+  amendedTo     LabResult? @relation("ResultAmendment")
+  // Required by the service when this row amends a previous one - null on
+  // the very first (non-amendment) entry.
+  amendReason   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([labOrderItemId])
+  @@map("lab_results")
 }

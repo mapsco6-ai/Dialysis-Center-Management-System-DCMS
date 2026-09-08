@@ -397,3 +397,69 @@ export interface ClinicalNote {
   text: string;
   createdAt: string;
 }
+
+export interface LabTest {
+  id: string;
+  code: string;
+  name: string;
+  unit: string | null;
+  referenceRangeLow: string | null;
+  referenceRangeHigh: string | null;
+}
+
+export interface LabPanel {
+  id: string;
+  name: string;
+  tests: { labTestId: string; labTest: LabTest }[];
+}
+
+export type LabOrderItemStatus =
+  | "ORDERED"
+  | "SAMPLE_COLLECTED"
+  | "PROCESSING"
+  | "RESULT_ENTERED"
+  | "FINAL"
+  | "AMENDED"
+  | "CANCELLED";
+
+export interface LabResult {
+  id: string;
+  labOrderItemId: string;
+  value: string;
+  isFinal: boolean;
+  enteredById: string;
+  amendedFromId: string | null;
+  amendReason: string | null;
+  createdAt: string;
+}
+
+export interface LabOrderItem {
+  id: string;
+  labOrderId: string;
+  labTestId: string;
+  labTest: LabTest;
+  status: LabOrderItemStatus;
+  results: LabResult[];
+  createdAt: string;
+}
+
+export interface LabOrder {
+  id: string;
+  episodeCode: string;
+  patientId: string;
+  patient?: { id: string; fullName: string; patientCode: string };
+  orderedByDoctorId: string;
+  orderedByDoctor?: { id: string; fullName: string };
+  orderedAt: string;
+  items: LabOrderItem[];
+}
+
+export interface LabQueueItem extends LabOrderItem {
+  labOrder: LabOrder;
+}
+
+export interface LabTrendPoint {
+  episodeCode: string;
+  date: string;
+  value: string;
+}

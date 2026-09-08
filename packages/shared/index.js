@@ -71,6 +71,12 @@ const PERMISSIONS = [
   { key: "prescription.create", module: "doctor", description: "Create doctor orders (medication, lab request, nursing instruction, dry weight change, extra session request, pharmacy recommendation) and clinical notes" },
   { key: "prescription.modify", module: "doctor", description: "Stop or modify an existing doctor order/prescription" },
   { key: "medication.administer", module: "doctor", description: "Record that a prescribed medication was actually given to a patient" },
+
+  // Phase 9 (Laboratory)
+  { key: "lab.catalog.manage", module: "laboratory", description: "Define the LabTest/LabPanel catalog" },
+  { key: "lab.request", module: "laboratory", description: "Order a lab test or panel for a patient" },
+  { key: "lab.queue.view", module: "laboratory", description: "View the pending lab order queue" },
+  { key: "lab.result.create", module: "laboratory", description: "Advance lab order item status, enter results, and amend a final result" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };
