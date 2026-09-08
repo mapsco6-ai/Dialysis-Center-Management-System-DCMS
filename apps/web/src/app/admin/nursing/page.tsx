@@ -162,6 +162,7 @@ export default function NursingPage() {
                 <th className="px-4 py-2 font-medium">الممرض</th>
                 <th className="px-4 py-2 font-medium">آخر قراءة</th>
                 <th className="px-4 py-2 font-medium">تنبيهات</th>
+                <th className="px-4 py-2 font-medium">أوامر الطبيب</th>
                 <th className="px-4 py-2 font-medium"></th>
               </tr>
             </thead>
@@ -183,9 +184,28 @@ export default function NursingPage() {
                         {m.session.minutesSinceLastReading != null ? `منذ ${m.session.minutesSinceLastReading} د` : "لا توجد"}
                       </td>
                       <td className="px-4 py-2">
-                        {m.session.openAlertsCount > 0 ? (
-                          <span className="rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
-                            {m.session.openAlertsCount}
+                        {m.session.openAlerts.length > 0 ? (
+                          <span
+                            title={m.session.openAlerts.map((a) => `[${a.severity}] ${a.category}: ${a.message}`).join("\n")}
+                            className={`rounded-md px-2 py-1 text-xs font-medium ${
+                              m.session.openAlerts.some((a) => a.severity === "CRITICAL")
+                                ? "bg-red-100 text-red-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {m.session.openAlerts.length}
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        {m.session.activeDoctorOrders.length > 0 ? (
+                          <span
+                            title={m.session.activeDoctorOrders.map((o) => `${o.type} — ${o.doctor.fullName}`).join("\n")}
+                            className="rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700"
+                          >
+                            {m.session.activeDoctorOrders.length}
                           </span>
                         ) : (
                           <span className="text-slate-300">-</span>
@@ -198,7 +218,7 @@ export default function NursingPage() {
                       </td>
                     </>
                   ) : (
-                    <td className="px-4 py-2 text-slate-300" colSpan={5}>
+                    <td className="px-4 py-2 text-slate-300" colSpan={6}>
                       لا يوجد مريض ظاهر
                     </td>
                   )}
@@ -206,7 +226,7 @@ export default function NursingPage() {
               ))}
               {dashboard.machines.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-slate-400">لا توجد أجهزة في هذه الردهة</td>
+                  <td colSpan={9} className="px-4 py-6 text-center text-slate-400">لا توجد أجهزة في هذه الردهة</td>
                 </tr>
               )}
             </tbody>

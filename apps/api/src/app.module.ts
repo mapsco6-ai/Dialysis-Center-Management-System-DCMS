@@ -13,6 +13,7 @@ import { InventoryModule } from "./inventory/inventory.module";
 import { MachinesModule } from "./machines/machines.module";
 import { SessionsModule } from "./sessions/sessions.module";
 import { NursingModule } from "./nursing/nursing.module";
+import { DoctorModule } from "./doctor/doctor.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -30,6 +31,7 @@ import { HealthController } from "./health/health.controller";
     MachinesModule,
     SessionsModule,
     NursingModule,
+    DoctorModule,
   ],
   controllers: [HealthController],
 })

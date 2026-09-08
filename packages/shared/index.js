@@ -66,6 +66,11 @@ const PERMISSIONS = [
   { key: "nursing.assign", module: "nursing", description: "Create and manage nurse-to-patient ward assignments" },
   { key: "nursing.ward.view", module: "nursing", description: "View the ward dashboard, filtered to assigned patients" },
   { key: "nursing.ward.view.all", module: "nursing", description: "View the full ward dashboard regardless of assignment" },
+
+  // Phase 8 (Doctor PWA)
+  { key: "prescription.create", module: "doctor", description: "Create doctor orders (medication, lab request, nursing instruction, dry weight change, extra session request, pharmacy recommendation) and clinical notes" },
+  { key: "prescription.modify", module: "doctor", description: "Stop or modify an existing doctor order/prescription" },
+  { key: "medication.administer", module: "doctor", description: "Record that a prescribed medication was actually given to a patient" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

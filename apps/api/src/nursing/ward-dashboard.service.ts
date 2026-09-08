@@ -54,14 +54,39 @@ export class WardDashboardService {
     }
 
     const patientIds = sessions.map((s) => s.patientId);
-    const alertCounts = patientIds.length
-      ? await this.prisma.clinicalAlert.groupBy({
-          by: ["patientId"],
+    // Full alert detail, not just a count - a CRITICAL alert has to actually
+    // be visible to the concerned nurse, not just tallied (docs/
+    // PROJECT-PHASES-PLAN.md Phase 8 acceptance criterion 7).
+    const openAlerts = patientIds.length
+      ? await this.prisma.clinicalAlert.findMany({
           where: { patientId: { in: patientIds }, resolvedAt: null },
-          _count: { _all: true },
+          orderBy: { createdAt: "desc" },
         })
       : [];
-    const alertCountByPatientId = new Map(alertCounts.map((a) => [a.patientId, a._count._all]));
+    const alertsByPatientId = new Map<string, typeof openAlerts>();
+    for (const alert of openAlerts) {
+      const list = alertsByPatientId.get(alert.patientId) ?? [];
+      list.push(alert);
+      alertsByPatientId.set(alert.patientId, list);
+    }
+
+    // Active doctor orders for the visible patients - closes the Phase 7
+    // placeholder now that DoctorOrder exists (docs/PROJECT-PHASES-PLAN.md
+    // Phase 7 acceptance criterion 4: "تعليمات طبيب جديدة تظهر فوراً في شاشة
+    // الممرض المعني بهذا المريض").
+    const activeOrders = patientIds.length
+      ? await this.prisma.doctorOrder.findMany({
+          where: { patientId: { in: patientIds }, status: "ACTIVE" },
+          include: { doctor: { select: { id: true, fullName: true } } },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
+    const ordersByPatientId = new Map<string, typeof activeOrders>();
+    for (const order of activeOrders) {
+      const list = ordersByPatientId.get(order.patientId) ?? [];
+      list.push(order);
+      ordersByPatientId.set(order.patientId, list);
+    }
 
     const machineViews = machines.map((machine) => {
       const session = sessionByMachineId.get(machine.id);
@@ -79,8 +104,22 @@ export class WardDashboardService {
             minutesSinceLastReading: session.readings[0]
               ? Math.round((Date.now() - session.readings[0].time.getTime()) / 60000)
               : null,
-            openAlertsCount: alertCountByPatientId.get(session.patientId) ?? 0,
+            openAlertsCount: alertsByPatientId.get(session.patientId)?.length ?? 0,
+            openAlerts: (alertsByPatientId.get(session.patientId) ?? []).map((a) => ({
+              id: a.id,
+              severity: a.severity,
+              category: a.category,
+              message: a.message,
+              createdAt: a.createdAt,
+            })),
             recentEvents: session.events.map((e) => ({ id: e.id, type: e.type, note: e.note, recordedAt: e.recordedAt })),
+            activeDoctorOrders: (ordersByPatientId.get(session.patientId) ?? []).map((o) => ({
+              id: o.id,
+              type: o.type,
+              payload: o.payload,
+              doctor: o.doctor,
+              createdAt: o.createdAt,
+            })),
           }
         : null;
 
@@ -98,11 +137,6 @@ export class WardDashboardService {
       ward: { id: ward.id, name: ward.name },
       date: date.toISOString().slice(0, 10),
       machines: machineViews,
-      // Always empty until Phase 8 adds the DoctorOrder model - the shape is
-      // ready so the nursing screen doesn't need reworking then (docs/
-      // PROJECT-PHASES-PLAN.md Phase 7 acceptance criterion 4, deferred
-      // because DoctorOrder is explicitly out of this phase's scope).
-      doctorOrders: [] as unknown[],
     };
   }
 }

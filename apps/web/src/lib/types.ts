@@ -294,7 +294,15 @@ export interface WardDashboardMachineSession {
   lastReadingAt: string | null;
   minutesSinceLastReading: number | null;
   openAlertsCount: number;
+  openAlerts: { id: string; severity: AlertSeverity; category: string; message: string; createdAt: string }[];
   recentEvents: { id: string; type: DialysisEventType; note: string | null; recordedAt: string }[];
+  activeDoctorOrders: {
+    id: string;
+    type: DoctorOrderType;
+    payload: Record<string, unknown>;
+    doctor: { id: string; fullName: string };
+    createdAt: string;
+  }[];
 }
 
 export interface WardDashboardMachine {
@@ -310,7 +318,6 @@ export interface WardDashboard {
   ward: { id: string; name: string };
   date: string;
   machines: WardDashboardMachine[];
-  doctorOrders: unknown[];
 }
 
 export interface NursingAssignment {
@@ -327,4 +334,66 @@ export interface NursingAssignment {
     patientId: string;
     patient: { id: string; fullName: string; patientCode: string };
   }[];
+}
+
+export type DoctorOrderType =
+  | "MEDICATION"
+  | "LAB_REQUEST"
+  | "NURSING_INSTRUCTION"
+  | "DRY_WEIGHT_CHANGE"
+  | "EXTRA_SESSION_REQUEST"
+  | "PHARMACY_RECOMMENDATION";
+
+export type DoctorOrderStatus = "ACTIVE" | "MODIFIED" | "STOPPED";
+export type PrescriptionStatus = "ACTIVE" | "DISPENSING" | "DISPENSED" | "MODIFIED" | "STOPPED";
+
+export interface DoctorOrder {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  doctor?: { id: string; fullName: string };
+  type: DoctorOrderType;
+  payload: Record<string, unknown>;
+  status: DoctorOrderStatus;
+  previousOrderId: string | null;
+  reason: string | null;
+  prescriptionId: string | null;
+  createdAt: string;
+}
+
+export interface MedicationAdministration {
+  id: string;
+  prescriptionId: string;
+  administeredById: string;
+  administeredBy?: { id: string; fullName: string };
+  administeredAt: string;
+  doseGiven: string;
+  sessionId: string | null;
+}
+
+export interface Prescription {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  doctor?: { id: string; fullName: string };
+  medicationName: string;
+  dose: string;
+  frequency: string;
+  duration: string | null;
+  linkedSessionId: string | null;
+  status: PrescriptionStatus;
+  previousPrescriptionId: string | null;
+  createdAt: string;
+  administrations?: MedicationAdministration[];
+  orders?: { id: string; status: DoctorOrderStatus }[];
+}
+
+export interface ClinicalNote {
+  id: string;
+  patientId: string;
+  authorId: string;
+  author?: { id: string; fullName: string };
+  sessionId: string | null;
+  text: string;
+  createdAt: string;
 }

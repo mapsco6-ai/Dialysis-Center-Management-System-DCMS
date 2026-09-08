@@ -47,6 +47,10 @@ model User {
   recordedEvents       DialysisEvent[]
   nursingAssignments   NursingAssignment[]           @relation("AssignedNurse")
   assignmentsCreated   NursingAssignment[]           @relation("AssignmentCreatedBy")
+  doctorOrders         DoctorOrder[]
+  prescriptions        Prescription[]
+  medicationsGiven     MedicationAdministration[]
+  clinicalNotes        ClinicalNote[]
 
   @@map("users")
 }
@@ -195,6 +199,9 @@ model Patient {
   approvalRequests   MachineUsageApprovalRequest[]
   dialysisSessions   DialysisSession[]
   nursingAssignments NursingAssignmentPatient[]
+  doctorOrders       DoctorOrder[]
+  prescriptions      Prescription[]
+  clinicalNotes      ClinicalNote[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -820,8 +827,11 @@ model DialysisSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  readings DialysisReading[]
-  events   DialysisEvent[]
+  readings            DialysisReading[]
+  events              DialysisEvent[]
+  linkedPrescriptions Prescription[]
+  medicationsGiven    MedicationAdministration[]
+  clinicalNotes       ClinicalNote[]
 
   @@map("dialysis_sessions")
 }
@@ -930,4 +940,150 @@ model NursingAssignmentPatient {
 
   @@unique([patientId, wardId, shiftId, date])
   @@map("nursing_assignment_patients")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 8 (Doctor PWA): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+enum DoctorOrderType {
+  MEDICATION
+  LAB_REQUEST
+  NURSING_INSTRUCTION
+  DRY_WEIGHT_CHANGE
+  EXTRA_SESSION_REQUEST
+  PHARMACY_RECOMMENDATION
+}
+
+enum DoctorOrderStatus {
+  ACTIVE
+  MODIFIED
+  STOPPED
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  DISPENSING
+  DISPENSED
+  MODIFIED
+  STOPPED
+}
+
+// Every doctor action - of any type - is one of these rows. Amending never
+// deletes: STOP flips this same row's status in place (nothing to preserve
+// two versions of), while MODIFY creates a new row (previousOrderId back to
+// this one) and flips this row to MODIFIED, so the old payload (old dose,
+// old instruction, ...) stays queryable forever (docs/MODULES-SPEC.md:
+// "تعديل أمر طبي: لا حذف").
+model DoctorOrder {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String
+  doctor    User    @relation(fields: [doctorId], references: [id])
+
+  type    DoctorOrderType
+  payload Json
+  status  DoctorOrderStatus @default(ACTIVE)
+
+  previousOrderId String?
+  previousOrder   DoctorOrder?  @relation("OrderChain", fields: [previousOrderId], references: [id])
+  nextOrders      DoctorOrder[] @relation("OrderChain")
+
+  // Required by the service when status becomes STOPPED/MODIFIED - null at
+  // creation, since ACTIVE needs no justification (docs/MODULES-SPEC.md:
+  // "إلزامي عند STOPPED/MODIFIED").
+  reason String?
+
+  // Only set for type=MEDICATION - the Prescription this order created or
+  // (after a MODIFY) now points to.
+  prescriptionId String?
+  prescription   Prescription? @relation(fields: [prescriptionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId, createdAt])
+  @@map("doctor_orders")
+}
+
+// The "Current Medications" projection - ACTIVE rows are current, STOPPED
+// are discontinued, MODIFIED means a newer row (nextPrescription) replaced
+// this one's dose/frequency/duration. DISPENSING/DISPENSED are Phase 10
+// (Pharmacy) states, not set by anything in this phase.
+model Prescription {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String
+  doctor    User    @relation(fields: [doctorId], references: [id])
+
+  medicationName String
+  dose           String
+  frequency      String
+  duration       String?
+
+  linkedSessionId String?
+  linkedSession   DialysisSession? @relation(fields: [linkedSessionId], references: [id])
+
+  status PrescriptionStatus @default(ACTIVE)
+
+  // @unique enforces a strictly linear chain - two concurrent modifications
+  // of the same prescription can't both succeed (same atomic-guard
+  // reasoning as the rest of this codebase).
+  previousPrescriptionId String?       @unique
+  previousPrescription   Prescription? @relation("PrescriptionChain", fields: [previousPrescriptionId], references: [id])
+  nextPrescription       Prescription? @relation("PrescriptionChain")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders          DoctorOrder[]
+  administrations MedicationAdministration[]
+
+  @@map("prescriptions")
+}
+
+// Deliberately separate from Prescription (docs/MODULES-SPEC.md: "قاعدة
+// Prescription ≠ Administration... لا حقل واحد isGiven boolean") - what the
+// doctor ordered and what the patient actually received are always two
+// distinct, independently-queryable facts.
+model MedicationAdministration {
+  id String @id @default(uuid())
+
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  administeredById String
+  administeredBy   User     @relation(fields: [administeredById], references: [id])
+  administeredAt   DateTime @default(now())
+  doseGiven        String
+
+  sessionId String?
+  session   DialysisSession? @relation(fields: [sessionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([prescriptionId])
+  @@map("medication_administrations")
+}
+
+model ClinicalNote {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User    @relation(fields: [authorId], references: [id])
+
+  sessionId String?
+  session   DialysisSession? @relation(fields: [sessionId], references: [id])
+
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([patientId, createdAt])
+  @@map("clinical_notes")
 }
