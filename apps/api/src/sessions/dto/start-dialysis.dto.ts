@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
+import { IsInt, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString, Max, Min } from "class-validator";
 
 // Machine/Ward/Pre Weight/BP/Pulse are validated against what's already on
 // the session (assigned machine + Pre-Dialysis record), not collected again
@@ -17,10 +17,19 @@ export class StartDialysisDto {
   @IsNotEmpty()
   bloodLineType!: string;
 
-  @IsNumber()
+  // prescribedDurationMinutes is stored as an Int - IsNumber alone would
+  // accept 240.5 and fail later at the DB instead of at validation
+  // (docs review DCMS-051).
+  @IsInt()
+  @Min(1)
+  @Max(600)
   prescribedDurationMinutes!: number;
 
+  // UF is treated as a non-negative withdrawal volume throughout this
+  // module (docs review DCMS-051) - confirm the real clinical bound with
+  // medical staff, this only rejects negatives/typos.
   @IsNumber()
+  @Min(0)
   requiredUF!: number;
 
   @IsOptional()

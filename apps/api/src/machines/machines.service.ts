@@ -17,6 +17,20 @@ type PrismaTx = Prisma.TransactionClient;
 // excluded here.
 const GENERIC_STATUSES: MachineStatus[] = ["AVAILABLE", "CLEANING", "WAITING_CLEANING", "MAINTENANCE", "OUT_OF_SERVICE"];
 
+// Which generic status each generic status may move to directly - in
+// particular, WAITING_CLEANING can only reach AVAILABLE via CLEANING, never
+// straight across (docs review DCMS-046; docs/PROJECT-PHASES-PLAN.md Phase 6
+// acceptance criterion 6: "لا يظهر متاحاً حتى تُغلق CLEANING"). OUT_OF_SERVICE
+// is reachable from anywhere (handled separately, above this table) as the
+// equipment-failure escape hatch.
+const ALLOWED_GENERIC_TRANSITIONS: Partial<Record<MachineStatus, MachineStatus[]>> = {
+  AVAILABLE: ["MAINTENANCE", "OUT_OF_SERVICE"],
+  CLEANING: ["AVAILABLE", "OUT_OF_SERVICE"],
+  WAITING_CLEANING: ["CLEANING", "OUT_OF_SERVICE"],
+  MAINTENANCE: ["AVAILABLE", "OUT_OF_SERVICE"],
+  OUT_OF_SERVICE: ["AVAILABLE", "MAINTENANCE"],
+};
+
 @Injectable()
 export class MachinesService {
   constructor(
@@ -144,6 +158,16 @@ export class MachinesService {
       throw new ConflictException(
         `Cannot change status via this endpoint while the machine is ${machine.status} - it's tied to an active assignment`,
       );
+    }
+
+    // From a generic status, the target must be directly reachable - e.g.
+    // WAITING_CLEANING can't jump straight to AVAILABLE, only to CLEANING
+    // (docs review DCMS-046).
+    if (dto.status !== "OUT_OF_SERVICE" && GENERIC_STATUSES.includes(machine.status)) {
+      const allowedTargets = ALLOWED_GENERIC_TRANSITIONS[machine.status] ?? [];
+      if (!allowedTargets.includes(dto.status)) {
+        throw new ConflictException(`Cannot go directly from ${machine.status} to ${dto.status}`);
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -401,6 +425,11 @@ export class MachinesService {
     if (machine.status !== "AVAILABLE" && machine.status !== "APPROVAL_REQUIRED") {
       throw new ConflictException(`Machine is ${machine.status}, not available to request`);
     }
+    // Two different patients can both have a request pending on the same
+    // machine at once - a decider should be able to see and weigh both.
+    // What must never happen is BOTH decisions resolving onto the same
+    // physical machine, which decideApproval's atomic re-check below
+    // prevents at the point that actually matters (docs review DCMS-047).
 
     return this.createApprovalRequest(schedule, machine, dto.reason, actor);
   }
@@ -431,19 +460,42 @@ export class MachinesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.machineUsageApprovalRequest.update({
-        where: { id: approvalId },
+      // Atomic and conditional on still being PENDING - two concurrent
+      // decisions on the same request can't both apply (same pattern as the
+      // Phase 3 check-in fix).
+      const result = await tx.machineUsageApprovalRequest.updateMany({
+        where: { id: approvalId, decision: "PENDING" },
         data: { decision: dto.decision, decidedById: actor.id, decidedAt: new Date() },
       });
+      if (result.count === 0) {
+        throw new ConflictException("This request was already decided");
+      }
+
+      // Re-read the machine inside the transaction: two different patients
+      // can each have a request pending on the same machine at once (a
+      // decider should be able to see and weigh both), so by the time this
+      // one is decided the machine may already have moved off
+      // APPROVAL_REQUIRED because a competing request was decided first
+      // (docs review DCMS-047).
+      const freshMachine = await tx.machine.findUniqueOrThrow({ where: { id: approval.machineId } });
+      const machineStillPending = freshMachine.status === "APPROVAL_REQUIRED";
 
       if (dto.decision === "APPROVED") {
+        // Approving means claiming the machine - that's only valid if it's
+        // still actually up for claiming. If a competing request already
+        // won it, this one can't also win it.
+        if (!machineStillPending) {
+          throw new ConflictException(
+            `Cannot approve - the machine's status changed to ${freshMachine.status} since the request was made`,
+          );
+        }
         const newStatus: MachineStatus =
-          approval.machine.isEmergencyDedicated && approval.schedule.type === "EMERGENCY"
+          freshMachine.isEmergencyDedicated && approval.schedule.type === "EMERGENCY"
             ? "EMERGENCY_RESERVED"
             : "RESERVED";
         await this.transitionStatus(
           tx,
-          approval.machine,
+          freshMachine,
           newStatus,
           actor,
           dto.reason ?? `Approved by ${actor.fullName}`,
@@ -453,17 +505,20 @@ export class MachinesService {
           data: { machineId: approval.machineId },
         });
         await this.syncSessionOnAssigned(tx, approval.scheduleId, approval.machineId);
-      } else {
+      } else if (machineStillPending) {
         // Rejected: machine goes back to the pool, the schedule stays
         // without a machine (docs/PROJECT-PHASES-PLAN.md: "المريض ينتظر").
         await this.transitionStatus(
           tx,
-          approval.machine,
+          freshMachine,
           "AVAILABLE",
           actor,
           dto.reason ?? "Approval rejected - machine released",
         );
       }
+      // else: rejecting a request whose machine a competing decision already
+      // resolved is just closing out stale paperwork - it must not touch a
+      // reservation that isn't this request's to release.
 
       await this.auditService.log(
         {

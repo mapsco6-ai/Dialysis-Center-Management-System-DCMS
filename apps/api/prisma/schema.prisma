@@ -586,6 +586,10 @@ model SessionSupplyIssueItem {
   createdAt DateTime @default(now())
 
   @@unique([scheduleId, itemId])
+  // DB-level guard against two concurrent substitute requests both covering
+  // the same shortage (docs review DCMS-044) - Postgres treats multiple NULLs
+  // here as distinct, so ordinary (non-substitute) issue rows are unaffected.
+  @@unique([scheduleId, substituteForItemId])
   @@index([scheduleId])
   @@map("session_supply_issue_items")
 }

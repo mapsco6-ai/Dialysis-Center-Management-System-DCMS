@@ -4,6 +4,7 @@ import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { SetSessionOverrideDto } from "./dto/set-session-override.dto";
 import { SubstituteSupplyDto } from "./dto/substitute-supply.dto";
+import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 
 interface ResolvedSupplyLine {
   itemId: string;
@@ -138,20 +139,29 @@ export class SessionSuppliesService {
     });
   }
 
-  // Processes only lines that don't already have an issue record - safe to
-  // call again after a substitution or a stock top-up without double-issuing
-  // anything already recorded.
+  // Processes lines with no issue record yet, plus any still UNAVAILABLE -
+  // a prior shortage is retried (e.g. after a stock top-up) instead of being
+  // excluded forever once it exists (docs review DCMS-043). ISSUED/
+  // SUBSTITUTED lines are never touched again - safe to call repeatedly.
   async confirmIssue(scheduleId: string, actor: AuthenticatedUser) {
     const schedule = await this.requireSchedule(scheduleId);
+    if (schedule.status !== "ARRIVED" && schedule.status !== "LATE") {
+      throw new ConflictException(
+        `Cannot issue supplies while the schedule is ${schedule.status} - the patient must have arrived`,
+      );
+    }
     const warehouse = await this.requireMainWarehouse();
     const resolved = await this.resolveSupplyLines(scheduleId, schedule.patientId);
 
-    const alreadyRecorded = await this.prisma.sessionSupplyIssueItem.findMany({
+    const existingRecords = await this.prisma.sessionSupplyIssueItem.findMany({
       where: { scheduleId },
-      select: { itemId: true },
+      select: { itemId: true, status: true },
     });
-    const recordedIds = new Set(alreadyRecorded.map((r) => r.itemId));
-    const toProcess = resolved.filter((line) => !recordedIds.has(line.itemId));
+    const recordByItemId = new Map(existingRecords.map((r) => [r.itemId, r.status]));
+    const toProcess = resolved.filter((line) => {
+      const existingStatus = recordByItemId.get(line.itemId);
+      return !existingStatus || existingStatus === "UNAVAILABLE";
+    });
 
     for (const line of toProcess) {
       await this.prisma.$transaction(async (tx) => {
@@ -166,10 +176,19 @@ export class SessionSuppliesService {
         const status = result.count === 1 ? "ISSUED" : "UNAVAILABLE";
         const quantityIssued = result.count === 1 ? line.quantity : 0;
 
-        const issueItem = await tx.sessionSupplyIssueItem.create({
-          data: {
+        // Upsert, not create: a retried shortage already has an UNAVAILABLE
+        // row for this (scheduleId, itemId) pair from the previous attempt.
+        const issueItem = await tx.sessionSupplyIssueItem.upsert({
+          where: { scheduleId_itemId: { scheduleId, itemId: line.itemId } },
+          create: {
             scheduleId,
             itemId: line.itemId,
+            quantityRequested: line.quantity,
+            quantityIssued,
+            status,
+            performedById: actor.id,
+          },
+          update: {
             quantityRequested: line.quantity,
             quantityIssued,
             status,
@@ -219,6 +238,11 @@ export class SessionSuppliesService {
 
   async substitute(scheduleId: string, dto: SubstituteSupplyDto, actor: AuthenticatedUser) {
     const schedule = await this.requireSchedule(scheduleId);
+    if (schedule.status !== "ARRIVED" && schedule.status !== "LATE") {
+      throw new ConflictException(
+        `Cannot substitute supplies while the schedule is ${schedule.status} - the patient must have arrived`,
+      );
+    }
     const warehouse = await this.requireMainWarehouse();
 
     const originalRecord = await this.prisma.sessionSupplyIssueItem.findUnique({
@@ -228,6 +252,15 @@ export class SessionSuppliesService {
       throw new BadRequestException(
         "Can only substitute for an item that was confirmed UNAVAILABLE for this session",
       );
+    }
+    // A shortage is covered by exactly one substitute - a second one for the
+    // same original would double-issue against a need that's already met
+    // (docs review DCMS-044).
+    const alreadyCovered = await this.prisma.sessionSupplyIssueItem.findFirst({
+      where: { scheduleId, substituteForItemId: dto.originalItemId },
+    });
+    if (alreadyCovered) {
+      throw new ConflictException("This shortage was already covered by a substitute");
     }
     const existingForSubstitute = await this.prisma.sessionSupplyIssueItem.findUnique({
       where: { scheduleId_itemId: { scheduleId, itemId: dto.substituteItemId } },
@@ -240,77 +273,84 @@ export class SessionSuppliesService {
       throw new BadRequestException("Substitute item not found");
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      // Same atomic guard as confirmIssue - a substitute with no real stock
-      // behind it is exactly the "silent substitution" the doc forbids.
-      const result = await tx.stockBalance.updateMany({
-        where: { itemId: dto.substituteItemId, locationId: warehouse.id, quantity: { gte: dto.quantity } },
-        data: { quantity: { decrement: dto.quantity } },
-      });
-      if (result.count === 0) {
-        throw new ConflictException("The substitute item does not have enough stock either");
-      }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Same atomic guard as confirmIssue - a substitute with no real stock
+        // behind it is exactly the "silent substitution" the doc forbids.
+        const result = await tx.stockBalance.updateMany({
+          where: { itemId: dto.substituteItemId, locationId: warehouse.id, quantity: { gte: dto.quantity } },
+          data: { quantity: { decrement: dto.quantity } },
+        });
+        if (result.count === 0) {
+          throw new ConflictException("The substitute item does not have enough stock either");
+        }
 
-      const issueItem = await tx.sessionSupplyIssueItem.create({
-        data: {
-          scheduleId,
-          itemId: dto.substituteItemId,
-          quantityRequested: dto.quantity,
-          quantityIssued: dto.quantity,
-          status: "SUBSTITUTED",
-          substituteForItemId: dto.originalItemId,
-          reason: dto.reason,
-          performedById: actor.id,
-        },
-        include: { item: true, substituteForItem: true },
-      });
-
-      await tx.stockMovement.create({
-        data: {
-          itemId: dto.substituteItemId,
-          fromLocationId: warehouse.id,
-          quantity: dto.quantity,
-          movementType: "ISSUE",
-          relatedScheduleId: scheduleId,
-          reason: `Substitute for ${dto.originalItemId}: ${dto.reason}`,
-          performedById: actor.id,
-        },
-      });
-
-      await this.auditService.log(
-        {
-          actorId: actor.id,
-          actorRole: actor.roles[0] ?? "UNKNOWN",
-          action: "SESSION_SUPPLY_SUBSTITUTED",
-          entityType: "SessionSupplyIssueItem",
-          entityId: issueItem.id,
-          newValue: {
-            originalItemId: dto.originalItemId,
-            substituteItemId: dto.substituteItemId,
-            quantity: dto.quantity,
-          },
-          reason: dto.reason,
-        },
-        tx,
-      );
-
-      await tx.patientTimelineEvent.create({
-        data: {
-          patientId: schedule.patientId,
-          type: "SUPPLY_SUBSTITUTED",
-          payload: {
+        const issueItem = await tx.sessionSupplyIssueItem.create({
+          data: {
             scheduleId,
-            originalItemId: dto.originalItemId,
-            substituteItemId: dto.substituteItemId,
+            itemId: dto.substituteItemId,
+            quantityRequested: dto.quantity,
+            quantityIssued: dto.quantity,
+            status: "SUBSTITUTED",
+            substituteForItemId: dto.originalItemId,
+            reason: dto.reason,
+            performedById: actor.id,
+          },
+          include: { item: true, substituteForItem: true },
+        });
+
+        await tx.stockMovement.create({
+          data: {
+            itemId: dto.substituteItemId,
+            fromLocationId: warehouse.id,
             quantity: dto.quantity,
+            movementType: "ISSUE",
+            relatedScheduleId: scheduleId,
+            reason: `Substitute for ${dto.originalItemId}: ${dto.reason}`,
+            performedById: actor.id,
+          },
+        });
+
+        await this.auditService.log(
+          {
+            actorId: actor.id,
+            actorRole: actor.roles[0] ?? "UNKNOWN",
+            action: "SESSION_SUPPLY_SUBSTITUTED",
+            entityType: "SessionSupplyIssueItem",
+            entityId: issueItem.id,
+            newValue: {
+              originalItemId: dto.originalItemId,
+              substituteItemId: dto.substituteItemId,
+              quantity: dto.quantity,
+            },
             reason: dto.reason,
           },
-          performedById: actor.id,
-          sourceModule: "inventory",
-        },
-      });
+          tx,
+        );
 
-      return issueItem;
-    });
+        await tx.patientTimelineEvent.create({
+          data: {
+            patientId: schedule.patientId,
+            type: "SUPPLY_SUBSTITUTED",
+            payload: {
+              scheduleId,
+              originalItemId: dto.originalItemId,
+              substituteItemId: dto.substituteItemId,
+              quantity: dto.quantity,
+              reason: dto.reason,
+            },
+            performedById: actor.id,
+            sourceModule: "inventory",
+          },
+        });
+
+        return issueItem;
+      });
+    } catch (error) {
+      if (isUniqueConstraintOn(error, "substituteForItemId")) {
+        throw new ConflictException("This shortage was already covered by a substitute");
+      }
+      throw error;
+    }
   }
 }
