@@ -8,4 +8,9 @@ export class CreateEventDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  // See create-reading.dto.ts - same quick-PIN attribution mechanism.
+  @IsOptional()
+  @IsString()
+  verifiedActorId?: string;
 }

@@ -3,8 +3,10 @@ import { DialysisSession, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { MachinesService } from "../machines/machines.service";
+import { AssignmentsService } from "../nursing/assignments.service";
 import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "../auth/auth.utils";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { todayDateOnly } from "../scheduling/date.util";
 import { PreDialysisDto } from "./dto/pre-dialysis.dto";
 import { StartDialysisDto } from "./dto/start-dialysis.dto";
 import { EndDialysisDto } from "./dto/end-dialysis.dto";
@@ -21,7 +23,61 @@ export class SessionsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly machinesService: MachinesService,
+    private readonly assignmentsService: AssignmentsService,
   ) {}
+
+  // If the performer is on the nursing-floor permission tier (holds
+  // nursing.ward.view) but not the unrestricted one, they may only act on
+  // patients actually rostered to them today (docs/PROJECT-PHASES-PLAN.md
+  // Phase 7 acceptance criterion 5). Anyone outside that tier entirely
+  // (e.g. a doctor holding dialysis.* permissions directly) is unaffected -
+  // this is additive, not a new restriction on pre-Phase-7 callers.
+  private async enforceNursingAssignment(patientId: string, performer: { id: string; permissions: string[] }) {
+    if (!performer.permissions.includes("nursing.ward.view") || performer.permissions.includes("nursing.ward.view.all")) {
+      return;
+    }
+    const assigned = await this.assignmentsService.isPatientAssignedToNurseOnDate(
+      patientId,
+      performer.id,
+      todayDateOnly(),
+    );
+    if (!assigned) {
+      throw new ForbiddenException("This patient is not on your assigned roster for today");
+    }
+  }
+
+  // Resolves who actually performed the action: either the device's own
+  // authenticated session, or - if a quick-PIN check just verified someone
+  // else on this shared device - that verified user, provided they're
+  // active and hold the same permission this action requires (docs review
+  // DCMS-054 established this validation pattern; Phase 7 criterion 2 is
+  // what requires using it here). Returns the performer's own id AND
+  // permissions so enforceNursingAssignment checks the person actually
+  // doing the work, not whoever's session the shared device is logged into.
+  private async resolvePerformer(
+    actor: AuthenticatedUser,
+    verifiedActorId: string | undefined,
+    requiredPermission: string,
+  ): Promise<{ id: string; permissions: string[] }> {
+    if (!verifiedActorId || verifiedActorId === actor.id) {
+      return actor;
+    }
+    const verifiedUser = await this.prisma.user.findUnique({
+      where: { id: verifiedActorId },
+      include: USER_WITH_ROLES_INCLUDE,
+    });
+    if (!verifiedUser) {
+      throw new BadRequestException("verifiedActorId does not refer to an existing user");
+    }
+    if (!verifiedUser.isActive) {
+      throw new BadRequestException("verifiedActorId refers to a deactivated user");
+    }
+    const resolved = toAuthenticatedUser(verifiedUser);
+    if (!resolved.permissions.includes(requiredPermission)) {
+      throw new BadRequestException(`verifiedActorId does not hold ${requiredPermission}`);
+    }
+    return resolved;
+  }
 
   async getOverview(scheduleId: string) {
     const schedule = await this.prisma.dialysisSchedule.findUnique({
@@ -423,6 +479,9 @@ export class SessionsService {
     if (session.status !== "IN_DIALYSIS") {
       throw new ConflictException(`Cannot record a reading while the session is ${session.status}`);
     }
+    const performer = await this.resolvePerformer(actor, dto.verifiedActorId, "dialysis.reading.create");
+    await this.enforceNursingAssignment(session.patientId, performer);
+    const enteredById = performer.id;
 
     const time = dto.time ? new Date(dto.time) : new Date();
     this.validateReadingTime(session, time);
@@ -438,7 +497,7 @@ export class SessionsService {
         tmp: dto.tmp,
         bloodFlow: dto.bloodFlow,
         uf: dto.uf,
-        enteredById: actor.id,
+        enteredById,
       },
     });
   }
@@ -452,6 +511,9 @@ export class SessionsService {
     if (!original || original.sessionId !== session.id) {
       throw new NotFoundException("Reading not found for this session");
     }
+    const performer = await this.resolvePerformer(actor, dto.verifiedActorId, "dialysis.reading.create");
+    await this.enforceNursingAssignment(session.patientId, performer);
+    const enteredById = performer.id;
 
     const time = dto.time ? new Date(dto.time) : original.time;
     this.validateReadingTime(session, time);
@@ -471,7 +533,7 @@ export class SessionsService {
           tmp: dto.tmp ?? original.tmp,
           bloodFlow: dto.bloodFlow ?? original.bloodFlow,
           uf: dto.uf ?? original.uf,
-          enteredById: actor.id,
+          enteredById,
           amendedFromId: original.id,
         },
       });
@@ -510,10 +572,13 @@ export class SessionsService {
     if (session.status !== "IN_DIALYSIS" && session.status !== "POST_DIALYSIS") {
       throw new ConflictException(`Cannot record an event while the session is ${session.status}`);
     }
+    const performer = await this.resolvePerformer(actor, dto.verifiedActorId, "dialysis.event.create");
+    await this.enforceNursingAssignment(session.patientId, performer);
+    const recordedById = performer.id;
 
     return this.prisma.$transaction(async (tx) => {
       const event = await tx.dialysisEvent.create({
-        data: { sessionId: session.id, type: dto.type, note: dto.note, recordedById: actor.id },
+        data: { sessionId: session.id, type: dto.type, note: dto.note, recordedById },
       });
 
       await tx.patientTimelineEvent.create({
@@ -521,7 +586,7 @@ export class SessionsService {
           patientId: session.patientId,
           type: `DIALYSIS_EVENT_${dto.type}`,
           payload: { sessionId: session.id, note: dto.note ?? null },
-          performedById: actor.id,
+          performedById: recordedById,
           sourceModule: "sessions",
         },
       });

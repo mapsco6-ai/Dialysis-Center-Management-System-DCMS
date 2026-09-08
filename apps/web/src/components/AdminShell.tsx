@@ -54,6 +54,11 @@ export function AdminShell({
                 الأجهزة
               </Link>
             )}
+            {(user.permissions.includes("nursing.ward.view") || user.permissions.includes("nursing.assign")) && (
+              <Link href="/admin/nursing" className="text-slate-600 hover:text-slate-900">
+                التمريض
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>

@@ -16,7 +16,11 @@ model User {
   username     String    @unique
   passwordHash String
   fullName     String
-  pin          String?
+  // Quick-PIN for identifying the actual performer on a shared/logged-in
+  // device (docs/PROJECT-PHASES-PLAN.md Phase 7: "Username+Password أو PIN
+  // سريع بعد الدخول الأساسي"). Hashed exactly like passwordHash - never
+  // stored or compared in plaintext.
+  pinHash      String?
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
   // Bumped on logout (and could be bumped on deactivation/password reset) so
@@ -41,6 +45,8 @@ model User {
   nursedSessions       DialysisSession[]             @relation("SessionNurse")
   enteredReadings      DialysisReading[]
   recordedEvents       DialysisEvent[]
+  nursingAssignments   NursingAssignment[]           @relation("AssignedNurse")
+  assignmentsCreated   NursingAssignment[]           @relation("AssignmentCreatedBy")
 
   @@map("users")
 }
@@ -181,13 +187,14 @@ model Patient {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  alerts            ClinicalAlert[]
-  timelineEvents    PatientTimelineEvent[]
-  dialysisPlans     DialysisPlan[]
-  dialysisSchedules DialysisSchedule[]
-  supplyProfiles    PatientSupplyProfile[]
-  approvalRequests  MachineUsageApprovalRequest[]
-  dialysisSessions  DialysisSession[]
+  alerts             ClinicalAlert[]
+  timelineEvents     PatientTimelineEvent[]
+  dialysisPlans      DialysisPlan[]
+  dialysisSchedules  DialysisSchedule[]
+  supplyProfiles     PatientSupplyProfile[]
+  approvalRequests   MachineUsageApprovalRequest[]
+  dialysisSessions   DialysisSession[]
+  nursingAssignments NursingAssignmentPatient[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -299,8 +306,9 @@ model Shift {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  plans     DialysisPlan[]
-  schedules DialysisSchedule[]
+  plans              DialysisPlan[]
+  schedules          DialysisSchedule[]
+  nursingAssignments NursingAssignment[]
 
   @@map("shifts")
 }
@@ -627,8 +635,9 @@ model Ward {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  machines         Machine[]
-  dialysisSessions DialysisSession[]
+  machines           Machine[]
+  dialysisSessions   DialysisSession[]
+  nursingAssignments NursingAssignment[]
 
   @@map("wards")
 }
@@ -865,4 +874,60 @@ model DialysisEvent {
 
   @@index([sessionId, recordedAt])
   @@map("dialysis_events")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7 (Nursing): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+// One row per nurse per ward/shift/date - the patients under them live in
+// NursingAssignmentPatient rather than a JSON array so the "no conflict"
+// rule (a patient can't sit under two nurses for the same ward/shift/date)
+// is a real DB constraint, not just an application check
+// (docs/MODULES-SPEC.md: "لا تعارض... إلا إذا سياسة المركز تسمح بذلك صراحة").
+model NursingAssignment {
+  id String @id @default(uuid())
+
+  wardId  String
+  ward    Ward     @relation(fields: [wardId], references: [id])
+  shiftId String
+  shift   Shift    @relation(fields: [shiftId], references: [id])
+  date    DateTime @db.Date
+
+  nurseId String
+  nurse   User   @relation("AssignedNurse", fields: [nurseId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patients NursingAssignmentPatient[]
+
+  @@unique([wardId, shiftId, date, nurseId])
+  @@index([nurseId, date])
+  @@map("nursing_assignments")
+}
+
+model NursingAssignmentPatient {
+  id String @id @default(uuid())
+
+  assignmentId String
+  assignment   NursingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Denormalized from the parent assignment: lets a single DB unique
+  // constraint enforce "this patient belongs to at most one nurse for this
+  // ward/shift/date" directly, without a cross-table check that could race.
+  wardId  String
+  shiftId String
+  date    DateTime @db.Date
+
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, wardId, shiftId, date])
+  @@map("nursing_assignment_patients")
 }

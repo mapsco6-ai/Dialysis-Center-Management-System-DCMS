@@ -282,3 +282,49 @@ export interface DialysisEvent {
   recordedBy?: { id: string; fullName: string };
   recordedAt: string;
 }
+
+export interface WardDashboardMachineSession {
+  id: string;
+  status: DialysisSessionStatus;
+  patientId: string;
+  patient: { id: string; fullName: string; patientCode: string };
+  nurseId: string | null;
+  nurse: { id: string; fullName: string } | null;
+  startTime: string | null;
+  lastReadingAt: string | null;
+  minutesSinceLastReading: number | null;
+  openAlertsCount: number;
+  recentEvents: { id: string; type: DialysisEventType; note: string | null; recordedAt: string }[];
+}
+
+export interface WardDashboardMachine {
+  id: string;
+  machineCode: string;
+  status: MachineStatus;
+  isProtected: boolean;
+  isEmergencyDedicated: boolean;
+  session: WardDashboardMachineSession | null;
+}
+
+export interface WardDashboard {
+  ward: { id: string; name: string };
+  date: string;
+  machines: WardDashboardMachine[];
+  doctorOrders: unknown[];
+}
+
+export interface NursingAssignment {
+  id: string;
+  wardId: string;
+  ward: Ward;
+  shiftId: string;
+  shift: Shift;
+  date: string;
+  nurseId: string;
+  nurse: { id: string; fullName: string };
+  patients: {
+    id: string;
+    patientId: string;
+    patient: { id: string; fullName: string; patientCode: string };
+  }[];
+}

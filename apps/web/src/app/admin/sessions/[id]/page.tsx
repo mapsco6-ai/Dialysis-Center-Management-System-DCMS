@@ -42,6 +42,11 @@ export default function SessionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [amendingId, setAmendingId] = useState<string | null>(null);
+  const [verifiedActor, setVerifiedActor] = useState<{ id: string; fullName: string } | null>(null);
+
+  function withVerifiedActor(body: unknown) {
+    return verifiedActor ? { ...(body as Record<string, unknown>), verifiedActorId: verifiedActor.id } : body;
+  }
 
   function refresh() {
     apiFetch(`/sessions/${params.id}`)
@@ -188,12 +193,12 @@ export default function SessionDetailPage() {
                 busy={busy}
                 onCancel={() => setAmendingId(null)}
                 onSubmit={(body) =>
-                  submit(`/readings/${amendingId}/amend`, body, () => setAmendingId(null))
+                  submit(`/readings/${amendingId}/amend`, withVerifiedActor(body), () => setAmendingId(null))
                 }
               />
             )}
             {canReading && !amendingId && (
-              <ReadingForm busy={busy} onSubmit={(body) => submit("/readings", body)} />
+              <ReadingForm busy={busy} onSubmit={(body) => submit("/readings", withVerifiedActor(body))} />
             )}
           </section>
 
@@ -208,8 +213,10 @@ export default function SessionDetailPage() {
               ))}
               {events.length === 0 && <li className="text-slate-400">لا توجد أحداث بعد</li>}
             </ul>
-            {canEvent && <EventForm busy={busy} onSubmit={(body) => submit("/events", body)} />}
+            {canEvent && <EventForm busy={busy} onSubmit={(body) => submit("/events", withVerifiedActor(body))} />}
           </section>
+
+          <PinBanner verifiedActor={verifiedActor} onVerified={setVerifiedActor} />
 
           {canReassign && session.status === "IN_DIALYSIS" && (
             <ReassignMachineForm busy={busy} machines={machines} onSubmit={(body) => submit("/reassign-machine", body)} />
@@ -467,5 +474,73 @@ function EndDialysisForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: u
         إنهاء الجلسة
       </button>
     </form>
+  );
+}
+
+// Lets whoever is physically at a shared/logged-in device identify
+// themselves via PIN so the next reading/event/amend is attributed to them,
+// not the device's own session (docs/PROJECT-PHASES-PLAN.md Phase 7:
+// "PIN سريع بعد الدخول الأساسي").
+function PinBanner({
+  verifiedActor,
+  onVerified,
+}: {
+  verifiedActor: { id: string; fullName: string } | null;
+  onVerified: (actor: { id: string; fullName: string } | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [username, setUsername] = useState("");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleVerify(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await apiFetch("/nursing/verify-pin", { method: "POST", body: JSON.stringify({ username, pin }) });
+      onVerified(result);
+      setOpen(false);
+      setUsername("");
+      setPin("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "فشل التحقق");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (verifiedActor) {
+    return (
+      <div className="mt-4 flex items-center justify-between rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <span>سيتم تسجيل الإجراءات القادمة باسم: {verifiedActor.fullName}</span>
+        <button onClick={() => onVerified(null)} className="text-xs text-emerald-800 hover:underline">
+          إلغاء
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4">
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="text-xs font-medium text-slate-500 hover:underline">
+          تسجيل الدخول السريع بـ PIN (جهاز مشترك)
+        </button>
+      ) : (
+        <form onSubmit={handleVerify} className="flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-3">
+          <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="اسم المستخدم" className="w-32 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+          <input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN" inputMode="numeric" className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+          <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">
+            تحقق
+          </button>
+          <button type="button" onClick={() => setOpen(false)} className="text-xs text-slate-400">
+            إلغاء
+          </button>
+          {error && <span className="text-xs text-red-600">{error}</span>}
+        </form>
+      )}
+    </div>
   );
 }

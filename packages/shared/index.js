@@ -61,6 +61,11 @@ const PERMISSIONS = [
   { key: "dialysis.reading.create", module: "dialysis", description: "Record and amend DialysisReading entries during a session" },
   { key: "dialysis.event.create", module: "dialysis", description: "Record DialysisEvent entries during a session" },
   { key: "dialysis.end", module: "dialysis", description: "End a dialysis session and record discharge" },
+
+  // Phase 7 (Nursing)
+  { key: "nursing.assign", module: "nursing", description: "Create and manage nurse-to-patient ward assignments" },
+  { key: "nursing.ward.view", module: "nursing", description: "View the ward dashboard, filtered to assigned patients" },
+  { key: "nursing.ward.view.all", module: "nursing", description: "View the full ward dashboard regardless of assignment" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

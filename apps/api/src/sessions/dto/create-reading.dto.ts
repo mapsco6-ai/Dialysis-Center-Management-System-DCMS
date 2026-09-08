@@ -1,4 +1,4 @@
-import { IsDateString, IsInt, IsNumber, IsOptional, Matches, Min } from "class-validator";
+import { IsDateString, IsInt, IsNumber, IsOptional, IsString, Matches, Min } from "class-validator";
 
 // arterialPressure/venousPressure/tmp are deliberately left without
 // magnitude bounds - their sign and typical range depend on equipment/
@@ -40,4 +40,13 @@ export class CreateReadingDto {
   @IsNumber()
   @Min(0)
   uf?: number;
+
+  // Set after a quick-PIN check on a shared, already-logged-in device
+  // (docs/PROJECT-PHASES-PLAN.md Phase 7) - the record is attributed to
+  // this verified user instead of the device's own session, once
+  // SessionsService confirms they're active and hold the same permission
+  // this endpoint requires.
+  @IsOptional()
+  @IsString()
+  verifiedActorId?: string;
 }
