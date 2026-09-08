@@ -186,6 +186,15 @@ export default function SchedulePage() {
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex flex-col items-start gap-1">
+                        {(row.status === "ARRIVED" || row.status === "LATE") &&
+                          user.permissions.includes("dialysis.session.view") && (
+                            <Link
+                              href={`/admin/sessions/${row.id}`}
+                              className="text-xs font-medium text-slate-600 hover:underline"
+                            >
+                              جلسة الديلزة
+                            </Link>
+                          )}
                         {(row.status === "ARRIVED" || row.status === "LATE") && (
                           <Link
                             href={`/admin/sessions/${row.id}/supplies`}

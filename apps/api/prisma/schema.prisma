@@ -26,18 +26,21 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  roles              UserRole[]
-  auditLogs          AuditLog[]
-  clinicalAlerts     ClinicalAlert[]
-  timelineEvents     PatientTimelineEvent[]
-  requestedSchedules DialysisSchedule[] @relation("ScheduleRequestedByDoctor")
-  checkedInSchedules DialysisSchedule[] @relation("ScheduleCheckedInBy")
-  stockMovements     StockMovement[]
-  supplyOverrides    SessionSupplyOverride[]
-  supplyIssues       SessionSupplyIssueItem[]
+  roles                UserRole[]
+  auditLogs            AuditLog[]
+  clinicalAlerts       ClinicalAlert[]
+  timelineEvents       PatientTimelineEvent[]
+  requestedSchedules   DialysisSchedule[]            @relation("ScheduleRequestedByDoctor")
+  checkedInSchedules   DialysisSchedule[]            @relation("ScheduleCheckedInBy")
+  stockMovements       StockMovement[]
+  supplyOverrides      SessionSupplyOverride[]
+  supplyIssues         SessionSupplyIssueItem[]
   machineStatusChanges MachineStatusHistory[]
-  approvalsRequested MachineUsageApprovalRequest[] @relation("ApprovalRequestedBy")
-  approvalsDecided   MachineUsageApprovalRequest[] @relation("ApprovalDecidedBy")
+  approvalsRequested   MachineUsageApprovalRequest[] @relation("ApprovalRequestedBy")
+  approvalsDecided     MachineUsageApprovalRequest[] @relation("ApprovalDecidedBy")
+  nursedSessions       DialysisSession[]             @relation("SessionNurse")
+  enteredReadings      DialysisReading[]
+  recordedEvents       DialysisEvent[]
 
   @@map("users")
 }
@@ -149,12 +152,12 @@ model Patient {
   // humanNumber is a DB-level auto-incrementing sequence used only to derive
   // patientCode (e.g. P-000352) with zero collision risk under bulk import,
   // even across many concurrent inserts. It is never shown to end users.
-  humanNumber Int     @unique @default(autoincrement())
-  patientCode String  @unique
-  barcode     String  @unique
+  humanNumber Int    @unique @default(autoincrement())
+  patientCode String @unique
+  barcode     String @unique
 
-  fullName String
-  gender   Gender
+  fullName    String
+  gender      Gender
   dateOfBirth DateTime
 
   phone      String?
@@ -184,6 +187,7 @@ model Patient {
   dialysisSchedules DialysisSchedule[]
   supplyProfiles    PatientSupplyProfile[]
   approvalRequests  MachineUsageApprovalRequest[]
+  dialysisSessions  DialysisSession[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -225,7 +229,7 @@ model PatientTimelineEvent {
   payload Json?
 
   performedById String?
-  performedBy   User?   @relation(fields: [performedById], references: [id])
+  performedBy   User?    @relation(fields: [performedById], references: [id])
   performedAt   DateTime @default(now())
 
   sourceModule String
@@ -370,7 +374,7 @@ model DialysisSchedule {
   // Set only by the automatic (not manual) absence check - see
   // SchedulingService.ensureAbsencesMarked. Kept even if the patient later
   // shows up and checks in late, as a historical fact (append-or-amend).
-  absentMarkedAt DateTime?
+  absentMarkedAt   DateTime?
 
   // Phase 5 (Machines): set by MachinesService.assignMachine, never directly.
   machineId String?
@@ -383,6 +387,10 @@ model DialysisSchedule {
   supplyIssueItems SessionSupplyIssueItem[]
   stockMovements   StockMovement[]
   approvalRequests MachineUsageApprovalRequest[]
+  // Phase 6: the actual clinical session that branches off this schedule
+  // once the patient arrives (docs/MODULES-SPEC.md: "DialysisSchedule هو
+  // الأصل الذي تتفرع منه لاحقاً DialysisSession"). At most one per schedule.
+  session          DialysisSession?
 
   @@unique([patientId, scheduledDate, shiftId])
   @@index([scheduledDate])
@@ -427,8 +435,8 @@ model InventoryItem {
   // Used by later phases (Low/Critical Stock alerts in Phase 11, session
   // cost in Phase 11/14) - stored now since they're intrinsic properties of
   // the catalog item, not because this phase computes alerts or costs.
-  minimumStock          Decimal @db.Decimal(10, 2) @default(0)
-  cost                  Decimal @db.Decimal(10, 2) @default(0)
+  minimumStock          Decimal @default(0) @db.Decimal(10, 2)
+  cost                  Decimal @default(0) @db.Decimal(10, 2)
   requiresBatchTracking Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -471,7 +479,7 @@ model StockBalance {
 
   // Never allowed to go negative - enforced by a conditional update in
   // InventoryItemsService, not just application-level intent (docs/MODULES-SPEC.md).
-  quantity Decimal @db.Decimal(10, 2) @default(0)
+  quantity Decimal @default(0) @db.Decimal(10, 2)
 
   updatedAt DateTime @updatedAt
 
@@ -517,7 +525,7 @@ model PatientSupplyProfile {
   id String @id @default(uuid())
 
   patientId String
-  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
   itemId    String
   item      InventoryItem @relation(fields: [itemId], references: [id])
 
@@ -565,7 +573,7 @@ model SessionSupplyIssueItem {
   item       InventoryItem    @relation("IssueItem", fields: [itemId], references: [id])
 
   quantityRequested Decimal           @db.Decimal(10, 2)
-  quantityIssued    Decimal           @db.Decimal(10, 2) @default(0)
+  quantityIssued    Decimal           @default(0) @db.Decimal(10, 2)
   status            SupplyIssueStatus
 
   substituteForItemId String?
@@ -615,7 +623,8 @@ model Ward {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  machines Machine[]
+  machines         Machine[]
+  dialysisSessions DialysisSession[]
 
   @@map("wards")
 }
@@ -650,6 +659,7 @@ model Machine {
   statusHistory    MachineStatusHistory[]
   approvalRequests MachineUsageApprovalRequest[]
   schedules        DialysisSchedule[]
+  dialysisSessions DialysisSession[]
 
   @@map("machines")
 }
@@ -665,7 +675,7 @@ model MachineStatusHistory {
   toStatus   MachineStatus
 
   changedById String
-  changedBy   User   @relation(fields: [changedById], references: [id])
+  changedBy   User    @relation(fields: [changedById], references: [id])
   reason      String?
 
   changedAt DateTime @default(now())
@@ -703,4 +713,152 @@ model MachineUsageApprovalRequest {
 
   @@unique([patientId, machineId, scheduleId])
   @@map("machine_usage_approval_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6 (Dialysis Session): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+// The full clinical state machine. SCHEDULED/ARRIVED/LATE/ABSENT/CANCELLED
+// live entirely on DialysisSchedule (Phase 3) - a DialysisSession row is only
+// ever created once the patient has arrived and Pre-Dialysis begins, so this
+// enum starts there.
+enum DialysisSessionStatus {
+  PRE_DIALYSIS
+  SUPPLIES_READY
+  WAITING_MACHINE
+  ASSIGNED
+  IN_DIALYSIS
+  POST_DIALYSIS
+  COMPLETED
+  DISCHARGED
+  INTERRUPTED
+}
+
+enum DialysisEventType {
+  NORMAL
+  HYPOTENSION
+  ACCESS_ISSUE
+  MACHINE_ISSUE
+  MEDICATION_GIVEN
+  PHYSICIAN_CALLED
+  SESSION_INTERRUPTED
+  OTHER
+}
+
+// One row per DialysisSchedule, created lazily on the first Pre-Dialysis
+// call (docs/MODULES-SPEC.md: "DialysisSchedule هو الأصل الذي تتفرع منه
+// لاحقاً DialysisSession"). All state transitions go through
+// SessionsService.transition() - never a direct Prisma update - so the
+// ordering guard ("لا يمكن تخطي مرحلة") can never be bypassed.
+model DialysisSession {
+  id String @id @default(uuid())
+
+  scheduleId String           @unique
+  schedule   DialysisSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  // Set once the machine-assignment flow (Phase 5) resolves for this
+  // session, and re-pointed by REASSIGN MACHINE mid-session without ever
+  // losing the readings/events collected so far.
+  machineId String?
+  machine   Machine? @relation(fields: [machineId], references: [id])
+  wardId    String?
+  ward      Ward?    @relation(fields: [wardId], references: [id])
+
+  nurseId String?
+  nurse   User?   @relation("SessionNurse", fields: [nurseId], references: [id])
+
+  status DialysisSessionStatus @default(PRE_DIALYSIS)
+
+  // Pre-Dialysis assessment (docs: "Weight/BP/Pulse/Temperature/Glucose/Dry
+  // Weight/Notes"), captured once on arrival and required (non-null) before
+  // START DIALYSIS can proceed.
+  preWeight      Decimal? @db.Decimal(5, 2)
+  preBP          String?
+  prePulse       Int?
+  preTemperature Decimal? @db.Decimal(4, 1)
+  preGlucose     Decimal? @db.Decimal(6, 2)
+  dryWeight      Decimal? @db.Decimal(5, 2)
+  preNotes       String?
+
+  // START DIALYSIS (docs: "Ward/Machine/Start Time/Nurse/Pre Weight/BP/
+  // Pulse/Dialyzer/Prescribed Duration/Required UF/Access Info" - Ward,
+  // Machine and Pre Weight/BP/Pulse are the fields above, already captured).
+  dialyzerType              String?
+  bloodLineType             String?
+  prescribedDurationMinutes Int?
+  requiredUF                Decimal?  @db.Decimal(6, 2)
+  accessInfo                Json?
+  startTime                 DateTime?
+
+  // END DIALYSIS
+  postWeight            Decimal?  @db.Decimal(5, 2)
+  postBP                String?
+  postPulse             Int?
+  actualUF              Decimal?  @db.Decimal(6, 2)
+  actualDurationMinutes Int?
+  complications         String?
+  finalNote             String?
+  endTime               DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  readings DialysisReading[]
+  events   DialysisEvent[]
+
+  @@map("dialysis_sessions")
+}
+
+// Append-or-Amend (docs/MODULES-SPEC.md: "لا UPDATE مباشر على قراءة موجودة -
+// التعديل ينشئ سجلاً جديداً بـamendedFromId"). A reading is never mutated in
+// place; amending creates a new row pointing back at the one it corrects.
+model DialysisReading {
+  id String @id @default(uuid())
+
+  sessionId String
+  session   DialysisSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  time             DateTime @default(now())
+  bp               String?
+  pulse            Int?
+  arterialPressure Decimal? @db.Decimal(6, 2)
+  venousPressure   Decimal? @db.Decimal(6, 2)
+  tmp              Decimal? @db.Decimal(6, 2)
+  bloodFlow        Decimal? @db.Decimal(6, 2)
+  uf               Decimal? @db.Decimal(6, 2)
+
+  enteredById String
+  enteredBy   User   @relation(fields: [enteredById], references: [id])
+
+  amendedFromId String?
+  amendedFrom   DialysisReading?  @relation("ReadingAmendment", fields: [amendedFromId], references: [id])
+  amendments    DialysisReading[] @relation("ReadingAmendment")
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, time])
+  @@map("dialysis_readings")
+}
+
+// Append-only, never edited or deleted - this is what feeds both the
+// session's own event log and the patient's Timeline immediately
+// (docs/PROJECT-PHASES-PLAN.md Phase 6 acceptance criterion 4).
+model DialysisEvent {
+  id String @id @default(uuid())
+
+  sessionId String
+  session   DialysisSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      DialysisEventType
+  note      String?
+
+  recordedById String
+  recordedBy   User     @relation(fields: [recordedById], references: [id])
+  recordedAt   DateTime @default(now())
+
+  @@index([sessionId, recordedAt])
+  @@map("dialysis_events")
 }

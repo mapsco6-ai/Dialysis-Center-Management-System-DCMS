@@ -53,6 +53,14 @@ const PERMISSIONS = [
   { key: "machine.manage", module: "machines", description: "Manage wards/machine catalog and non-assignment status changes" },
   { key: "machine.assign", module: "machines", description: "Assign machines to sessions (automatic or manual override)" },
   { key: "approval.machine.decide", module: "machines", description: "Approve or reject protected/emergency machine usage requests" },
+
+  // Phase 6 (Dialysis Session)
+  { key: "dialysis.session.view", module: "dialysis", description: "View dialysis sessions, readings, and events" },
+  { key: "dialysis.pre.record", module: "dialysis", description: "Record Pre-Dialysis assessment and confirm supplies ready" },
+  { key: "dialysis.start", module: "dialysis", description: "Start a dialysis session (nursing/medical only)" },
+  { key: "dialysis.reading.create", module: "dialysis", description: "Record and amend DialysisReading entries during a session" },
+  { key: "dialysis.event.create", module: "dialysis", description: "Record DialysisEvent entries during a session" },
+  { key: "dialysis.end", module: "dialysis", description: "End a dialysis session and record discharge" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

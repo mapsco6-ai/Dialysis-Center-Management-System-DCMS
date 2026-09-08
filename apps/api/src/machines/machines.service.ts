@@ -32,10 +32,13 @@ export class MachinesService {
     return machine;
   }
 
-  // The one place any Machine.status ever changes - every caller in this
-  // service routes through it, so MachineStatusHistory can never miss an
-  // entry (docs/MODULES-SPEC.md: "يجب أن يمر عبر خدمة واحدة مركزية").
-  private async transitionStatus(
+  // The one place any Machine.status ever changes - every caller (in this
+  // service, and SessionsService for the IN_USE/WAITING_CLEANING/
+  // OUT_OF_SERVICE transitions Phase 6 drives) routes through it, so
+  // MachineStatusHistory can never miss an entry (docs/MODULES-SPEC.md:
+  // "يجب أن يمر عبر خدمة واحدة مركزية"). Deliberately not private: it stays
+  // the single choke point, just not limited to callers within this file.
+  async transitionStatus(
     tx: PrismaTx,
     machine: Pick<Machine, "id" | "status">,
     toStatus: MachineStatus,
@@ -94,6 +97,26 @@ export class MachinesService {
       where: status ? { status } : undefined,
       include: { ward: true },
       orderBy: { machineCode: "asc" },
+    });
+  }
+
+  // Phase 6 integration point: if a DialysisSession already exists for this
+  // schedule (patient has arrived and passed Pre-Dialysis), keep it in sync
+  // with the machine-assignment outcome. A no-op (0 rows) when no session
+  // exists yet, or the session isn't at a stage expecting a machine - which
+  // keeps every Phase 5 caller (including sessions created before Phase 6
+  // existed) working unchanged.
+  private async syncSessionOnAssigned(tx: PrismaTx, scheduleId: string, machineId: string) {
+    await tx.dialysisSession.updateMany({
+      where: { scheduleId, status: { in: ["SUPPLIES_READY", "WAITING_MACHINE"] } },
+      data: { machineId, status: "ASSIGNED" },
+    });
+  }
+
+  private async syncSessionOnApprovalRequired(tx: PrismaTx, scheduleId: string) {
+    await tx.dialysisSession.updateMany({
+      where: { scheduleId, status: "SUPPLIES_READY" },
+      data: { status: "WAITING_MACHINE" },
     });
   }
 
@@ -191,6 +214,7 @@ export class MachinesService {
     return this.prisma.$transaction(async (tx) => {
       await this.transitionStatus(tx, machine, newStatus, actor, reason);
       await tx.dialysisSchedule.update({ where: { id: schedule.id }, data: { machineId: machine.id } });
+      await this.syncSessionOnAssigned(tx, schedule.id, machine.id);
 
       await this.auditService.log(
         {
@@ -275,6 +299,7 @@ export class MachinesService {
     return this.prisma.$transaction(async (tx) => {
       await this.transitionStatus(tx, machine, newStatus, actor, reason);
       await tx.dialysisSchedule.update({ where: { id: schedule.id }, data: { machineId: machine.id } });
+      await this.syncSessionOnAssigned(tx, schedule.id, machine.id);
 
       await this.auditService.log(
         {
@@ -315,6 +340,7 @@ export class MachinesService {
   ) {
     return this.prisma.$transaction(async (tx) => {
       await this.transitionStatus(tx, machine, "APPROVAL_REQUIRED", actor, reason);
+      await this.syncSessionOnApprovalRequired(tx, schedule.id);
 
       // Upsert on (patientId, machineId, scheduleId): a repeat request for
       // the same session/machine updates instead of duplicating
@@ -426,6 +452,7 @@ export class MachinesService {
           where: { id: approval.scheduleId },
           data: { machineId: approval.machineId },
         });
+        await this.syncSessionOnAssigned(tx, approval.scheduleId, approval.machineId);
       } else {
         // Rejected: machine goes back to the pool, the schedule stays
         // without a machine (docs/PROJECT-PHASES-PLAN.md: "المريض ينتظر").

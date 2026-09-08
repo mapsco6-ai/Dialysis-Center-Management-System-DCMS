@@ -11,6 +11,7 @@ import { PatientsModule } from "./patients/patients.module";
 import { SchedulingModule } from "./scheduling/scheduling.module";
 import { InventoryModule } from "./inventory/inventory.module";
 import { MachinesModule } from "./machines/machines.module";
+import { SessionsModule } from "./sessions/sessions.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -26,6 +27,7 @@ import { HealthController } from "./health/health.controller";
     SchedulingModule,
     InventoryModule,
     MachinesModule,
+    SessionsModule,
   ],
   controllers: [HealthController],
 })

@@ -197,3 +197,88 @@ export interface SessionSuppliesResponse {
   pending: SessionSupplyPendingLine[];
   issued: SessionSupplyIssueItem[];
 }
+
+export type DialysisSessionStatus =
+  | "PRE_DIALYSIS"
+  | "SUPPLIES_READY"
+  | "WAITING_MACHINE"
+  | "ASSIGNED"
+  | "IN_DIALYSIS"
+  | "POST_DIALYSIS"
+  | "COMPLETED"
+  | "DISCHARGED"
+  | "INTERRUPTED";
+
+export type DialysisEventType =
+  | "NORMAL"
+  | "HYPOTENSION"
+  | "ACCESS_ISSUE"
+  | "MACHINE_ISSUE"
+  | "MEDICATION_GIVEN"
+  | "PHYSICIAN_CALLED"
+  | "SESSION_INTERRUPTED"
+  | "OTHER";
+
+export interface DialysisSession {
+  id: string;
+  scheduleId: string;
+  patientId: string;
+  machineId: string | null;
+  machine?: Machine | null;
+  wardId: string | null;
+  ward?: Ward | null;
+  nurseId: string | null;
+  nurse?: { id: string; fullName: string } | null;
+  status: DialysisSessionStatus;
+  preWeight: string | null;
+  preBP: string | null;
+  prePulse: number | null;
+  preTemperature: string | null;
+  preGlucose: string | null;
+  dryWeight: string | null;
+  preNotes: string | null;
+  dialyzerType: string | null;
+  bloodLineType: string | null;
+  prescribedDurationMinutes: number | null;
+  requiredUF: string | null;
+  accessInfo: Record<string, unknown> | null;
+  startTime: string | null;
+  postWeight: string | null;
+  postBP: string | null;
+  postPulse: number | null;
+  actualUF: string | null;
+  actualDurationMinutes: number | null;
+  complications: string | null;
+  finalNote: string | null;
+  endTime: string | null;
+}
+
+export interface SessionOverview extends DialysisScheduleEntry {
+  session: DialysisSession | null;
+}
+
+export interface DialysisReading {
+  id: string;
+  sessionId: string;
+  time: string;
+  bp: string | null;
+  pulse: number | null;
+  arterialPressure: string | null;
+  venousPressure: string | null;
+  tmp: string | null;
+  bloodFlow: string | null;
+  uf: string | null;
+  enteredById: string;
+  enteredBy?: { id: string; fullName: string };
+  amendedFromId: string | null;
+}
+
+export interface DialysisEvent {
+  id: string;
+  sessionId: string;
+  type: DialysisEventType;
+  note: string | null;
+  recordedById: string;
+  recordedBy?: { id: string; fullName: string };
+  recordedAt: string;
+}
