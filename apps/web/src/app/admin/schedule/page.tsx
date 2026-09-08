@@ -43,6 +43,8 @@ export default function SchedulePage() {
   const [date, setDate] = useState(() => toLocalDateInputValue(new Date()));
   const [entries, setEntries] = useState<DialysisScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<Record<string, string>>({});
 
   const isToday = date === toLocalDateInputValue(new Date());
 
@@ -71,6 +73,37 @@ export default function SchedulePage() {
       if (interval) clearInterval(interval);
     };
   }, [user, date, isToday]);
+
+  async function handleAssignMachine(scheduleId: string) {
+    setAssigning(scheduleId);
+    setAssignError((prev) => ({ ...prev, [scheduleId]: "" }));
+    try {
+      const result = await apiFetch(`/sessions/${scheduleId}/assign-machine`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === scheduleId
+            ? { ...e, machineId: result.approval ? e.machineId : (result.machine?.id ?? e.machineId) }
+            : e,
+        ),
+      );
+      if (result.approval) {
+        setAssignError((prev) => ({
+          ...prev,
+          [scheduleId]: `تم إنشاء طلب موافقة لجهاز ${result.machine?.machineCode ?? ""} - بانتظار القرار`,
+        }));
+      }
+    } catch (err) {
+      setAssignError((prev) => ({
+        ...prev,
+        [scheduleId]: err instanceof Error ? err.message : "تعذر تعيين الجهاز",
+      }));
+    } finally {
+      setAssigning(null);
+    }
+  }
 
   if (!user) {
     return <main className="p-8 text-slate-500">جاري التحميل...</main>;
@@ -152,14 +185,32 @@ export default function SchedulePage() {
                       {row.emergencyReason ? ` — ${row.emergencyReason}` : ""}
                     </td>
                     <td className="px-4 py-2">
-                      {(row.status === "ARRIVED" || row.status === "LATE") && (
-                        <Link
-                          href={`/admin/sessions/${row.id}/supplies`}
-                          className="text-xs font-medium text-slate-600 hover:underline"
-                        >
-                          المستلزمات
-                        </Link>
-                      )}
+                      <div className="flex flex-col items-start gap-1">
+                        {(row.status === "ARRIVED" || row.status === "LATE") && (
+                          <Link
+                            href={`/admin/sessions/${row.id}/supplies`}
+                            className="text-xs font-medium text-slate-600 hover:underline"
+                          >
+                            المستلزمات
+                          </Link>
+                        )}
+                        {user.permissions.includes("machine.assign") &&
+                          (row.status === "ARRIVED" || row.status === "LATE") &&
+                          (row.machineId ? (
+                            <span className="text-xs text-emerald-600">تم تعيين جهاز</span>
+                          ) : (
+                            <button
+                              onClick={() => handleAssignMachine(row.id)}
+                              disabled={assigning === row.id}
+                              className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
+                            >
+                              {assigning === row.id ? "جاري التعيين..." : "تعيين جهاز"}
+                            </button>
+                          ))}
+                        {assignError[row.id] && (
+                          <span className="text-xs text-amber-600">{assignError[row.id]}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

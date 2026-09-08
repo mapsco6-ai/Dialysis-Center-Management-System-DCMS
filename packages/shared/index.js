@@ -47,6 +47,12 @@ const PERMISSIONS = [
   { key: "inventory.view", module: "inventory", description: "View inventory catalog, stock, and supply profiles" },
   { key: "inventory.manage", module: "inventory", description: "Manage inventory catalog, stock levels, and patient supply profiles" },
   { key: "inventory.issue", module: "inventory", description: "Confirm and issue session supplies" },
+
+  // Phase 5 (Machines)
+  { key: "machine.view", module: "machines", description: "View wards, machines, and their live status" },
+  { key: "machine.manage", module: "machines", description: "Manage wards/machine catalog and non-assignment status changes" },
+  { key: "machine.assign", module: "machines", description: "Assign machines to sessions (automatic or manual override)" },
+  { key: "approval.machine.decide", module: "machines", description: "Approve or reject protected/emergency machine usage requests" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

@@ -10,6 +10,7 @@ import { AuditModule } from "./audit/audit.module";
 import { PatientsModule } from "./patients/patients.module";
 import { SchedulingModule } from "./scheduling/scheduling.module";
 import { InventoryModule } from "./inventory/inventory.module";
+import { MachinesModule } from "./machines/machines.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -24,6 +25,7 @@ import { HealthController } from "./health/health.controller";
     PatientsModule,
     SchedulingModule,
     InventoryModule,
+    MachinesModule,
   ],
   controllers: [HealthController],
 })

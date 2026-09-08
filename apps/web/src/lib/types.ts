@@ -100,6 +100,55 @@ export interface DialysisScheduleEntry {
   checkInStationId: string | null;
   lateMinutes: number | null;
   absentMarkedAt: string | null;
+  machineId: string | null;
+}
+
+export type MachineStatus =
+  | "AVAILABLE"
+  | "IN_USE"
+  | "RESERVED"
+  | "EMERGENCY_RESERVED"
+  | "APPROVAL_REQUIRED"
+  | "WAITING_CLEANING"
+  | "CLEANING"
+  | "MAINTENANCE"
+  | "OUT_OF_SERVICE";
+
+export type ApprovalDecision = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface Ward {
+  id: string;
+  name: string;
+}
+
+export interface Machine {
+  id: string;
+  machineCode: string;
+  wardId: string;
+  ward?: Ward;
+  serialNumber: string | null;
+  manufacturer: string | null;
+  model: string | null;
+  status: MachineStatus;
+  isEmergencyDedicated: boolean;
+  isProtected: boolean;
+}
+
+export interface MachineUsageApprovalRequest {
+  id: string;
+  patientId: string;
+  patient?: { id: string; fullName: string; patientCode: string };
+  machineId: string;
+  machine?: Machine;
+  scheduleId: string;
+  reason: string;
+  requestedById: string;
+  requestedBy?: { id: string; fullName: string };
+  decision: ApprovalDecision;
+  decidedById: string | null;
+  decidedBy?: { id: string; fullName: string } | null;
+  decidedAt: string | null;
+  createdAt: string;
 }
 
 export interface InventoryItem {

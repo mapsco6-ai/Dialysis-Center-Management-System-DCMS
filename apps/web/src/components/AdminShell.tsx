@@ -47,6 +47,13 @@ export function AdminShell({
                 المخزون
               </Link>
             )}
+            {(user.permissions.includes("machine.view") ||
+              user.permissions.includes("machine.assign") ||
+              user.permissions.includes("approval.machine.decide")) && (
+              <Link href="/admin/machines" className="text-slate-600 hover:text-slate-900">
+                الأجهزة
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>

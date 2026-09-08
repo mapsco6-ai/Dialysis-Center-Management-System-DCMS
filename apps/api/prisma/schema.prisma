@@ -35,6 +35,9 @@ model User {
   stockMovements     StockMovement[]
   supplyOverrides    SessionSupplyOverride[]
   supplyIssues       SessionSupplyIssueItem[]
+  machineStatusChanges MachineStatusHistory[]
+  approvalsRequested MachineUsageApprovalRequest[] @relation("ApprovalRequestedBy")
+  approvalsDecided   MachineUsageApprovalRequest[] @relation("ApprovalDecidedBy")
 
   @@map("users")
 }
@@ -180,6 +183,7 @@ model Patient {
   dialysisPlans     DialysisPlan[]
   dialysisSchedules DialysisSchedule[]
   supplyProfiles    PatientSupplyProfile[]
+  approvalRequests  MachineUsageApprovalRequest[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -368,12 +372,17 @@ model DialysisSchedule {
   // shows up and checks in late, as a historical fact (append-or-amend).
   absentMarkedAt DateTime?
 
+  // Phase 5 (Machines): set by MachinesService.assignMachine, never directly.
+  machineId String?
+  machine   Machine? @relation(fields: [machineId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   supplyOverrides  SessionSupplyOverride[]
   supplyIssueItems SessionSupplyIssueItem[]
   stockMovements   StockMovement[]
+  approvalRequests MachineUsageApprovalRequest[]
 
   @@unique([patientId, scheduledDate, shiftId])
   @@index([scheduledDate])
@@ -571,4 +580,127 @@ model SessionSupplyIssueItem {
   @@unique([scheduleId, itemId])
   @@index([scheduleId])
   @@map("session_supply_issue_items")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5 (Machines): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+enum MachineStatus {
+  AVAILABLE
+  IN_USE
+  RESERVED
+  EMERGENCY_RESERVED
+  APPROVAL_REQUIRED
+  WAITING_CLEANING
+  CLEANING
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Deliberately NOT seeded (unlike Shift/StockLocation): a ward's name/count
+// is a fact about the real physical center, not something this codebase
+// should invent. Created via the API by an admin, same reasoning as
+// InventoryItem.
+model Ward {
+  id   String @id @default(uuid())
+  name String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  machines Machine[]
+
+  @@map("wards")
+}
+
+// Never deleted - only OUT_OF_SERVICE (docs/MODULES-SPEC.md). Every status
+// transition must go through MachinesService.setStatus /
+// MachinesService.assignMachine, never a direct Prisma update from another
+// module, so MachineStatusHistory can never miss an entry.
+model Machine {
+  id          String @id @default(uuid())
+  machineCode String @unique
+
+  wardId String
+  ward   Ward   @relation(fields: [wardId], references: [id])
+
+  serialNumber String?
+  manufacturer String?
+  model        String?
+
+  status MachineStatus @default(AVAILABLE)
+
+  // A machine kept out of the normal assignment pool - either permanently
+  // for emergencies, or generally protected - until an authorized decision
+  // (approval, or a manual override by someone with that same authority)
+  // lets it be used for an ordinary patient (docs/MODULES-SPEC.md).
+  isEmergencyDedicated Boolean @default(false)
+  isProtected          Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusHistory    MachineStatusHistory[]
+  approvalRequests MachineUsageApprovalRequest[]
+  schedules        DialysisSchedule[]
+
+  @@map("machines")
+}
+
+// Append-only - this *is* the Machine Timeline referenced elsewhere in the
+// docs (fully built out in Phase 12).
+model MachineStatusHistory {
+  id String @id @default(uuid())
+
+  machineId  String
+  machine    Machine       @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  fromStatus MachineStatus
+  toStatus   MachineStatus
+
+  changedById String
+  changedBy   User   @relation(fields: [changedById], references: [id])
+  reason      String?
+
+  changedAt DateTime @default(now())
+
+  @@index([machineId, changedAt])
+  @@map("machine_status_history")
+}
+
+// Anchored to a specific DialysisSchedule row (not just a recurring
+// patient+machine+shift pairing) - precise enough that "duplicate request for
+// the same patient/machine/shift updates instead of creating a new one"
+// (docs/MODULES-SPEC.md) holds for the same session by construction, without
+// conflating different calendar days that merely share a shift.
+model MachineUsageApprovalRequest {
+  id String @id @default(uuid())
+
+  patientId  String
+  patient    Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  machineId  String
+  machine    Machine          @relation(fields: [machineId], references: [id])
+  scheduleId String
+  schedule   DialysisSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  reason String
+
+  requestedById String
+  requestedBy   User   @relation("ApprovalRequestedBy", fields: [requestedById], references: [id])
+
+  decision    ApprovalDecision @default(PENDING)
+  decidedById String?
+  decidedBy   User?            @relation("ApprovalDecidedBy", fields: [decidedById], references: [id])
+  decidedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([patientId, machineId, scheduleId])
+  @@map("machine_usage_approval_requests")
 }
