@@ -99,6 +99,14 @@ async function main() {
     });
   }
 
+  // Phase 4: fixed stock locations, like Shift. Only MAIN_WAREHOUSE is used
+  // before Phase 10/11 introduce the others.
+  await prisma.stockLocation.upsert({
+    where: { type: "MAIN_WAREHOUSE" },
+    update: {},
+    create: { type: "MAIN_WAREHOUSE", name: "المخزن الرئيسي" },
+  });
+
   console.log(`Seed complete. Roles: ${ROLES.length}, Permissions: ${allPermissions.length}, Shifts: ${shifts.length}.`);
   console.log(`SUPER_ADMIN login -> username: "${username}"`);
 }

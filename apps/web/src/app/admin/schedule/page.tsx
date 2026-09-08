@@ -131,6 +131,7 @@ export default function SchedulePage() {
                   <th className="px-4 py-2 font-medium">المريض</th>
                   <th className="px-4 py-2 font-medium">الحالة</th>
                   <th className="px-4 py-2 font-medium">النوع / السبب</th>
+                  <th className="px-4 py-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -149,6 +150,16 @@ export default function SchedulePage() {
                       {row.type}
                       {row.extraReason ? ` — ${row.extraReason}` : ""}
                       {row.emergencyReason ? ` — ${row.emergencyReason}` : ""}
+                    </td>
+                    <td className="px-4 py-2">
+                      {(row.status === "ARRIVED" || row.status === "LATE") && (
+                        <Link
+                          href={`/admin/sessions/${row.id}/supplies`}
+                          className="text-xs font-medium text-slate-600 hover:underline"
+                        >
+                          المستلزمات
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 ))}

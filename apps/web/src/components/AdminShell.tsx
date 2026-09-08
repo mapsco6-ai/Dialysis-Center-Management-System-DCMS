@@ -42,6 +42,11 @@ export function AdminShell({
                 الاستقبال
               </Link>
             )}
+            {(user.permissions.includes("inventory.view") || user.permissions.includes("inventory.manage")) && (
+              <Link href="/admin/inventory" className="text-slate-600 hover:text-slate-900">
+                المخزون
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>

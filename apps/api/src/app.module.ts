@@ -9,6 +9,7 @@ import { RolesModule } from "./roles/roles.module";
 import { AuditModule } from "./audit/audit.module";
 import { PatientsModule } from "./patients/patients.module";
 import { SchedulingModule } from "./scheduling/scheduling.module";
+import { InventoryModule } from "./inventory/inventory.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -22,6 +23,7 @@ import { HealthController } from "./health/health.controller";
     AuditModule,
     PatientsModule,
     SchedulingModule,
+    InventoryModule,
   ],
   controllers: [HealthController],
 })

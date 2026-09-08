@@ -101,3 +101,50 @@ export interface DialysisScheduleEntry {
   lateMinutes: number | null;
   absentMarkedAt: string | null;
 }
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  unit: string;
+  barcode: string | null;
+  minimumStock: string;
+  cost: string;
+  requiresBatchTracking: boolean;
+  quantityInStock: string;
+}
+
+export interface PatientSupplyProfileEntry {
+  id: string;
+  patientId: string;
+  itemId: string;
+  item: InventoryItem;
+  defaultQuantity: string;
+}
+
+export type SupplyIssueStatus = "ISSUED" | "UNAVAILABLE" | "SUBSTITUTED";
+
+export interface SessionSupplyIssueItem {
+  id: string;
+  scheduleId: string;
+  itemId: string;
+  item: InventoryItem;
+  quantityRequested: string;
+  quantityIssued: string;
+  status: SupplyIssueStatus;
+  substituteForItemId: string | null;
+  substituteForItem: InventoryItem | null;
+  reason: string | null;
+}
+
+export interface SessionSupplyPendingLine {
+  itemId: string;
+  quantity: number;
+  isOverridden: boolean;
+  item: InventoryItem;
+}
+
+export interface SessionSuppliesResponse {
+  pending: SessionSupplyPendingLine[];
+  issued: SessionSupplyIssueItem[];
+}

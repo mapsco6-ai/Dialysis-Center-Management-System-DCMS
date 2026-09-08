@@ -32,6 +32,9 @@ model User {
   timelineEvents     PatientTimelineEvent[]
   requestedSchedules DialysisSchedule[] @relation("ScheduleRequestedByDoctor")
   checkedInSchedules DialysisSchedule[] @relation("ScheduleCheckedInBy")
+  stockMovements     StockMovement[]
+  supplyOverrides    SessionSupplyOverride[]
+  supplyIssues       SessionSupplyIssueItem[]
 
   @@map("users")
 }
@@ -176,6 +179,7 @@ model Patient {
   timelineEvents    PatientTimelineEvent[]
   dialysisPlans     DialysisPlan[]
   dialysisSchedules DialysisSchedule[]
+  supplyProfiles    PatientSupplyProfile[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -367,7 +371,204 @@ model DialysisSchedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  supplyOverrides  SessionSupplyOverride[]
+  supplyIssueItems SessionSupplyIssueItem[]
+  stockMovements   StockMovement[]
+
   @@unique([patientId, scheduledDate, shiftId])
   @@index([scheduledDate])
   @@map("dialysis_schedules")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 (Inventory Supplies): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+enum StockLocationType {
+  MAIN_WAREHOUSE
+  PHARMACY
+  LABORATORY_STOCK
+  WARD_STOCK
+}
+
+enum StockMovementType {
+  ISSUE
+  TRANSFER
+  ADJUSTMENT
+}
+
+// UNAVAILABLE is never silently replaced - a shortage is a fact on the
+// record; a substitute is a separate ISSUED-like row referencing it via
+// substituteForItemId, not an edit to this one (docs/MODULES-SPEC.md
+// Phase 4: "لا استبدال صامت").
+enum SupplyIssueStatus {
+  ISSUED
+  UNAVAILABLE
+  SUBSTITUTED
+}
+
+model InventoryItem {
+  id String @id @default(uuid())
+
+  name     String
+  category String
+  unit     String
+  barcode  String? @unique
+
+  // Used by later phases (Low/Critical Stock alerts in Phase 11, session
+  // cost in Phase 11/14) - stored now since they're intrinsic properties of
+  // the catalog item, not because this phase computes alerts or costs.
+  minimumStock          Decimal @db.Decimal(10, 2) @default(0)
+  cost                  Decimal @db.Decimal(10, 2) @default(0)
+  requiresBatchTracking Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  balances                StockBalance[]
+  movements               StockMovement[]
+  supplyProfiles          PatientSupplyProfile[]
+  sessionOverrides        SessionSupplyOverride[]
+  issueItems              SessionSupplyIssueItem[] @relation("IssueItem")
+  substitutedForIssueRows SessionSupplyIssueItem[] @relation("SubstituteItem")
+
+  @@index([category])
+  @@map("inventory_items")
+}
+
+// Fixed reference data like Shift - MAIN_WAREHOUSE is the only one seeded
+// and used before Phase 10/11 introduce the others.
+model StockLocation {
+  id   String            @id @default(uuid())
+  type StockLocationType @unique
+  name String?
+
+  createdAt DateTime @default(now())
+
+  balances      StockBalance[]
+  movementsFrom StockMovement[] @relation("MovementFrom")
+  movementsTo   StockMovement[] @relation("MovementTo")
+
+  @@map("stock_locations")
+}
+
+model StockBalance {
+  id String @id @default(uuid())
+
+  itemId     String
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+  locationId String
+  location   StockLocation @relation(fields: [locationId], references: [id])
+
+  // Never allowed to go negative - enforced by a conditional update in
+  // InventoryItemsService, not just application-level intent (docs/MODULES-SPEC.md).
+  quantity Decimal @db.Decimal(10, 2) @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([itemId, locationId])
+  @@map("stock_balances")
+}
+
+// Append-only ledger - the audit trail for "where did this stock go/come
+// from" independent of AuditLog, since AuditLog isn't meant to be queried
+// for quantity math (docs/MODULES-SPEC.md).
+model StockMovement {
+  id String @id @default(uuid())
+
+  itemId         String
+  item           InventoryItem  @relation(fields: [itemId], references: [id])
+  fromLocationId String?
+  fromLocation   StockLocation? @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocationId   String?
+  toLocation     StockLocation? @relation("MovementTo", fields: [toLocationId], references: [id])
+
+  quantity     Decimal           @db.Decimal(10, 2)
+  movementType StockMovementType
+  reason       String?
+
+  relatedScheduleId String?
+  relatedSchedule   DialysisSchedule? @relation(fields: [relatedScheduleId], references: [id])
+
+  performedById String
+  performedBy   User   @relation(fields: [performedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+  @@index([relatedScheduleId])
+  @@map("stock_movements")
+}
+
+// The patient's standing default supplies (dialyzer type, blood line, needle
+// gauge, saline...). Plain current-state config (like Shift capacity), not
+// versioned history like DialysisPlan - MODULES-SPEC describes it as just
+// "المواد الافتراضية لكل مريض" with no effective-dating requirement.
+model PatientSupplyProfile {
+  id String @id @default(uuid())
+
+  patientId String
+  patient   Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id])
+
+  defaultQuantity Decimal @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([patientId, itemId])
+  @@map("patient_supply_profiles")
+}
+
+// A one-session-only change to what's issued, without touching the patient's
+// default profile (docs/MODULES-SPEC.md Phase 4 acceptance criterion 2).
+model SessionSupplyOverride {
+  id String @id @default(uuid())
+
+  scheduleId String
+  schedule   DialysisSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       InventoryItem    @relation(fields: [itemId], references: [id])
+
+  overrideQuantity Decimal @db.Decimal(10, 2)
+  reason           String?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scheduleId, itemId])
+  @@map("session_supply_overrides")
+}
+
+// The actual record of what was (or wasn't) given for a session - what
+// "confirm issue" writes. Queryable per session for cost/history purposes
+// (acceptance criterion 7: "ما هي المواد التي صُرفت لهذه الجلسة؟").
+model SessionSupplyIssueItem {
+  id String @id @default(uuid())
+
+  scheduleId String
+  schedule   DialysisSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       InventoryItem    @relation("IssueItem", fields: [itemId], references: [id])
+
+  quantityRequested Decimal           @db.Decimal(10, 2)
+  quantityIssued    Decimal           @db.Decimal(10, 2) @default(0)
+  status            SupplyIssueStatus
+
+  substituteForItemId String?
+  substituteForItem   InventoryItem? @relation("SubstituteItem", fields: [substituteForItemId], references: [id])
+  reason              String?
+
+  performedById String
+  performedBy   User   @relation(fields: [performedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([scheduleId, itemId])
+  @@index([scheduleId])
+  @@map("session_supply_issue_items")
 }

@@ -42,6 +42,11 @@ const PERMISSIONS = [
 
   // Phase 3 (Reception)
   { key: "attendance.checkin", module: "attendance", description: "Scan patients in and record check-in" },
+
+  // Phase 4 (Inventory Supplies)
+  { key: "inventory.view", module: "inventory", description: "View inventory catalog, stock, and supply profiles" },
+  { key: "inventory.manage", module: "inventory", description: "Manage inventory catalog, stock levels, and patient supply profiles" },
+  { key: "inventory.issue", module: "inventory", description: "Confirm and issue session supplies" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };
