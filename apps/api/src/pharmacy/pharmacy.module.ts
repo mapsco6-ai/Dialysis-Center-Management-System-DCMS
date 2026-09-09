@@ -9,5 +9,8 @@ import { MedicationHistoryController } from "./medication-history.controller";
   imports: [AuditModule, InventoryModule],
   controllers: [PharmacyController, MedicationHistoryController],
   providers: [PharmacyService],
+  // Phase 14 (Reports) reuses medicationHistory() directly rather than
+  // re-deriving the same Prescribed->Dispensed->Administered join.
+  exports: [PharmacyService],
 })
 export class PharmacyModule {}

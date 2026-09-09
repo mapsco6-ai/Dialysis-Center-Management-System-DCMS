@@ -85,6 +85,18 @@ export function AdminShell({
                 الصيانة
               </Link>
             )}
+            {(user.permissions.includes("patient.view") ||
+              user.permissions.includes("scheduling.manage") ||
+              user.permissions.includes("dialysis.session.view") ||
+              user.permissions.includes("machine.view") ||
+              user.permissions.includes("maintenance.manage") ||
+              user.permissions.includes("inventory.view") ||
+              user.permissions.includes("pharmacy.dispense") ||
+              user.permissions.includes("lab.queue.view")) && (
+              <Link href="/admin/reports" className="text-slate-600 hover:text-slate-900">
+                التقارير
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>

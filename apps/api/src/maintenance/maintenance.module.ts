@@ -10,5 +10,8 @@ import { MachineTimelineController } from "./machine-timeline.controller";
   imports: [AuditModule, MachinesModule, StorageModule],
   controllers: [MaintenanceTicketsController, MachineTimelineController],
   providers: [MaintenanceService],
+  // Phase 14 (Reports) reuses getDowntimeReport()/getMachineTimeline()
+  // directly rather than re-deriving the same MachineStatusHistory walk.
+  exports: [MaintenanceService],
 })
 export class MaintenanceModule {}

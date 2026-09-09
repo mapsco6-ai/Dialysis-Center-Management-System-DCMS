@@ -19,6 +19,7 @@ import { LabModule } from "./lab/lab.module";
 import { PharmacyModule } from "./pharmacy/pharmacy.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { ReportsModule } from "./reports/reports.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -47,6 +48,7 @@ import { HealthController } from "./health/health.controller";
     PharmacyModule,
     MaintenanceModule,
     DashboardModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
 })
