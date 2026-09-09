@@ -30,29 +30,30 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  roles                UserRole[]
-  auditLogs            AuditLog[]
-  clinicalAlerts       ClinicalAlert[]
-  timelineEvents       PatientTimelineEvent[]
-  requestedSchedules   DialysisSchedule[]            @relation("ScheduleRequestedByDoctor")
-  checkedInSchedules   DialysisSchedule[]            @relation("ScheduleCheckedInBy")
-  stockMovements       StockMovement[]
-  supplyOverrides      SessionSupplyOverride[]
-  supplyIssues         SessionSupplyIssueItem[]
-  machineStatusChanges MachineStatusHistory[]
-  approvalsRequested   MachineUsageApprovalRequest[] @relation("ApprovalRequestedBy")
-  approvalsDecided     MachineUsageApprovalRequest[] @relation("ApprovalDecidedBy")
-  nursedSessions       DialysisSession[]             @relation("SessionNurse")
-  enteredReadings      DialysisReading[]
-  recordedEvents       DialysisEvent[]
-  nursingAssignments   NursingAssignment[]           @relation("AssignedNurse")
-  assignmentsCreated   NursingAssignment[]           @relation("AssignmentCreatedBy")
-  doctorOrders         DoctorOrder[]
-  prescriptions        Prescription[]
-  medicationsGiven     MedicationAdministration[]
-  clinicalNotes        ClinicalNote[]
-  labOrdersRequested   LabOrder[]
-  labResultsEntered    LabResult[]
+  roles                 UserRole[]
+  auditLogs             AuditLog[]
+  clinicalAlerts        ClinicalAlert[]
+  timelineEvents        PatientTimelineEvent[]
+  requestedSchedules    DialysisSchedule[]            @relation("ScheduleRequestedByDoctor")
+  checkedInSchedules    DialysisSchedule[]            @relation("ScheduleCheckedInBy")
+  stockMovements        StockMovement[]
+  supplyOverrides       SessionSupplyOverride[]
+  supplyIssues          SessionSupplyIssueItem[]
+  machineStatusChanges  MachineStatusHistory[]
+  approvalsRequested    MachineUsageApprovalRequest[] @relation("ApprovalRequestedBy")
+  approvalsDecided      MachineUsageApprovalRequest[] @relation("ApprovalDecidedBy")
+  nursedSessions        DialysisSession[]             @relation("SessionNurse")
+  enteredReadings       DialysisReading[]
+  recordedEvents        DialysisEvent[]
+  nursingAssignments    NursingAssignment[]           @relation("AssignedNurse")
+  assignmentsCreated    NursingAssignment[]           @relation("AssignmentCreatedBy")
+  doctorOrders          DoctorOrder[]
+  prescriptions         Prescription[]
+  medicationsGiven      MedicationAdministration[]
+  clinicalNotes         ClinicalNote[]
+  labOrdersRequested    LabOrder[]
+  labResultsEntered     LabResult[]
+  prescriptionDispenses PrescriptionDispense[]
 
   @@map("users")
 }
@@ -466,6 +467,7 @@ model InventoryItem {
   sessionOverrides        SessionSupplyOverride[]
   issueItems              SessionSupplyIssueItem[] @relation("IssueItem")
   substitutedForIssueRows SessionSupplyIssueItem[] @relation("SubstituteItem")
+  prescriptionDispenses   PrescriptionDispense[]
 
   @@index([category])
   @@map("inventory_items")
@@ -525,6 +527,11 @@ model StockMovement {
   relatedScheduleId String?
   relatedSchedule   DialysisSchedule? @relation(fields: [relatedScheduleId], references: [id])
 
+  // Set for a Phase 10 pharmacy dispense - same traceability role as
+  // relatedScheduleId, just for the movement's other common trigger.
+  relatedPrescriptionId String?
+  relatedPrescription   Prescription? @relation(fields: [relatedPrescriptionId], references: [id])
+
   performedById String
   performedBy   User   @relation(fields: [performedById], references: [id])
 
@@ -532,6 +539,7 @@ model StockMovement {
 
   @@index([itemId])
   @@index([relatedScheduleId])
+  @@index([relatedPrescriptionId])
   @@map("stock_movements")
 }
 
@@ -830,11 +838,12 @@ model DialysisSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  readings            DialysisReading[]
-  events              DialysisEvent[]
-  linkedPrescriptions Prescription[]
-  medicationsGiven    MedicationAdministration[]
-  clinicalNotes       ClinicalNote[]
+  readings              DialysisReading[]
+  events                DialysisEvent[]
+  linkedPrescriptions   Prescription[]
+  medicationsGiven      MedicationAdministration[]
+  clinicalNotes         ClinicalNote[]
+  prescriptionDispenses PrescriptionDispense[]
 
   @@map("dialysis_sessions")
 }
@@ -1043,8 +1052,10 @@ model Prescription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders          DoctorOrder[]
-  administrations MedicationAdministration[]
+  orders                DoctorOrder[]
+  administrations       MedicationAdministration[]
+  dispenses             PrescriptionDispense[]
+  relatedStockMovements StockMovement[]
 
   @@map("prescriptions")
 }
@@ -1221,4 +1232,35 @@ model LabResult {
 
   @@index([labOrderItemId])
   @@map("lab_results")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 10 (Pharmacy): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// Reuses StockLocation(type=PHARMACY)/StockBalance/StockMovement from Phase 4
+// as instructed ("لا تكرار للنموذج") - no new stock model here.
+// ---------------------------------------------------------------------------
+
+// itemId bridges Prescription's free-text medicationName (a doctor has no
+// visibility into the inventory catalog) to the real InventoryItem whose
+// PHARMACY StockBalance is actually decremented - not in MODULES-SPEC.md's
+// minimal field list, but there is nothing to deduct stock from without it.
+model PrescriptionDispense {
+  id String @id @default(uuid())
+
+  prescriptionId String
+  prescription   Prescription  @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           InventoryItem @relation(fields: [itemId], references: [id])
+
+  dispensedById String
+  dispensedBy   User    @relation(fields: [dispensedById], references: [id])
+  quantity      Decimal @db.Decimal(10, 2)
+
+  linkedSessionId String?
+  linkedSession   DialysisSession? @relation(fields: [linkedSessionId], references: [id])
+
+  dispensedAt DateTime @default(now())
+
+  @@index([prescriptionId])
+  @@map("prescription_dispenses")
 }

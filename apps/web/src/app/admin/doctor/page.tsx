@@ -654,6 +654,11 @@ function MedicationsTab({
                     <button type="submit" disabled={busy} className="rounded bg-emerald-600 px-3 py-1 text-xs text-white disabled:opacity-50">تأكيد</button>
                   </form>
                 )}
+                {(p.dispenses ?? []).length > 0 && (
+                  <p className="mt-1 text-xs text-slate-400">
+                    آخر صرف: {p.dispenses![0].item?.name} × {p.dispenses![0].quantity} بواسطة {p.dispenses![0].dispensedBy?.fullName ?? "-"} ({new Date(p.dispenses![0].dispensedAt).toLocaleString()})
+                  </p>
+                )}
                 {(p.administrations ?? []).length > 0 && (
                   <p className="mt-1 text-xs text-slate-400">
                     آخر إعطاء: {new Date(p.administrations![0].administeredAt).toLocaleString()} بواسطة {p.administrations![0].administeredBy?.fullName ?? "-"}

@@ -77,6 +77,9 @@ const PERMISSIONS = [
   { key: "lab.request", module: "laboratory", description: "Order a lab test or panel for a patient" },
   { key: "lab.queue.view", module: "laboratory", description: "View the pending lab order queue" },
   { key: "lab.result.create", module: "laboratory", description: "Advance lab order item status, enter results, and amend a final result" },
+
+  // Phase 10 (Pharmacy)
+  { key: "pharmacy.dispense", module: "pharmacy", description: "View the pharmacy queue and dispense prescriptions against pharmacy stock" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

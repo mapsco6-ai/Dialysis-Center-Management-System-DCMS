@@ -17,6 +17,12 @@ export class PrescriptionsService {
       include: {
         doctor: { select: { id: true, fullName: true } },
         administrations: { orderBy: { administeredAt: "desc" } },
+        // Phase 10: so the same Medications view shows the full Prescribed
+        // -> Dispensed -> Administered picture without a second fetch.
+        dispenses: {
+          include: { item: true, dispensedBy: { select: { id: true, fullName: true } } },
+          orderBy: { dispensedAt: "desc" },
+        },
         // Lets the UI find the ACTIVE order for a given prescription (the
         // one whose id it must stop/modify) without a separate lookup.
         orders: { select: { id: true, status: true }, orderBy: { createdAt: "desc" } },

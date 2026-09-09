@@ -374,6 +374,7 @@ export interface MedicationAdministration {
 export interface Prescription {
   id: string;
   patientId: string;
+  patient?: { id: string; fullName: string; patientCode: string };
   doctorId: string;
   doctor?: { id: string; fullName: string };
   medicationName: string;
@@ -386,6 +387,32 @@ export interface Prescription {
   createdAt: string;
   administrations?: MedicationAdministration[];
   orders?: { id: string; status: DoctorOrderStatus }[];
+  dispenses?: PrescriptionDispense[];
+}
+
+export interface PrescriptionDispense {
+  id: string;
+  prescriptionId: string;
+  itemId: string;
+  item?: InventoryItem;
+  dispensedById: string;
+  dispensedBy?: { id: string; fullName: string };
+  quantity: string;
+  linkedSessionId: string | null;
+  dispensedAt: string;
+}
+
+export interface MedicationHistoryEntry {
+  id: string;
+  medicationName: string;
+  dose: string;
+  frequency: string;
+  duration: string | null;
+  status: PrescriptionStatus;
+  prescribedAt: string;
+  prescribedBy: { id: string; fullName: string };
+  dispenses: PrescriptionDispense[];
+  administrations: MedicationAdministration[];
 }
 
 export interface ClinicalNote {

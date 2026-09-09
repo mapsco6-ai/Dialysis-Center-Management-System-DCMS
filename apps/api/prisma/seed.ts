@@ -99,12 +99,21 @@ async function main() {
     });
   }
 
-  // Phase 4: fixed stock locations, like Shift. Only MAIN_WAREHOUSE is used
-  // before Phase 10/11 introduce the others.
+  // Phase 4: fixed stock locations, like Shift. LABORATORY_STOCK/WARD_STOCK
+  // wait for Phase 11's fuller warehouse model.
   await prisma.stockLocation.upsert({
     where: { type: "MAIN_WAREHOUSE" },
     update: {},
     create: { type: "MAIN_WAREHOUSE", name: "المخزن الرئيسي" },
+  });
+
+  // Phase 10: pharmacy's own stock pool, fed by a simple transfer from
+  // MAIN_WAREHOUSE (docs/PROJECT-PHASES-PLAN.md: "أساس بسيط من الفيز 4،
+  // التحويل الكامل في فيز 11").
+  await prisma.stockLocation.upsert({
+    where: { type: "PHARMACY" },
+    update: {},
+    create: { type: "PHARMACY", name: "الصيدلية" },
   });
 
   console.log(`Seed complete. Roles: ${ROLES.length}, Permissions: ${allPermissions.length}, Shifts: ${shifts.length}.`);

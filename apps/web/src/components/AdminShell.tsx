@@ -73,6 +73,11 @@ export function AdminShell({
                 المختبر
               </Link>
             )}
+            {user.permissions.includes("pharmacy.dispense") && (
+              <Link href="/admin/pharmacy" className="text-slate-600 hover:text-slate-900">
+                الصيدلية
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>
