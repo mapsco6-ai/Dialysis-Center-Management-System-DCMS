@@ -54,6 +54,11 @@ model User {
   labOrdersRequested    LabOrder[]
   labResultsEntered     LabResult[]
   prescriptionDispenses PrescriptionDispense[]
+  batchesReceived       InventoryBatch[]
+  transfersRequested    StockTransfer[]               @relation("TransferRequestedBy")
+  transfersApproved     StockTransfer[]               @relation("TransferApprovedBy")
+  transfersIssued       StockTransfer[]               @relation("TransferIssuedBy")
+  transfersReceived     StockTransfer[]               @relation("TransferReceivedBy")
 
   @@map("users")
 }
@@ -433,6 +438,20 @@ enum StockMovementType {
   ADJUSTMENT
 }
 
+// The multi-stage handoff for moving stock between any two StockLocations
+// (docs/MODULES-SPEC.md Phase 11) - distinct from the simple one-step
+// TRANSFER StockMovement Phase 10 used for warehouse->pharmacy, which stays
+// as-is. Quantity moves only at ISSUED (debit fromLocation) and RECEIVED
+// (credit toLocation), never at REQUESTED/APPROVED, so the ledger always
+// matches physical reality rather than an intent that might still fail.
+enum StockTransferStatus {
+  REQUESTED
+  APPROVED
+  ISSUED
+  RECEIVED
+  REJECTED
+}
+
 // UNAVAILABLE is never silently replaced - a shortage is a fact on the
 // record; a substitute is a separate ISSUED-like row referencing it via
 // substituteForItemId, not an edit to this one (docs/MODULES-SPEC.md
@@ -468,13 +487,16 @@ model InventoryItem {
   issueItems              SessionSupplyIssueItem[] @relation("IssueItem")
   substitutedForIssueRows SessionSupplyIssueItem[] @relation("SubstituteItem")
   prescriptionDispenses   PrescriptionDispense[]
+  batches                 InventoryBatch[]
+  transfers               StockTransfer[]
+  labTestConsumableFor    LabTest[]                @relation("LabTestConsumable")
 
   @@index([category])
   @@map("inventory_items")
 }
 
-// Fixed reference data like Shift - MAIN_WAREHOUSE is the only one seeded
-// and used before Phase 10/11 introduce the others.
+// Fixed reference data like Shift - MAIN_WAREHOUSE was the only one seeded
+// before Phase 10/11 introduced the others.
 model StockLocation {
   id   String            @id @default(uuid())
   type StockLocationType @unique
@@ -483,8 +505,11 @@ model StockLocation {
   createdAt DateTime @default(now())
 
   balances      StockBalance[]
-  movementsFrom StockMovement[] @relation("MovementFrom")
-  movementsTo   StockMovement[] @relation("MovementTo")
+  movementsFrom StockMovement[]  @relation("MovementFrom")
+  movementsTo   StockMovement[]  @relation("MovementTo")
+  batches       InventoryBatch[]
+  transfersFrom StockTransfer[]  @relation("TransferFrom")
+  transfersTo   StockTransfer[]  @relation("TransferTo")
 
   @@map("stock_locations")
 }
@@ -532,6 +557,20 @@ model StockMovement {
   relatedPrescriptionId String?
   relatedPrescription   Prescription? @relation(fields: [relatedPrescriptionId], references: [id])
 
+  // Set for the debit (at ISSUED) and credit (at RECEIVED) legs of a Phase
+  // 11 StockTransfer - the simple one-step Phase 10 warehouse->pharmacy
+  // TRANSFER movement has this left null.
+  relatedTransferId String?
+  relatedTransfer   StockTransfer? @relation(fields: [relatedTransferId], references: [id])
+
+  // Set when a lab consumable (LabTest.consumableItemId) is actually
+  // deducted at sample collection (docs review Phase 11 acceptance
+  // criterion 6: session cost needs consumables "المرتبطة بها فعلياً" - only
+  // what was actually consumed, not merely ordered) - this is the source of
+  // truth SessionCostService reads, not LabOrderItem itself.
+  relatedLabOrderItemId String?
+  relatedLabOrderItem   LabOrderItem? @relation(fields: [relatedLabOrderItemId], references: [id])
+
   performedById String
   performedBy   User   @relation(fields: [performedById], references: [id])
 
@@ -540,6 +579,8 @@ model StockMovement {
   @@index([itemId])
   @@index([relatedScheduleId])
   @@index([relatedPrescriptionId])
+  @@index([relatedTransferId])
+  @@index([relatedLabOrderItemId])
   @@map("stock_movements")
 }
 
@@ -844,6 +885,7 @@ model DialysisSession {
   medicationsGiven      MedicationAdministration[]
   clinicalNotes         ClinicalNote[]
   prescriptionDispenses PrescriptionDispense[]
+  labOrders             LabOrder[]
 
   @@map("dialysis_sessions")
 }
@@ -1119,6 +1161,16 @@ model LabTest {
   referenceRangeLow  Decimal? @db.Decimal(10, 3)
   referenceRangeHigh Decimal? @db.Decimal(10, 3)
 
+  // Optional bridge to the real inventory catalog (same reasoning as
+  // Phase 10's PrescriptionDispense.itemId - not in MODULES-SPEC.md's
+  // minimal field list, but there is nothing to deduct stock from, or
+  // attribute a lab-consumables cost to, without it). Left unset, a test
+  // simply never consumes stock or contributes to session cost - no
+  // fabricated consumption is ever invented for a test nobody configured.
+  consumableItemId   String?
+  consumableItem     InventoryItem? @relation("LabTestConsumable", fields: [consumableItemId], references: [id])
+  consumableQuantity Decimal        @default(1) @db.Decimal(10, 2)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1180,6 +1232,13 @@ model LabOrder {
   orderedByDoctor   User     @relation(fields: [orderedByDoctorId], references: [id])
   orderedAt         DateTime @default(now())
 
+  // Optional - set when the draw actually happened during a specific
+  // dialysis session, so that session's cost can attribute this order's
+  // consumables to it (docs review Phase 11 acceptance criterion 6). Most
+  // lab orders have no session context at all and this stays null.
+  linkedSessionId String?
+  linkedSession   DialysisSession? @relation(fields: [linkedSessionId], references: [id])
+
   items LabOrderItem[]
 
   @@map("lab_orders")
@@ -1198,7 +1257,8 @@ model LabOrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  results LabResult[]
+  results           LabResult[]
+  consumedMovements StockMovement[]
 
   @@index([labOrderId])
   @@index([status])
@@ -1263,4 +1323,91 @@ model PrescriptionDispense {
 
   @@index([prescriptionId])
   @@map("prescription_dispenses")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 11 (Advanced Warehouse): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// Reuses StockLocation/StockBalance/StockMovement from Phase 4 for the
+// location types and the movement ledger - only the two entities the docs
+// actually name as new (InventoryBatch, StockTransfer) are added here.
+// ---------------------------------------------------------------------------
+
+// One received lot of a batch-tracked item at one location. Quantity here is
+// drawn down FEFO (First-Expiry-First-Out) whenever that item is issued or
+// transferred out of this location - a separate ledger from StockBalance,
+// which stays the fast, single-number source of truth for "how much is
+// here" regardless of how many batches make it up.
+model InventoryBatch {
+  id String @id @default(uuid())
+
+  itemId     String
+  item       InventoryItem @relation(fields: [itemId], references: [id])
+  locationId String
+  location   StockLocation @relation(fields: [locationId], references: [id])
+
+  batchNumber String
+  quantity    Decimal  @db.Decimal(10, 2)
+  expiryDate  DateTime @db.Date
+
+  receivedById String
+  receivedBy   User   @relation(fields: [receivedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The same physical batch number at the same location is one row whose
+  // quantity accumulates - not a fresh row per goods-receipt event.
+  @@unique([itemId, locationId, batchNumber])
+  @@index([itemId, locationId])
+  @@index([expiryDate])
+  @@map("inventory_batches")
+}
+
+// The full REQUESTED->APPROVED->ISSUED->RECEIVED handoff between any two
+// StockLocations (docs/MODULES-SPEC.md Phase 11). issuedBatches snapshots
+// which batch(es) FEFO actually drew from at ISSUED, so RECEIVED can
+// recreate the exact same batch/expiry at the destination instead of losing
+// that traceability across the transfer.
+model StockTransfer {
+  id String @id @default(uuid())
+
+  itemId         String
+  item           InventoryItem @relation(fields: [itemId], references: [id])
+  fromLocationId String
+  fromLocation   StockLocation @relation("TransferFrom", fields: [fromLocationId], references: [id])
+  toLocationId   String
+  toLocation     StockLocation @relation("TransferTo", fields: [toLocationId], references: [id])
+
+  quantity Decimal             @db.Decimal(10, 2)
+  status   StockTransferStatus @default(REQUESTED)
+  reason   String?
+
+  // [{batchNumber, expiryDate, quantity}] captured at ISSUED when the item
+  // is batch-tracked - null for a non-batch-tracked item, and null before
+  // ISSUED happens.
+  issuedBatches Json?
+
+  requestedById String
+  requestedBy   User     @relation("TransferRequestedBy", fields: [requestedById], references: [id])
+  requestedAt   DateTime @default(now())
+
+  approvedById String?
+  approvedBy   User?     @relation("TransferApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  issuedById String?
+  issuedBy   User?     @relation("TransferIssuedBy", fields: [issuedById], references: [id])
+  issuedAt   DateTime?
+
+  receivedById String?
+  receivedBy   User?     @relation("TransferReceivedBy", fields: [receivedById], references: [id])
+  receivedAt   DateTime?
+
+  rejectionReason String?
+
+  movements StockMovement[]
+
+  @@index([itemId])
+  @@index([status])
+  @@map("stock_transfers")
 }

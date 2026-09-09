@@ -1,8 +1,9 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { LabOrderItemStatus } from "@prisma/client";
+import { LabOrderItemStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { InventoryBatchesService } from "../inventory/inventory-batches.service";
 import { LabOrdersService } from "./lab-orders.service";
 import { UpdateItemStatusDto } from "./dto/update-item-status.dto";
 import { EnterResultDto } from "./dto/enter-result.dto";
@@ -22,6 +23,7 @@ export class LabResultsService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly labOrdersService: LabOrdersService,
+    private readonly batchesService: InventoryBatchesService,
   ) {}
 
   async updateStatus(itemId: string, dto: UpdateItemStatusDto, actor: AuthenticatedUser) {
@@ -43,6 +45,17 @@ export class LabResultsService {
         throw new ConflictException("This item's status changed since it was read");
       }
 
+      // Sample collection is what physically consumes the test's
+      // configured consumable, if one is configured (docs review Phase 11
+      // acceptance criterion 6). Deliberately best-effort: an insufficient
+      // or unconfigured consumable never blocks the clinical action of
+      // actually collecting the sample - inventory bookkeeping doesn't get
+      // to hold up patient care. A shortage here just means this test's
+      // consumable cost isn't recorded for this order.
+      if (dto.status === "SAMPLE_COLLECTED" && item.labTest.consumableItemId) {
+        await this.consumeLabConsumable(tx, itemId, item.labTest.consumableItemId, Number(item.labTest.consumableQuantity), actor.id);
+      }
+
       await this.auditService.log(
         {
           actorId: actor.id,
@@ -57,6 +70,42 @@ export class LabResultsService {
       );
 
       return tx.labOrderItem.findUniqueOrThrow({ where: { id: itemId }, include: { labTest: true } });
+    });
+  }
+
+  private async consumeLabConsumable(
+    tx: Prisma.TransactionClient,
+    labOrderItemId: string,
+    consumableItemId: string,
+    quantity: number,
+    performedById: string,
+  ) {
+    const labStock = await tx.stockLocation.findUnique({ where: { type: "LABORATORY_STOCK" } });
+    if (!labStock) return;
+
+    let batchesOk = true;
+    try {
+      await this.batchesService.consumeFefo(tx, consumableItemId, labStock.id, quantity);
+    } catch {
+      batchesOk = false;
+    }
+    if (!batchesOk) return;
+
+    const stockResult = await tx.stockBalance.updateMany({
+      where: { itemId: consumableItemId, locationId: labStock.id, quantity: { gte: quantity } },
+      data: { quantity: { decrement: quantity } },
+    });
+    if (stockResult.count === 0) return;
+
+    await tx.stockMovement.create({
+      data: {
+        itemId: consumableItemId,
+        fromLocationId: labStock.id,
+        quantity,
+        movementType: "ISSUE",
+        relatedLabOrderItemId: labOrderItemId,
+        performedById,
+      },
     });
   }
 

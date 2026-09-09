@@ -99,8 +99,7 @@ async function main() {
     });
   }
 
-  // Phase 4: fixed stock locations, like Shift. LABORATORY_STOCK/WARD_STOCK
-  // wait for Phase 11's fuller warehouse model.
+  // Phase 4: fixed stock locations, like Shift.
   await prisma.stockLocation.upsert({
     where: { type: "MAIN_WAREHOUSE" },
     update: {},
@@ -114,6 +113,19 @@ async function main() {
     where: { type: "PHARMACY" },
     update: {},
     create: { type: "PHARMACY", name: "الصيدلية" },
+  });
+
+  // Phase 11: the two remaining locations the full multi-location warehouse
+  // model (StockTransfer) can now move stock between.
+  await prisma.stockLocation.upsert({
+    where: { type: "LABORATORY_STOCK" },
+    update: {},
+    create: { type: "LABORATORY_STOCK", name: "مخزون المختبر" },
+  });
+  await prisma.stockLocation.upsert({
+    where: { type: "WARD_STOCK" },
+    update: {},
+    create: { type: "WARD_STOCK", name: "مخزون الردهة" },
   });
 
   console.log(`Seed complete. Roles: ${ROLES.length}, Permissions: ${allPermissions.length}, Shifts: ${shifts.length}.`);

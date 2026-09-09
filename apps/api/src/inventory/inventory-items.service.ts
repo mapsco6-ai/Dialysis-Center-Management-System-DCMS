@@ -5,12 +5,14 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateInventoryItemDto } from "./dto/create-inventory-item.dto";
 import { AdjustStockDto } from "./dto/adjust-stock.dto";
 import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
+import { InventoryBatchesService } from "./inventory-batches.service";
 
 @Injectable()
 export class InventoryItemsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly batchesService: InventoryBatchesService,
   ) {}
 
   private async requireMainWarehouse() {
@@ -63,6 +65,13 @@ export class InventoryItemsService {
     }
   }
 
+  // Every seeded StockLocation (MAIN_WAREHOUSE/PHARMACY/LABORATORY_STOCK/
+  // WARD_STOCK) - the frontend transfer form needs real ids to pick
+  // from/to, not the raw type string.
+  async listLocations() {
+    return this.prisma.stockLocation.findMany({ orderBy: { type: "asc" } });
+  }
+
   async findAll() {
     const warehouse = await this.requireMainWarehouse();
     const items = await this.prisma.inventoryItem.findMany({
@@ -111,6 +120,11 @@ export class InventoryItemsService {
       });
 
       if (dto.direction === "DECREASE") {
+        // Keeps the batch ledger in step with StockBalance for a
+        // batch-tracked item - a no-op for anything else, unchanged from
+        // pre-Phase-11 behavior (docs review Phase 11).
+        await this.batchesService.consumeFefo(tx, itemId, warehouse.id, dto.quantity);
+
         const result = await tx.stockBalance.updateMany({
           where: {
             itemId,

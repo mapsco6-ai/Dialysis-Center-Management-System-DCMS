@@ -3,6 +3,7 @@ import { PrescriptionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { InventoryBatchesService } from "../inventory/inventory-batches.service";
 import { TransferToPharmacyDto } from "./dto/transfer-to-pharmacy.dto";
 import { DispensePrescriptionDto } from "./dto/dispense-prescription.dto";
 
@@ -19,6 +20,7 @@ export class PharmacyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly batchesService: InventoryBatchesService,
   ) {}
 
   private async requireLocations() {
@@ -193,6 +195,12 @@ export class PharmacyService {
           "This prescription is no longer awaiting dispensing - it may have been stopped or modified",
         );
       }
+
+      // Keeps the batch ledger in step for a batch-tracked medication - a
+      // no-op otherwise (docs review Phase 11). Its ConflictException on
+      // insufficient non-expired batch stock is exactly the same shortage
+      // outcome as the StockBalance check just below.
+      await this.batchesService.consumeFefo(tx, dto.itemId, pharmacy.id, dto.quantity);
 
       // Atomic and conditional on sufficient pharmacy stock - never
       // dispenses from a negative balance (docs/PROJECT-PHASES-PLAN.md

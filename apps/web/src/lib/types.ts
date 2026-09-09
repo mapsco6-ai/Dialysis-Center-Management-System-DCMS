@@ -163,6 +163,79 @@ export interface InventoryItem {
   quantityInStock: string;
 }
 
+export type StockLocationType = "MAIN_WAREHOUSE" | "PHARMACY" | "LABORATORY_STOCK" | "WARD_STOCK";
+
+export interface StockLocation {
+  id: string;
+  type: StockLocationType;
+  name: string | null;
+}
+
+export type StockTransferStatus = "REQUESTED" | "APPROVED" | "ISSUED" | "RECEIVED" | "REJECTED";
+
+export interface StockTransfer {
+  id: string;
+  itemId: string;
+  item?: InventoryItem;
+  fromLocationId: string;
+  fromLocation?: StockLocation;
+  toLocationId: string;
+  toLocation?: StockLocation;
+  quantity: string;
+  status: StockTransferStatus;
+  reason: string | null;
+  requestedBy?: { id: string; fullName: string };
+  approvedBy?: { id: string; fullName: string } | null;
+  issuedBy?: { id: string; fullName: string } | null;
+  receivedBy?: { id: string; fullName: string } | null;
+  rejectionReason: string | null;
+  requestedAt: string;
+}
+
+export interface InventoryBatch {
+  id: string;
+  itemId: string;
+  item?: InventoryItem;
+  locationId: string;
+  location?: StockLocation;
+  batchNumber: string;
+  quantity: string;
+  expiryDate: string;
+}
+
+export interface LowStockAlert {
+  itemId: string;
+  itemName: string;
+  available: number;
+  minimumStock: number;
+  level: "LOW" | "CRITICAL";
+}
+
+export interface ExpiryAlerts {
+  expired: InventoryBatch[];
+  expiringSoon: InventoryBatch[];
+  withinDays: number;
+}
+
+export interface DaysRemaining {
+  itemId: string;
+  itemName: string;
+  available: number;
+  lookbackDays: number;
+  totalConsumed: number;
+  averageDailyConsumption: number;
+  daysOfStockRemaining: number | null;
+}
+
+export interface SessionCost {
+  scheduleId: string;
+  sessionId: string | null;
+  consumablesCost: number;
+  medicationCost: number;
+  labConsumablesCost: number;
+  totalCost: number;
+}
+
 export interface PatientSupplyProfileEntry {
   id: string;
   patientId: string;

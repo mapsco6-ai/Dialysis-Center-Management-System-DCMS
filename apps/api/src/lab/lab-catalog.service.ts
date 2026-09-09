@@ -9,6 +9,12 @@ export class LabCatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createTest(dto: CreateLabTestDto) {
+    if (dto.consumableItemId) {
+      const item = await this.prisma.inventoryItem.findUnique({ where: { id: dto.consumableItemId } });
+      if (!item) {
+        throw new BadRequestException("consumableItemId does not refer to an existing inventory item");
+      }
+    }
     try {
       return await this.prisma.labTest.create({
         data: {
@@ -17,6 +23,8 @@ export class LabCatalogService {
           unit: dto.unit,
           referenceRangeLow: dto.referenceRangeLow,
           referenceRangeHigh: dto.referenceRangeHigh,
+          consumableItemId: dto.consumableItemId,
+          consumableQuantity: dto.consumableQuantity ?? 1,
         },
       });
     } catch (error) {

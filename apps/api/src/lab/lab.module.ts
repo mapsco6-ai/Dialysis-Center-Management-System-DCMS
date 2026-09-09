@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
+import { InventoryModule } from "../inventory/inventory.module";
 import { LabCatalogService } from "./lab-catalog.service";
 import { LabCatalogController } from "./lab-catalog.controller";
 import { LabOrdersService } from "./lab-orders.service";
@@ -9,7 +10,7 @@ import { LabResultsController } from "./lab-results.controller";
 import { LabTrendController } from "./lab-trend.controller";
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, InventoryModule],
   controllers: [LabCatalogController, LabOrdersController, LabResultsController, LabTrendController],
   providers: [LabCatalogService, LabOrdersService, LabResultsService],
   // DoctorModule creates a pending-specification LabOrder shell when a

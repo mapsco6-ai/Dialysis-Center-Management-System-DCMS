@@ -20,4 +20,12 @@ export class CreateLabOrderDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  // Set when the draw actually happens during a specific dialysis session,
+  // so that session's cost can attribute this order's lab consumables to it
+  // (docs review Phase 11 acceptance criterion 6). Most lab orders have no
+  // session context and leave this unset.
+  @IsOptional()
+  @IsString()
+  linkedSessionId?: string;
 }

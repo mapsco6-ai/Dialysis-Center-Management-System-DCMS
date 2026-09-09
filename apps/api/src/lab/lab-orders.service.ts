@@ -32,9 +32,10 @@ export class LabOrdersService {
     patientId: string,
     doctorId: string,
     labTestIds: string[],
+    linkedSessionId?: string,
   ) {
     const created = await tx.labOrder.create({
-      data: { patientId, orderedByDoctorId: doctorId, episodeCode: "PENDING" },
+      data: { patientId, orderedByDoctorId: doctorId, episodeCode: "PENDING", linkedSessionId },
     });
     const episodeCode = `LAB-${String(created.humanNumber).padStart(6, "0")}`;
     await tx.labOrder.update({ where: { id: created.id }, data: { episodeCode } });
@@ -87,8 +88,21 @@ export class LabOrdersService {
       throw new BadRequestException("One or more labTestIds do not exist");
     }
 
+    if (dto.linkedSessionId) {
+      const session = await this.prisma.dialysisSession.findUnique({ where: { id: dto.linkedSessionId } });
+      if (!session) {
+        throw new BadRequestException("linkedSessionId does not refer to an existing session");
+      }
+      // A session FK proves the row exists, not that it's this patient's -
+      // without this a lab order could attribute its cost to another
+      // patient's dialysis session (same DCMS-059 reasoning applied here).
+      if (session.patientId !== dto.patientId) {
+        throw new BadRequestException("linkedSessionId does not belong to this patient");
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      const labOrderId = await this.buildOrderWithItems(tx, dto.patientId, actor.id, [...testIds]);
+      const labOrderId = await this.buildOrderWithItems(tx, dto.patientId, actor.id, [...testIds], dto.linkedSessionId);
       const order = await tx.labOrder.findUniqueOrThrow({ where: { id: labOrderId }, include: ORDER_INCLUDE });
 
       // Also logged as a DoctorOrder so it shows up in Phase 8's Orders tab

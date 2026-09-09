@@ -80,6 +80,13 @@ const PERMISSIONS = [
 
   // Phase 10 (Pharmacy)
   { key: "pharmacy.dispense", module: "pharmacy", description: "View the pharmacy queue and dispense prescriptions against pharmacy stock" },
+
+  // Phase 11 (Advanced Warehouse)
+  { key: "inventory.batch.manage", module: "inventory", description: "Receive and manage batch/expiry lots at a stock location" },
+  { key: "inventory.transfer.request", module: "inventory", description: "Request a stock transfer between locations" },
+  { key: "inventory.transfer.approve", module: "inventory", description: "Approve or reject a requested stock transfer" },
+  { key: "inventory.transfer.issue", module: "inventory", description: "Issue (debit) an approved stock transfer from its source location" },
+  { key: "inventory.transfer.receive", module: "inventory", description: "Receive (credit) an issued stock transfer at its destination location" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

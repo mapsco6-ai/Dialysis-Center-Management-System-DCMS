@@ -5,6 +5,7 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { SetSessionOverrideDto } from "./dto/set-session-override.dto";
 import { SubstituteSupplyDto } from "./dto/substitute-supply.dto";
 import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
+import { InventoryBatchesService } from "./inventory-batches.service";
 
 interface ResolvedSupplyLine {
   itemId: string;
@@ -17,6 +18,7 @@ export class SessionSuppliesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly batchesService: InventoryBatchesService,
   ) {}
 
   private async requireSchedule(scheduleId: string) {
@@ -165,13 +167,28 @@ export class SessionSuppliesService {
 
     for (const line of toProcess) {
       await this.prisma.$transaction(async (tx) => {
+        // A batch-tracked item must have enough non-expired batch stock too
+        // (docs review Phase 11) - a shortage here is exactly the same kind
+        // of fact as a StockBalance shortage, so it's caught and folded into
+        // the UNAVAILABLE path below rather than aborting the whole
+        // confirm-issue call. Not a real SQL error - safe to catch and keep
+        // using this same transaction.
+        let batchStockSufficient = true;
+        try {
+          await this.batchesService.consumeFefo(tx, line.itemId, warehouse.id, line.quantity);
+        } catch {
+          batchStockSufficient = false;
+        }
+
         // Atomic and conditional on sufficient stock - two concurrent
         // confirm-issue calls drawing on the same scarce item can't both
         // succeed past zero (same pattern as the Phase 3 check-in fix).
-        const result = await tx.stockBalance.updateMany({
-          where: { itemId: line.itemId, locationId: warehouse.id, quantity: { gte: line.quantity } },
-          data: { quantity: { decrement: line.quantity } },
-        });
+        const result = batchStockSufficient
+          ? await tx.stockBalance.updateMany({
+              where: { itemId: line.itemId, locationId: warehouse.id, quantity: { gte: line.quantity } },
+              data: { quantity: { decrement: line.quantity } },
+            })
+          : { count: 0 };
 
         const status = result.count === 1 ? "ISSUED" : "UNAVAILABLE";
         const quantityIssued = result.count === 1 ? line.quantity : 0;
@@ -275,6 +292,13 @@ export class SessionSuppliesService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // Keeps the batch ledger in step for a batch-tracked substitute item
+        // - a no-op otherwise (docs review Phase 11). Lets consumeFefo's own
+        // ConflictException propagate here, unlike confirmIssue's shortage
+        // path - substitute() has no "mark UNAVAILABLE and move on" state,
+        // it either succeeds or reports the shortage directly.
+        await this.batchesService.consumeFefo(tx, dto.substituteItemId, warehouse.id, dto.quantity);
+
         // Same atomic guard as confirmIssue - a substitute with no real stock
         // behind it is exactly the "silent substitution" the doc forbids.
         const result = await tx.stockBalance.updateMany({
