@@ -612,3 +612,53 @@ export interface DowntimeReport {
   totalDowntimeHours: number;
   intervals: { start: string; end: string }[];
 }
+
+export interface LiveCenterSummary {
+  date: string;
+  shiftId: string | null;
+  scheduled: number;
+  arrived: number;
+  late: number;
+  absent: number;
+  cancelled: number;
+  emergency: number;
+  waiting: number;
+  inDialysis: number;
+  completed: number;
+}
+
+export interface MachinesDashboardSummary {
+  totalMachines: number;
+  availableForRegularAssignment: number;
+  protectedCount: number;
+  emergencyDedicatedCount: number;
+  byStatus: Partial<Record<MachineStatus, number>>;
+  utilizationPercent: number;
+}
+
+export interface WardDashboardSummary {
+  id: string;
+  name: string;
+  byStatus: Partial<Record<MachineStatus, number>>;
+}
+
+export interface InventoryAlertsSummary {
+  lowStockCount: number;
+  criticalStockCount: number;
+  expiringSoonCount: number;
+  expiredCount: number;
+}
+
+export interface PendingWorkSummary {
+  labPending: number | null;
+  pharmacyPending: number | null;
+}
+
+export interface SessionCostDashboardSummary {
+  date: string;
+  scheduleCount: number;
+  totalCost: number;
+  consumablesCost: number;
+  medicationCost: number;
+  labConsumablesCost: number;
+}

@@ -31,6 +31,12 @@ import { WarehouseAnalyticsController } from "./warehouse-analytics.controller";
     StockTransfersService,
     WarehouseAnalyticsService,
   ],
-  exports: [InventoryItemsService, PatientSupplyProfileService, SessionSuppliesService, InventoryBatchesService],
+  exports: [
+    InventoryItemsService,
+    PatientSupplyProfileService,
+    SessionSuppliesService,
+    InventoryBatchesService,
+    WarehouseAnalyticsService,
+  ],
 })
 export class InventoryModule {}

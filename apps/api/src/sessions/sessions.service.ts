@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { DialysisSession, Prisma } from "@prisma/client";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { MachinesService } from "../machines/machines.service";
@@ -26,7 +27,16 @@ export class SessionsService {
     private readonly machinesService: MachinesService,
     private readonly assignmentsService: AssignmentsService,
     private readonly pinProofService: PinProofService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  // Phase 13's Live Center (Waiting/In Dialysis/Completed counts) reacts to
+  // this - see MachinesService.transitionStatus's identical comment for why
+  // emitting before the enclosing transaction is guaranteed to commit is
+  // harmless.
+  private emitSessionChanged() {
+    this.eventEmitter.emit("live.update", { entity: "session" });
+  }
 
   // If the performer is on the nursing-floor permission tier (holds
   // nursing.ward.view) but not the unrestricted one, they may only act on
@@ -181,6 +191,7 @@ export class SessionsService {
       newValue: vitals,
     });
 
+    this.emitSessionChanged();
     return session;
   }
 
@@ -232,6 +243,7 @@ export class SessionsService {
       newValue: data,
     });
 
+    this.emitSessionChanged();
     return updated;
   }
 
@@ -321,6 +333,7 @@ export class SessionsService {
         },
       });
 
+      this.emitSessionChanged();
       return updated;
     });
   }
@@ -382,6 +395,7 @@ export class SessionsService {
         },
       });
 
+      this.emitSessionChanged();
       return updated;
     });
   }
@@ -406,6 +420,7 @@ export class SessionsService {
       newValue: { status: "DISCHARGED" },
     });
 
+    this.emitSessionChanged();
     return updated;
   }
 
@@ -447,6 +462,7 @@ export class SessionsService {
         },
       });
 
+      this.emitSessionChanged();
       return updated;
     });
   }
@@ -473,6 +489,7 @@ export class SessionsService {
       newValue: { status: "IN_DIALYSIS" },
     });
 
+    this.emitSessionChanged();
     return updated;
   }
 

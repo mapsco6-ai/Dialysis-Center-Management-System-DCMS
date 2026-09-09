@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { validateEnv } from "./config/env.validation";
 import { PrismaModule } from "./prisma/prisma.module";
 import { GlobalPassportModule } from "./common/global-passport.module";
@@ -17,11 +18,18 @@ import { DoctorModule } from "./doctor/doctor.module";
 import { LabModule } from "./lab/lab.module";
 import { PharmacyModule } from "./pharmacy/pharmacy.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
+import { DashboardModule } from "./dashboard/dashboard.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Global (EventEmitterModule marks itself @Global()) - lets any service
+    // emit a "live.update" event for DashboardGateway to broadcast, without
+    // every phase's module needing to import DashboardModule directly
+    // (docs/PROJECT-PHASES-PLAN.md Phase 13: WebSocket layer, no new
+    // cross-module coupling into the already-built phases).
+    EventEmitterModule.forRoot(),
     GlobalPassportModule,
     PrismaModule,
     AuthModule,
@@ -38,6 +46,7 @@ import { HealthController } from "./health/health.controller";
     LabModule,
     PharmacyModule,
     MaintenanceModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
 })

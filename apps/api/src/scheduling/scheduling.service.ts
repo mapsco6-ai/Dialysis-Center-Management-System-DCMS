@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, ScheduleStatus } from "@prisma/client";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -27,6 +28,7 @@ export class SchedulingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // Memoized: the system user's id never changes at runtime.
@@ -203,6 +205,10 @@ export class SchedulingService {
     const now = new Date();
     const shifts = await this.prisma.shift.findMany();
     let systemUserId: string | undefined;
+    // This lazy check runs on every schedule read (docs review DCMS-038's
+    // pattern) - only emit once per call if something actually flipped, not
+    // once per candidate row and never on a call that changed nothing.
+    let anyMarked = false;
 
     for (const shift of shifts) {
       const shiftEnd = combineLocalDateAndTime(date, shift.dialysisEnd);
@@ -230,6 +236,7 @@ export class SchedulingService {
             data: { status: "ABSENT", absentMarkedAt: now },
           });
           if (result.count === 0) return; // another concurrent read already marked it
+          anyMarked = true;
 
           await this.auditService.log(
             {
@@ -255,6 +262,10 @@ export class SchedulingService {
           });
         });
       }
+    }
+
+    if (anyMarked) {
+      this.eventEmitter.emit("live.update", { entity: "schedule" });
     }
   }
 
@@ -373,6 +384,7 @@ export class SchedulingService {
         },
       });
 
+      this.eventEmitter.emit("live.update", { entity: "schedule" });
       return updated;
     });
   }

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Machine, MachineStatus, Prisma } from "@prisma/client";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -36,6 +37,7 @@ export class MachinesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async requireMachine(id: string) {
@@ -69,6 +71,13 @@ export class MachinesService {
         reason,
       },
     });
+
+    // Phase 13's Live Machines/Ward Dashboard react to this - the event
+    // carries no data beyond "a machine changed," so emitting before the
+    // enclosing transaction is guaranteed to commit is harmless even in the
+    // rare case it later rolls back: a connected client just re-fetches its
+    // own permission-gated REST snapshot and sees the unchanged truth.
+    this.eventEmitter.emit("live.update", { entity: "machine" });
   }
 
   async create(dto: CreateMachineDto, actor: AuthenticatedUser) {

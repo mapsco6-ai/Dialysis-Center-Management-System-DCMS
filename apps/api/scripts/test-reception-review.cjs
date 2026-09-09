@@ -108,7 +108,7 @@ async function main() {
   await test('Concurrent check-in produces one committed check-in',async()=>{
     let reads=0,release;const gate=new Promise(r=>release=r);
     const wrapped=new Proxy(db,{get(target,key){if(key==='dialysisSchedule')return new Proxy(target.dialysisSchedule,{get(delegate,method){if(method==='findUnique')return async(args)=>{const row=await delegate.findUnique(args);if(++reads===2)release();await gate;return row;};const value=delegate[method];return typeof value==='function'?value.bind(delegate):value;}});const value=target[key];return typeof value==='function'?value.bind(target):value;}});
-    const service=new SchedulingService(wrapped,new AuditService(db));
+    const service=new SchedulingService(wrapped,new AuditService(db),{emit:()=>{}});
     const auth={id:actor.id,roles:[role.name],permissions:['attendance.checkin']};
     const outcomes=await Promise.allSettled([service.checkIn(race.schedule.id,{stationId:'A'},auth),service.checkIn(race.schedule.id,{stationId:'B'},auth)]);
     const count=await db.auditLog.count({where:{entityId:race.schedule.id}});
@@ -116,7 +116,7 @@ async function main() {
   });
   const rollback=await fixture();
   await test('Audit failure rolls back check-in transaction',async()=>{
-    const service=new SchedulingService(db,{log:async()=>{throw new Error('injected audit failure');}});
+    const service=new SchedulingService(db,{log:async()=>{throw new Error('injected audit failure');}},{emit:()=>{}});
     await assert.rejects(service.checkIn(rollback.schedule.id,{stationId:'A'},{id:actor.id,roles:[]}),/injected audit failure/);
     const row=await db.dialysisSchedule.findUnique({where:{id:rollback.schedule.id}});assert.equal(row.status,'SCHEDULED');assert.equal(row.checkInTime,null);assert.equal(await db.patientTimelineEvent.count({where:{patientId:rollback.patient.id}}),0);
   });
