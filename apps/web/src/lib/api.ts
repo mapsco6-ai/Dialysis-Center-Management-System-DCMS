@@ -34,7 +34,12 @@ export class ApiError extends Error {
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const token = getToken();
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  // A FormData body (file upload) needs the browser to set its own
+  // multipart/form-data boundary - forcing application/json here would
+  // corrupt the request (Phase 12: fault-report attachments).
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
@@ -45,4 +50,19 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   }
 
   return response.json();
+}
+
+// For a binary response (Phase 12: fault-report attachment image) - an
+// <img> tag can't attach an Authorization header itself, so the caller
+// fetches the blob here and points the tag at an object URL instead.
+export async function apiFetchBlob(path: string): Promise<Blob> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, { headers });
+  if (!response.ok) {
+    throw new ApiError(response.statusText || "Request failed", response.status);
+  }
+  return response.blob();
 }

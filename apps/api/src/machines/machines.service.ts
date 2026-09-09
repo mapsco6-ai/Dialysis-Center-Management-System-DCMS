@@ -170,6 +170,25 @@ export class MachinesService {
       }
     }
 
+    // A machine taken OUT_OF_SERVICE by a Phase 12 fault report stays that
+    // way until its own ticket is CLOSED - closing is the "الوحيد المسموح
+    // أن يعيد الجهاز" (docs/MODULES-SPEC.md Phase 12), so this generic
+    // endpoint must not offer a side door back to AVAILABLE/MAINTENANCE
+    // while a ticket for it is still open. Reading maintenanceTicket
+    // directly (no MaintenanceModule import) matches this codebase's usual
+    // cross-phase data-layer coupling (e.g. Pharmacy reading Prescription).
+    if (machine.status === "OUT_OF_SERVICE" && dto.status !== "OUT_OF_SERVICE") {
+      const openTicket = await this.prisma.maintenanceTicket.findFirst({
+        where: { machineId: id, status: { not: "CLOSED" } },
+        select: { id: true },
+      });
+      if (openTicket) {
+        throw new ConflictException(
+          "This machine has an open maintenance ticket - close it to return the machine to service",
+        );
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       await this.transitionStatus(tx, machine, dto.status, actor, dto.reason);
       return tx.machine.findUniqueOrThrow({ where: { id }, include: { ward: true } });

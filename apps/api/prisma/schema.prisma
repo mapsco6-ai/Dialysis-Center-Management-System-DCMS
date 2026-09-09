@@ -30,35 +30,38 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  roles                 UserRole[]
-  auditLogs             AuditLog[]
-  clinicalAlerts        ClinicalAlert[]
-  timelineEvents        PatientTimelineEvent[]
-  requestedSchedules    DialysisSchedule[]            @relation("ScheduleRequestedByDoctor")
-  checkedInSchedules    DialysisSchedule[]            @relation("ScheduleCheckedInBy")
-  stockMovements        StockMovement[]
-  supplyOverrides       SessionSupplyOverride[]
-  supplyIssues          SessionSupplyIssueItem[]
-  machineStatusChanges  MachineStatusHistory[]
-  approvalsRequested    MachineUsageApprovalRequest[] @relation("ApprovalRequestedBy")
-  approvalsDecided      MachineUsageApprovalRequest[] @relation("ApprovalDecidedBy")
-  nursedSessions        DialysisSession[]             @relation("SessionNurse")
-  enteredReadings       DialysisReading[]
-  recordedEvents        DialysisEvent[]
-  nursingAssignments    NursingAssignment[]           @relation("AssignedNurse")
-  assignmentsCreated    NursingAssignment[]           @relation("AssignmentCreatedBy")
-  doctorOrders          DoctorOrder[]
-  prescriptions         Prescription[]
-  medicationsGiven      MedicationAdministration[]
-  clinicalNotes         ClinicalNote[]
-  labOrdersRequested    LabOrder[]
-  labResultsEntered     LabResult[]
-  prescriptionDispenses PrescriptionDispense[]
-  batchesReceived       InventoryBatch[]
-  transfersRequested    StockTransfer[]               @relation("TransferRequestedBy")
-  transfersApproved     StockTransfer[]               @relation("TransferApprovedBy")
-  transfersIssued       StockTransfer[]               @relation("TransferIssuedBy")
-  transfersReceived     StockTransfer[]               @relation("TransferReceivedBy")
+  roles                      UserRole[]
+  auditLogs                  AuditLog[]
+  clinicalAlerts             ClinicalAlert[]
+  timelineEvents             PatientTimelineEvent[]
+  requestedSchedules         DialysisSchedule[]               @relation("ScheduleRequestedByDoctor")
+  checkedInSchedules         DialysisSchedule[]               @relation("ScheduleCheckedInBy")
+  stockMovements             StockMovement[]
+  supplyOverrides            SessionSupplyOverride[]
+  supplyIssues               SessionSupplyIssueItem[]
+  machineStatusChanges       MachineStatusHistory[]
+  approvalsRequested         MachineUsageApprovalRequest[]    @relation("ApprovalRequestedBy")
+  approvalsDecided           MachineUsageApprovalRequest[]    @relation("ApprovalDecidedBy")
+  nursedSessions             DialysisSession[]                @relation("SessionNurse")
+  enteredReadings            DialysisReading[]
+  recordedEvents             DialysisEvent[]
+  nursingAssignments         NursingAssignment[]              @relation("AssignedNurse")
+  assignmentsCreated         NursingAssignment[]              @relation("AssignmentCreatedBy")
+  doctorOrders               DoctorOrder[]
+  prescriptions              Prescription[]
+  medicationsGiven           MedicationAdministration[]
+  clinicalNotes              ClinicalNote[]
+  labOrdersRequested         LabOrder[]
+  labResultsEntered          LabResult[]
+  prescriptionDispenses      PrescriptionDispense[]
+  batchesReceived            InventoryBatch[]
+  transfersRequested         StockTransfer[]                  @relation("TransferRequestedBy")
+  transfersApproved          StockTransfer[]                  @relation("TransferApprovedBy")
+  transfersIssued            StockTransfer[]                  @relation("TransferIssuedBy")
+  transfersReceived          StockTransfer[]                  @relation("TransferReceivedBy")
+  maintenanceTicketsReported MaintenanceTicket[]              @relation("MaintenanceTicketReportedBy")
+  maintenanceTicketsAssigned MaintenanceTicket[]              @relation("MaintenanceTicketAssignedTo")
+  maintenanceStatusChanges   MaintenanceTicketStatusHistory[]
 
   @@map("users")
 }
@@ -683,6 +686,27 @@ enum ApprovalDecision {
   REJECTED
 }
 
+enum MaintenanceTicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_PART
+  COMPLETED
+  CLOSED
+}
+
+// Not defined by docs/MODULES-SPEC.md beyond the field's existence - a plain
+// four-level triage scale is this implementation's documented interim
+// choice (an operational judgment call, same reasoning as Phase 11's
+// Low/Critical Stock threshold - not a clinical fact this codebase would
+// need special authority to assert).
+enum MaintenanceSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 // Deliberately NOT seeded (unlike Shift/StockLocation): a ward's name/count
 // is a fact about the real physical center, not something this codebase
 // should invent. Created via the API by an admin, same reasoning as
@@ -728,10 +752,11 @@ model Machine {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  statusHistory    MachineStatusHistory[]
-  approvalRequests MachineUsageApprovalRequest[]
-  schedules        DialysisSchedule[]
-  dialysisSessions DialysisSession[]
+  statusHistory      MachineStatusHistory[]
+  approvalRequests   MachineUsageApprovalRequest[]
+  schedules          DialysisSchedule[]
+  dialysisSessions   DialysisSession[]
+  maintenanceTickets MaintenanceTicket[]
 
   @@map("machines")
 }
@@ -1410,4 +1435,83 @@ model StockTransfer {
   @@index([itemId])
   @@index([status])
   @@map("stock_transfers")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 12 (Maintenance): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// ---------------------------------------------------------------------------
+
+// REPORT FAULT creates this row AND flips Machine.status -> OUT_OF_SERVICE
+// in the same transaction (docs/MODULES-SPEC.md: "ينقل Machine.status ...
+// تلقائياً ضمن نفس Transaction - لا يُترك يدوياً") via the same central
+// MachinesService.transitionStatus() every other phase already routes
+// through, so MachineStatusHistory (the Machine Timeline's other half)
+// never misses this event either.
+model MaintenanceTicket {
+  id String @id @default(uuid())
+
+  machineId String
+  machine   Machine @relation(fields: [machineId], references: [id])
+
+  reportedById String
+  reportedBy   User   @relation("MaintenanceTicketReportedBy", fields: [reportedById], references: [id])
+
+  problem       String
+  severity      MaintenanceSeverity
+  // Optional - not every fault report includes a photo (docs/PROJECT-
+  // PHASES-PLAN.md: "صورة اختيارية عبر MinIO"). Holds the object key
+  // returned by MinioService.upload(), not a public URL - retrieval goes
+  // through GET /maintenance/tickets/:id/attachment so access stays gated
+  // by the same permissions as the ticket itself, not by guessing a bucket
+  // URL.
+  attachmentUrl String?
+
+  // Not in MODULES-SPEC.md's minimal field list, but needed to answer a
+  // real question at CLOSE time: was this machine actively serving a
+  // patient (IN_USE/RESERVED/EMERGENCY_RESERVED) at the moment the fault
+  // was reported, or just sitting AVAILABLE? Closing routes back through
+  // WAITING_CLEANING only in the former case - the same "just came off a
+  // patient" rule every other exit from active use already follows
+  // (docs/PROJECT-PHASES-PLAN.md Phase 12 acceptance criterion 3: "أو
+  // CLEANING إن لزم").
+  preFaultStatus MachineStatus
+
+  status MaintenanceTicketStatus @default(OPEN)
+
+  assignedToId String?
+  assignedTo   User?   @relation("MaintenanceTicketAssignedTo", fields: [assignedToId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusHistory MaintenanceTicketStatusHistory[]
+
+  @@index([machineId])
+  @@index([status])
+  @@map("maintenance_tickets")
+}
+
+// Append-only, same pattern as MachineStatusHistory. The ticket's own
+// internal stages (ASSIGNED/IN_PROGRESS/WAITING_PART/COMPLETED) don't
+// correspond to any Machine.status change - without this log, the Machine
+// Timeline could only ever show "a fault was reported" and "service
+// resumed," never the repair work in between (docs/PROJECT-PHASES-PLAN.md
+// Phase 12 acceptance criterion 4 names "صيانة" as its own timeline
+// category, distinct from "عطل" and "عودة خدمة").
+model MaintenanceTicketStatusHistory {
+  id String @id @default(uuid())
+
+  ticketId   String
+  ticket     MaintenanceTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromStatus MaintenanceTicketStatus
+  toStatus   MaintenanceTicketStatus
+
+  changedById String
+  changedBy   User    @relation(fields: [changedById], references: [id])
+  reason      String?
+
+  changedAt DateTime @default(now())
+
+  @@index([ticketId, changedAt])
+  @@map("maintenance_ticket_status_history")
 }

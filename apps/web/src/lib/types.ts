@@ -563,3 +563,52 @@ export interface LabTrendPoint {
   date: string;
   value: string;
 }
+
+export type MaintenanceTicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "WAITING_PART" | "COMPLETED" | "CLOSED";
+export type MaintenanceSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface MaintenanceTicketStatusHistoryEntry {
+  id: string;
+  fromStatus: MaintenanceTicketStatus;
+  toStatus: MaintenanceTicketStatus;
+  changedBy?: { id: string; fullName: string };
+  reason: string | null;
+  changedAt: string;
+}
+
+export interface MaintenanceTicket {
+  id: string;
+  machineId: string;
+  machine?: Machine;
+  reportedById: string;
+  reportedBy?: { id: string; fullName: string };
+  problem: string;
+  severity: MaintenanceSeverity;
+  attachmentUrl: string | null;
+  preFaultStatus: MachineStatus;
+  status: MaintenanceTicketStatus;
+  assignedToId: string | null;
+  assignedTo?: { id: string; fullName: string } | null;
+  createdAt: string;
+  statusHistory?: MaintenanceTicketStatusHistoryEntry[];
+}
+
+export interface MachineTimelineEvent {
+  timestamp: string;
+  category: "USAGE" | "CLEANING" | "FAULT" | "RETURN_TO_SERVICE" | "MAINTENANCE" | "OTHER";
+  fromStatus: string | null;
+  toStatus: string | null;
+  changedBy?: { id: string; fullName: string };
+  reason: string | null;
+  source: "MACHINE_STATUS" | "MAINTENANCE_TICKET";
+  ticketId: string | null;
+}
+
+export interface DowntimeReport {
+  machineId: string;
+  from: string;
+  to: string;
+  totalDowntimeMs: number;
+  totalDowntimeHours: number;
+  intervals: { start: string; end: string }[];
+}

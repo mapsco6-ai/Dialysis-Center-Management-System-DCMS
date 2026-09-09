@@ -87,6 +87,10 @@ const PERMISSIONS = [
   { key: "inventory.transfer.approve", module: "inventory", description: "Approve or reject a requested stock transfer" },
   { key: "inventory.transfer.issue", module: "inventory", description: "Issue (debit) an approved stock transfer from its source location" },
   { key: "inventory.transfer.receive", module: "inventory", description: "Receive (credit) an issued stock transfer at its destination location" },
+
+  // Phase 12 (Maintenance)
+  { key: "machine.fault.report", module: "machines", description: "Report a machine fault, taking it out of service and opening a maintenance ticket" },
+  { key: "maintenance.manage", module: "maintenance", description: "Assign, progress, and close maintenance tickets" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

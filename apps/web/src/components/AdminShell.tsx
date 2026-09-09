@@ -78,6 +78,13 @@ export function AdminShell({
                 الصيدلية
               </Link>
             )}
+            {(user.permissions.includes("machine.fault.report") ||
+              user.permissions.includes("maintenance.manage") ||
+              user.permissions.includes("machine.view")) && (
+              <Link href="/admin/maintenance" className="text-slate-600 hover:text-slate-900">
+                الصيانة
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>
