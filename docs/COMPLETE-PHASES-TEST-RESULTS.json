@@ -1,0 +1,608 @@
+{
+  "suite": "Completed phases review: additional coverage 0,1,7-10",
+  "date": "2026-09-09T06:38:43.963Z",
+  "database": "disposable PostgreSQL 16",
+  "completed": true,
+  "passed": 114,
+  "failed": 0,
+  "results": [
+    {
+      "phase": 0,
+      "name": "Protected API rejects anonymous request",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Permission guard rejects non-clinical user",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Logout invalidates previously issued JWT",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Inactive account JWT rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Real password login and wrong password rejection",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Sixth failed login is rate limited",
+      "status": "PASS",
+      "issue": "DCMS-014"
+    },
+    {
+      "phase": 1,
+      "name": "Patient creation has unique barcode and timeline",
+      "status": "PASS"
+    },
+    {
+      "phase": 1,
+      "name": "Barcode round trip",
+      "status": "PASS"
+    },
+    {
+      "phase": 1,
+      "name": "Invalid birth date and negative dry weight rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 1,
+      "name": "Malformed pagination is a client error",
+      "status": "PASS",
+      "issue": "DCMS-009"
+    },
+    {
+      "phase": 1,
+      "name": "Alert resolution retains original and rejects repeated resolution",
+      "status": "PASS",
+      "issue": "DCMS-017"
+    },
+    {
+      "phase": 1,
+      "name": "Patient creation rolls back when audit fails",
+      "status": "PASS",
+      "issue": "DCMS-003"
+    },
+    {
+      "phase": 2,
+      "name": "Duplicate weekday rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 2,
+      "name": "New plan appears on creation day",
+      "status": "PASS",
+      "issue": "DCMS-027"
+    },
+    {
+      "phase": 2,
+      "name": "Repeat schedule generation is idempotent",
+      "status": "PASS"
+    },
+    {
+      "phase": 2,
+      "name": "Reserved capacity cannot exceed nominal capacity",
+      "status": "PASS",
+      "issue": "DCMS-031"
+    },
+    {
+      "phase": 2,
+      "name": "Extra session requires authorized requesting doctor",
+      "status": "PASS",
+      "issue": "DCMS-032"
+    },
+    {
+      "phase": 2,
+      "name": "Date-only schedule rejects timestamp that changes calendar day",
+      "status": "PASS",
+      "issue": "DCMS-033"
+    },
+    {
+      "phase": 2,
+      "name": "Future generated schedules follow updated plan",
+      "status": "PASS",
+      "issue": "DCMS-029"
+    },
+    {
+      "phase": 2,
+      "name": "Deceased patient is excluded from future generation",
+      "status": "PASS",
+      "issue": "DCMS-030"
+    },
+    {
+      "phase": 2,
+      "name": "Closed historical plan still materializes historically effective date",
+      "status": "PASS",
+      "issue": "DCMS-028"
+    },
+    {
+      "phase": 7,
+      "name": "PIN rejects malformed and incorrect values",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "Own PIN can be set and verified",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "Unassigned nurse cannot add reading",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "Forged verifiedActorId without PIN must be rejected",
+      "status": "PASS",
+      "issue": "DCMS-055"
+    },
+    {
+      "phase": 7,
+      "name": "Non-clinical account cannot be assigned as nurse",
+      "status": "PASS",
+      "issue": "DCMS-056"
+    },
+    {
+      "phase": 7,
+      "name": "Valid nursing assignment and reading",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "Assignment conflict rejected atomically",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "Ward dashboard hides another nurse patient",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "Direct session endpoint enforces same nursing scope",
+      "status": "PASS",
+      "issue": "DCMS-006"
+    },
+    {
+      "phase": 7,
+      "name": "Ward date filter excludes sessions on another date",
+      "status": "PASS",
+      "issue": "DCMS-057"
+    },
+    {
+      "phase": 7,
+      "name": "Assignment in another shift cannot authorize reading",
+      "status": "PASS",
+      "issue": "DCMS-058"
+    },
+    {
+      "phase": 7,
+      "name": "Nursing role can load ward and shift selectors without management permissions",
+      "status": "PASS",
+      "issue": "DCMS-066"
+    },
+    {
+      "phase": 8,
+      "name": "MEDICATION missing required payload rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "LAB_REQUEST missing required payload rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "NURSING_INSTRUCTION missing required payload rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "DRY_WEIGHT_CHANGE missing required payload rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "EXTRA_SESSION_REQUEST missing required payload rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "PHARMACY_RECOMMENDATION missing required payload rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Medication cannot reference another patient session",
+      "status": "PASS",
+      "issue": "DCMS-059"
+    },
+    {
+      "phase": 8,
+      "name": "Clinical note cannot reference another patient session",
+      "status": "PASS",
+      "issue": "DCMS-059"
+    },
+    {
+      "phase": 8,
+      "name": "Administration cannot reference another patient session",
+      "status": "PASS",
+      "issue": "DCMS-059"
+    },
+    {
+      "phase": 8,
+      "name": "Medication modification preserves old dose and lineage",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Stopped doctor order cannot be stopped or modified twice",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Concurrent modifications create one successor",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Dry weight creation updates patient",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Dry weight modification updates patient to new order",
+      "status": "PASS",
+      "issue": "DCMS-060"
+    },
+    {
+      "phase": 8,
+      "name": "Dry weight modification rejects invalid negative value",
+      "status": "PASS",
+      "issue": "DCMS-060"
+    },
+    {
+      "phase": 8,
+      "name": "Generic doctor lab request creates actionable lab work",
+      "status": "PASS",
+      "issue": "DCMS-061"
+    },
+    {
+      "phase": 9,
+      "name": "Lab panel deduplicates overlapping tests",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab order requires at least one test",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Unknown test rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab creation audit failure rolls back order and items",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from ORDERED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from RESULT_ENTERED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from FINAL",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from AMENDED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Amend lab result from CANCELLED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state ORDERED -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state ORDERED -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state ORDERED -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state SAMPLE_COLLECTED -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state SAMPLE_COLLECTED -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state SAMPLE_COLLECTED -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state PROCESSING -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state PROCESSING -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state PROCESSING -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state RESULT_ENTERED -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state RESULT_ENTERED -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state RESULT_ENTERED -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state FINAL -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state FINAL -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state FINAL -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state AMENDED -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state AMENDED -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state AMENDED -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state CANCELLED -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state CANCELLED -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state CANCELLED -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Critical result creates patient alert and final result",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Final result amendment keeps old value and reason audit",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Trend chooses amended value",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Invalid queue status and excessive trend limit rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Concurrent finalization commits one result and one alert",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Stopping linked lab doctor order prevents further processing",
+      "status": "PASS",
+      "issue": "DCMS-062"
+    },
+    {
+      "phase": 10,
+      "name": "Transfer moves equal stock between locations",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Insufficient transfer rolls back balances",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Start dispensing from ACTIVE",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Start dispensing from DISPENSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Start dispensing from DISPENSED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Start dispensing from MODIFIED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Start dispensing from STOPPED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense from ACTIVE",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense from DISPENSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense from DISPENSED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense from MODIFIED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense from STOPPED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispensed prescribed medicine remains administrable",
+      "status": "PASS",
+      "issue": "DCMS-063"
+    },
+    {
+      "phase": 10,
+      "name": "Unrelated inventory item cannot fulfill medication",
+      "status": "PASS",
+      "issue": "DCMS-064"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense cannot link to another patient session",
+      "status": "PASS",
+      "issue": "DCMS-059"
+    },
+    {
+      "phase": 10,
+      "name": "Concurrent dispense deducts only once",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense shortage restores DISPENSING and writes no issue",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense audit failure rolls back stock, state and history",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Administer from ACTIVE",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Administer from DISPENSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Administer from DISPENSED",
+      "status": "PASS",
+      "issue": "DCMS-063"
+    },
+    {
+      "phase": 8,
+      "name": "Administer from MODIFIED",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Administer from STOPPED",
+      "status": "PASS"
+    },
+    {
+      "phase": "7-10",
+      "name": "No-permission request /lab/queue",
+      "status": "PASS"
+    },
+    {
+      "phase": "7-10",
+      "name": "No-permission request /pharmacy/queue",
+      "status": "PASS"
+    },
+    {
+      "phase": "7-10",
+      "name": "No-permission request /wards/:ward/dashboard",
+      "status": "PASS"
+    },
+    {
+      "phase": "7-10",
+      "name": "No-permission request /patients/:patient/prescriptions",
+      "status": "PASS"
+    }
+  ]
+}

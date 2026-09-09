@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-09",
+  "database": "disposable complete_test on PostgreSQL 16",
+  "issue": "DCMS-018",
+  "method": "Created synthetic dcms_app role, granted current tables SELECT/INSERT/UPDATE/DELETE and sequence USAGE/SELECT to mirror init default grants, applied repository apps/api/prisma/harden-db.sql, queried has_table_privilege. No clinical rows were deleted or updated by this probe.",
+  "results": [
+    {"table": "audit_logs", "canUpdate": false, "canDelete": false},
+    {"table": "patients", "canUpdate": true, "canDelete": false},
+    {"table": "patient_timeline_events", "canUpdate": true, "canDelete": false},
+    {"table": "dialysis_readings", "canUpdate": true, "canDelete": true},
+    {"table": "lab_results", "canUpdate": true, "canDelete": true},
+    {"table": "medication_administrations", "canUpdate": true, "canDelete": true},
+    {"table": "prescription_dispenses", "canUpdate": true, "canDelete": true}
+  ]
+}

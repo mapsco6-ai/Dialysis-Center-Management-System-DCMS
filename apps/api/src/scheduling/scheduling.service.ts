@@ -10,6 +10,7 @@ import { CheckInDto } from "./dto/check-in.dto";
 import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 import { combineLocalDateAndTime, toDateOnly, todayDateOnly, weekdayOf } from "./date.util";
 import { SYSTEM_USERNAME } from "../common/system-user";
+import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "../auth/auth.utils";
 
 const SCHEDULE_INCLUDE = {
   patient: { select: { id: true, fullName: true, patientCode: true, barcode: true, fileNumber: true } },
@@ -71,10 +72,32 @@ export class SchedulingService {
     const plainEntries = dto.entries.map((entry) => ({ weekday: entry.weekday, shiftId: entry.shiftId }));
 
     return this.prisma.$transaction(async (tx) => {
+      const closedPlans = await tx.dialysisPlan.findMany({
+        where: { patientId, isActive: true, effectiveTo: null },
+        select: { id: true },
+      });
       await tx.dialysisPlan.updateMany({
         where: { patientId, isActive: true, effectiveTo: null },
         data: { isActive: false, effectiveTo: now },
       });
+
+      // A future SCHEDULED appointment already lazily generated from the
+      // plan just closed above is now wrong (still shows the old shift) but
+      // was left in place, so the patient ended up with both it and the
+      // freshly-regenerated correct one on the same day (DCMS-029). Nothing
+      // clinical has happened for a still-SCHEDULED future row - it's safe
+      // to remove and let the next schedule read regenerate it under the
+      // new plan; a date that has already arrived (today or past) is left
+      // alone since staff may already be acting on it.
+      if (closedPlans.length > 0) {
+        await tx.dialysisSchedule.deleteMany({
+          where: {
+            planId: { in: closedPlans.map((p) => p.id) },
+            status: "SCHEDULED",
+            scheduledDate: { gt: todayDateOnly() },
+          },
+        });
+      }
 
       const created = await Promise.all(
         dto.entries.map((entry) =>
@@ -141,9 +164,19 @@ export class SchedulingService {
     const activePlans = await this.prisma.dialysisPlan.findMany({
       where: {
         weekday,
-        isActive: true,
+        // isActive only means "currently the patient's plan," not "was in
+        // effect on `date`" - both flip together the moment a plan is
+        // replaced (setDialysisPlan), so filtering on it here excluded a
+        // now-closed plan even for a historical date that fell entirely
+        // inside its own effectiveFrom/effectiveTo window (DCMS-028). The
+        // date range alone is the correct test for "which plan governed
+        // this specific day."
         effectiveFrom: { lt: startOfNextDay },
         OR: [{ effectiveTo: null }, { effectiveTo: { gte: date } }],
+        // A deceased patient's plan stays on record (never deleted) but
+        // must stop generating appointments they can no longer attend
+        // (DCMS-030).
+        patient: { status: { not: "DECEASED" } },
       },
     });
     if (activePlans.length === 0) return;
@@ -350,6 +383,22 @@ export class SchedulingService {
     await this.requirePatient(dto.patientId);
     await this.requireShift(dto.shiftId);
     const scheduledDate = toDateOnly(dto.scheduledDate);
+
+    if (dto.requestedByDoctorId) {
+      // An id that merely exists proves nothing - without this, any active
+      // account (including one with zero clinical permissions) could be
+      // attributed as the requesting doctor for an extra session (DCMS-032).
+      const doctor = await this.prisma.user.findUnique({
+        where: { id: dto.requestedByDoctorId },
+        include: USER_WITH_ROLES_INCLUDE,
+      });
+      if (!doctor || !doctor.isActive) {
+        throw new BadRequestException("requestedByDoctorId does not refer to an active user");
+      }
+      if (!toAuthenticatedUser(doctor).permissions.includes("prescription.create")) {
+        throw new BadRequestException("requestedByDoctorId does not hold clinical authority to request a session");
+      }
+    }
 
     try {
       return await this.prisma.$transaction(async (tx) => {

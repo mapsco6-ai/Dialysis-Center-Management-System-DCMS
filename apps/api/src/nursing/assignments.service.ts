@@ -2,9 +2,17 @@ import { BadRequestException, ConflictException, Injectable } from "@nestjs/comm
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "../auth/auth.utils";
 import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 import { toDateOnly } from "../scheduling/date.util";
 import { CreateAssignmentDto } from "./dto/create-assignment.dto";
+
+// The permission SessionsService already treats as "on the nursing floor"
+// (enforceNursingAssignment) - reused here so a nurseId can never be written
+// to an assignment unless that account could actually act on it afterward
+// (docs review DCMS-056: the candidate dropdown filtered by role name, but
+// the write endpoint itself accepted any active user id unchecked).
+const CLINICAL_NURSING_PERMISSION = "nursing.ward.view";
 
 const ASSIGNMENT_INCLUDE = {
   ward: true,
@@ -22,15 +30,18 @@ export class AssignmentsService {
 
   async upsert(dto: CreateAssignmentDto, actor: AuthenticatedUser) {
     const date = toDateOnly(dto.date);
-    const [ward, shift, nurse] = await Promise.all([
+    const [ward, shift, nurseRecord] = await Promise.all([
       this.prisma.ward.findUnique({ where: { id: dto.wardId } }),
       this.prisma.shift.findUnique({ where: { id: dto.shiftId } }),
-      this.prisma.user.findUnique({ where: { id: dto.nurseId } }),
+      this.prisma.user.findUnique({ where: { id: dto.nurseId }, include: USER_WITH_ROLES_INCLUDE }),
     ]);
     if (!ward) throw new BadRequestException("Ward not found");
     if (!shift) throw new BadRequestException("Shift not found");
-    if (!nurse) throw new BadRequestException("Nurse not found");
-    if (!nurse.isActive) throw new BadRequestException("Nurse account is inactive");
+    if (!nurseRecord) throw new BadRequestException("Nurse not found");
+    if (!nurseRecord.isActive) throw new BadRequestException("Nurse account is inactive");
+    if (!toAuthenticatedUser(nurseRecord).permissions.includes(CLINICAL_NURSING_PERMISSION)) {
+      throw new BadRequestException("nurseId does not hold clinical nursing authority");
+    }
 
     const uniquePatientIds = [...new Set(dto.patientIds)];
     if (uniquePatientIds.length > 0) {
@@ -124,10 +135,19 @@ export class AssignmentsService {
 
   // Used by SessionsService to enforce that a filtered nurse can only act on
   // patients actually assigned to them (docs/PROJECT-PHASES-PLAN.md Phase 7
-  // acceptance criterion 5).
-  async isPatientAssignedToNurseOnDate(patientId: string, nurseId: string, date: Date): Promise<boolean> {
+  // acceptance criterion 5). shiftId is required and wardId checked when
+  // known - date alone let a nurse assigned to SHIFT_2 act on a SHIFT_1
+  // session for the same patient/day (DCMS-058), since a single day can
+  // host multiple independent shift rosters.
+  async isPatientAssignedToNurseOnDate(
+    patientId: string,
+    nurseId: string,
+    date: Date,
+    shiftId: string,
+    wardId?: string | null,
+  ): Promise<boolean> {
     const count = await this.prisma.nursingAssignmentPatient.count({
-      where: { patientId, date, assignment: { nurseId } },
+      where: { patientId, date, shiftId, ...(wardId ? { wardId } : {}), assignment: { nurseId } },
     });
     return count > 0;
   }

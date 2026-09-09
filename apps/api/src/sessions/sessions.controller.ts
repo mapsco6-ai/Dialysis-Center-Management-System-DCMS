@@ -19,8 +19,8 @@ export class SessionsController {
 
   @Get()
   @RequirePermissions("dialysis.session.view")
-  getOverview(@Param("id") id: string) {
-    return this.sessionsService.getOverview(id);
+  getOverview(@Param("id") id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.sessionsService.getOverview(id, actor);
   }
 
   @Post("pre-dialysis")

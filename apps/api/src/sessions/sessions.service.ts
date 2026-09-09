@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { MachinesService } from "../machines/machines.service";
 import { AssignmentsService } from "../nursing/assignments.service";
+import { PinProofService } from "../nursing/pin-proof.service";
 import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "../auth/auth.utils";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { todayDateOnly } from "../scheduling/date.util";
@@ -24,6 +25,7 @@ export class SessionsService {
     private readonly auditService: AuditService,
     private readonly machinesService: MachinesService,
     private readonly assignmentsService: AssignmentsService,
+    private readonly pinProofService: PinProofService,
   ) {}
 
   // If the performer is on the nursing-floor permission tier (holds
@@ -32,7 +34,15 @@ export class SessionsService {
   // Phase 7 acceptance criterion 5). Anyone outside that tier entirely
   // (e.g. a doctor holding dialysis.* permissions directly) is unaffected -
   // this is additive, not a new restriction on pre-Phase-7 callers.
-  private async enforceNursingAssignment(patientId: string, performer: { id: string; permissions: string[] }) {
+  // Scoped to the actual shift (and ward, once a machine has assigned one) -
+  // date alone let a nurse rostered to a different shift the same day act
+  // on this patient's session (DCMS-058).
+  private async enforceNursingAssignment(
+    patientId: string,
+    shiftId: string,
+    wardId: string | null,
+    performer: { id: string; permissions: string[] },
+  ) {
     if (!performer.permissions.includes("nursing.ward.view") || performer.permissions.includes("nursing.ward.view.all")) {
       return;
     }
@@ -40,10 +50,22 @@ export class SessionsService {
       patientId,
       performer.id,
       todayDateOnly(),
+      shiftId,
+      wardId,
     );
     if (!assigned) {
       throw new ForbiddenException("This patient is not on your assigned roster for today");
     }
+  }
+
+  // Same scope check as above, from a live session's own scheduleId - saves
+  // every session-mutating call site from re-fetching the schedule itself.
+  private async enforceNursingAssignmentForSession(
+    session: DialysisSession,
+    performer: { id: string; permissions: string[] },
+  ) {
+    const schedule = await this.prisma.dialysisSchedule.findUniqueOrThrow({ where: { id: session.scheduleId } });
+    await this.enforceNursingAssignment(session.patientId, schedule.shiftId, session.wardId, performer);
   }
 
   // Resolves who actually performed the action: either the device's own
@@ -54,32 +76,40 @@ export class SessionsService {
   // what requires using it here). Returns the performer's own id AND
   // permissions so enforceNursingAssignment checks the person actually
   // doing the work, not whoever's session the shared device is logged into.
+  //
+  // verifiedActorToken must be a signed, single-use proof from POST
+  // /nursing/verify-pin, redeemed only by the same device session that
+  // requested it - a bare user id here was DCMS-055 (trivially forgeable;
+  // this method used to only check the referenced user existed and held the
+  // permission, never that a PIN was actually entered for them).
   private async resolvePerformer(
     actor: AuthenticatedUser,
-    verifiedActorId: string | undefined,
+    verifiedActorToken: string | undefined,
     requiredPermission: string,
   ): Promise<{ id: string; permissions: string[] }> {
-    if (!verifiedActorId || verifiedActorId === actor.id) {
+    if (!verifiedActorToken) {
       return actor;
     }
+    const verifiedUserId = await this.pinProofService.consume(verifiedActorToken, actor.id);
     const verifiedUser = await this.prisma.user.findUnique({
-      where: { id: verifiedActorId },
+      where: { id: verifiedUserId },
       include: USER_WITH_ROLES_INCLUDE,
     });
-    if (!verifiedUser) {
-      throw new BadRequestException("verifiedActorId does not refer to an existing user");
-    }
-    if (!verifiedUser.isActive) {
-      throw new BadRequestException("verifiedActorId refers to a deactivated user");
+    if (!verifiedUser || !verifiedUser.isActive) {
+      throw new BadRequestException("verifiedActorToken refers to a deactivated or missing user");
     }
     const resolved = toAuthenticatedUser(verifiedUser);
     if (!resolved.permissions.includes(requiredPermission)) {
-      throw new BadRequestException(`verifiedActorId does not hold ${requiredPermission}`);
+      throw new BadRequestException(`Verified actor does not hold ${requiredPermission}`);
     }
     return resolved;
   }
 
-  async getOverview(scheduleId: string) {
+  // A restricted nurse (holds nursing.ward.view but not the .all tier) could
+  // read any patient's full session detail here even though the ward
+  // dashboard hid it from them - the dashboard's Permission Filter was
+  // display-only, not an API-level restriction (DCMS-006).
+  async getOverview(scheduleId: string, actor: AuthenticatedUser) {
     const schedule = await this.prisma.dialysisSchedule.findUnique({
       where: { id: scheduleId },
       include: {
@@ -97,6 +127,7 @@ export class SessionsService {
     if (!schedule) {
       throw new NotFoundException("Schedule entry not found");
     }
+    await this.enforceNursingAssignment(schedule.patientId, schedule.shiftId, schedule.session?.wardId ?? null, actor);
     return schedule;
   }
 
@@ -479,8 +510,8 @@ export class SessionsService {
     if (session.status !== "IN_DIALYSIS") {
       throw new ConflictException(`Cannot record a reading while the session is ${session.status}`);
     }
-    const performer = await this.resolvePerformer(actor, dto.verifiedActorId, "dialysis.reading.create");
-    await this.enforceNursingAssignment(session.patientId, performer);
+    const performer = await this.resolvePerformer(actor, dto.verifiedActorToken, "dialysis.reading.create");
+    await this.enforceNursingAssignmentForSession(session, performer);
     const enteredById = performer.id;
 
     const time = dto.time ? new Date(dto.time) : new Date();
@@ -511,8 +542,8 @@ export class SessionsService {
     if (!original || original.sessionId !== session.id) {
       throw new NotFoundException("Reading not found for this session");
     }
-    const performer = await this.resolvePerformer(actor, dto.verifiedActorId, "dialysis.reading.create");
-    await this.enforceNursingAssignment(session.patientId, performer);
+    const performer = await this.resolvePerformer(actor, dto.verifiedActorToken, "dialysis.reading.create");
+    await this.enforceNursingAssignmentForSession(session, performer);
     const enteredById = performer.id;
 
     const time = dto.time ? new Date(dto.time) : original.time;
@@ -572,8 +603,8 @@ export class SessionsService {
     if (session.status !== "IN_DIALYSIS" && session.status !== "POST_DIALYSIS") {
       throw new ConflictException(`Cannot record an event while the session is ${session.status}`);
     }
-    const performer = await this.resolvePerformer(actor, dto.verifiedActorId, "dialysis.event.create");
-    await this.enforceNursingAssignment(session.patientId, performer);
+    const performer = await this.resolvePerformer(actor, dto.verifiedActorToken, "dialysis.event.create");
+    await this.enforceNursingAssignmentForSession(session, performer);
     const recordedById = performer.id;
 
     return this.prisma.$transaction(async (tx) => {

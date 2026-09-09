@@ -1,0 +1,207 @@
+{
+  "suite": "Phases 4,5,6",
+  "passed": 40,
+  "failed": 0,
+  "results": [
+    {
+      "phase": 4,
+      "name": "Profile defaults load",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Override is session-only",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Unauthorized issue is 403",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Issue deducts stock and records movement",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Sequential issue retry does not double deduct",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Shortage produces UNAVAILABLE without deduction",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Restock then retry fulfills unavailable line",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Substitution records link and reason",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Already replaced shortage rejects a second substitute",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Cancelled schedule cannot consume stock",
+      "status": "PASS"
+    },
+    {
+      "phase": 4,
+      "name": "Concurrent sessions cannot overdraw stock",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Unauthenticated machine listing is 401",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Auto assignment selects ordinary and excludes blocked machines",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Protected fallback requests approval without assigning",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Unauthorized approval decision is 403",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Authorized approval assigns and records decider",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Cleaning may not be skipped",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Second pending approval cannot allocate reserved machine twice",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Rejecting other request must not release assigned machine",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Early phase5 assignment is adopted by phase6 session",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "UNAVAILABLE supplies prevent readiness",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Start without assignment is rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Warehouse cannot start dialysis",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Incomplete start DTO returns 400",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Start sets IN_DIALYSIS and machine IN_USE",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Reading and amendment retain original and audit",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Hypotension event reaches timeline",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Future-dated reading is rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Negative pulse/UF reading is rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Reassignment retains readings/events and faults old machine",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "End completes and sends machine to cleaning queue",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Completed session rejects new readings",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Cleaning sequence and discharge succeed",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Limited nurse cannot bypass protected emergency pool via reassign",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Interrupted session has an end/recovery path",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Non-clinical user cannot be attributed as nurse",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Negative pre-weight must be rejected",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Manual assignment requires reason",
+      "status": "PASS"
+    },
+    {
+      "phase": 5,
+      "name": "Ward endpoints list 20/20/19 machine fixtures with exact states",
+      "status": "PASS"
+    },
+    {
+      "phase": 6,
+      "name": "Readings list is chronological and amendment without reason is rejected",
+      "status": "PASS"
+    }
+  ]
+}

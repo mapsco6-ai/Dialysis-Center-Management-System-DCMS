@@ -39,13 +39,24 @@ export class PrescriptionsService {
     if (!prescription) {
       throw new NotFoundException("Prescription not found");
     }
-    if (prescription.status !== "ACTIVE") {
+    // DISPENSED is a normal, administrable state - Prescribed -> Dispensed
+    // -> Administered is the whole point of the chain across Phases 8 and
+    // 10 (docs/PROJECT-PHASES-PLAN.md); requiring ACTIVE here made every
+    // dispensed medicine permanently un-administrable (DCMS-063). Only a
+    // STOPPED or MODIFIED (superseded) prescription is genuinely off-limits.
+    if (prescription.status !== "ACTIVE" && prescription.status !== "DISPENSED") {
       throw new ConflictException(`Cannot administer a prescription that is ${prescription.status}`);
     }
     if (dto.sessionId) {
       const session = await this.prisma.dialysisSession.findUnique({ where: { id: dto.sessionId } });
       if (!session) {
         throw new BadRequestException("sessionId does not refer to an existing session");
+      }
+      // A session FK proves the row exists, not that it's this patient's
+      // (DCMS-059) - without this an administration could attach to
+      // another patient's dialysis session.
+      if (session.patientId !== prescription.patientId) {
+        throw new BadRequestException("sessionId does not belong to this patient");
       }
     }
 

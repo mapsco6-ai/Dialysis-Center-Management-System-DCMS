@@ -41,12 +41,13 @@ export class CreateReadingDto {
   @Min(0)
   uf?: number;
 
-  // Set after a quick-PIN check on a shared, already-logged-in device
-  // (docs/PROJECT-PHASES-PLAN.md Phase 7) - the record is attributed to
-  // this verified user instead of the device's own session, once
-  // SessionsService confirms they're active and hold the same permission
-  // this endpoint requires.
+  // Signed, single-use proof issued by POST /nursing/verify-pin (docs/
+  // PROJECT-PHASES-PLAN.md Phase 7) - the record is attributed to whichever
+  // user that proof names instead of the device's own session, once
+  // SessionsService verifies the proof and confirms that user is active and
+  // holds the same permission this endpoint requires. A bare user id here
+  // would be forgeable by anyone (DCMS-055); only a valid proof token works.
   @IsOptional()
   @IsString()
-  verifiedActorId?: string;
+  verifiedActorToken?: string;
 }

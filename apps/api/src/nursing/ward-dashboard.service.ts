@@ -27,7 +27,16 @@ export class WardDashboardService {
     const machineIds = machines.map((m) => m.id);
     const sessions = machineIds.length
       ? await this.prisma.dialysisSession.findMany({
-          where: { machineId: { in: machineIds }, status: { in: [...LIVE_SESSION_STATUSES] } },
+          where: {
+            machineId: { in: machineIds },
+            status: { in: [...LIVE_SESSION_STATUSES] },
+            // A "live" session's machine occupancy is only relevant to a
+            // dashboard request for the date/shift it's actually scheduled
+            // under - without this, requesting a past date or a different
+            // shift still surfaced today's currently-occupying session
+            // (DCMS-057), since matching was keyed on machineId alone.
+            schedule: { scheduledDate: date, ...(shiftId ? { shiftId } : {}) },
+          },
           include: {
             patient: { select: { id: true, fullName: true, patientCode: true } },
             nurse: { select: { id: true, fullName: true } },

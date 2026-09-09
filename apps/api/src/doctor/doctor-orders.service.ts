@@ -2,10 +2,20 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { DoctorOrderType, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { LabOrdersService } from "../lab/lab-orders.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateDoctorOrderDto } from "./dto/create-doctor-order.dto";
 import { StopDoctorOrderDto } from "./dto/stop-doctor-order.dto";
 import { ModifyDoctorOrderDto } from "./dto/modify-doctor-order.dto";
+
+// Validation shared between creating a fresh DRY_WEIGHT_CHANGE order and
+// modifying one - modify() used to skip this entirely (DCMS-060), so an
+// edited order could carry a negative newDryWeight that was never checked.
+function assertRealisticDryWeight(newDryWeight: number) {
+  if (!Number.isFinite(newDryWeight) || newDryWeight <= 0 || newDryWeight > 300) {
+    throw new BadRequestException("newDryWeight must be a positive, realistic number of kilograms");
+  }
+}
 
 // What each order type needs in its payload at creation time - there's no
 // shared schema across types (docs/MODULES-SPEC.md: "تفاصيل حسب النوع"), and
@@ -37,6 +47,7 @@ export class DoctorOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly labOrdersService: LabOrdersService,
   ) {}
 
   private async requireOrder(id: string) {
@@ -73,6 +84,12 @@ export class DoctorOrdersService {
       if (!session) {
         throw new BadRequestException("linkedSessionId does not refer to an existing session");
       }
+      // A session FK proves the row exists, not that it's this patient's -
+      // without this check a prescription could be linked to another
+      // patient's dialysis session (DCMS-059).
+      if (session.patientId !== dto.patientId) {
+        throw new BadRequestException("linkedSessionId does not belong to this patient");
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -95,11 +112,19 @@ export class DoctorOrdersService {
         payload = { ...dto.payload, action: "ADD", prescriptionId: prescription.id };
       }
 
+      if (dto.type === "LAB_REQUEST") {
+        // The generic order path only carries free-text `details` - no
+        // catalog test selection - so this can't assert which tests are
+        // needed. It still has to become real, visible lab-module work
+        // instead of text nobody in the lab module ever sees (DCMS-061):
+        // an episode shell that lab staff must specify actual tests for.
+        const labOrderId = await this.labOrdersService.createPendingSpecification(tx, dto.patientId, actor.id);
+        payload = { ...dto.payload, labOrderId };
+      }
+
       if (dto.type === "DRY_WEIGHT_CHANGE") {
         const newDryWeight = Number(dto.payload.newDryWeight);
-        if (!Number.isFinite(newDryWeight) || newDryWeight <= 0 || newDryWeight > 300) {
-          throw new BadRequestException("newDryWeight must be a positive, realistic number of kilograms");
-        }
+        assertRealisticDryWeight(newDryWeight);
         const oldDryWeight = patient.dryWeight;
         await tx.patient.update({ where: { id: dto.patientId }, data: { dryWeight: newDryWeight } });
         payload = { ...dto.payload, oldDryWeight };
@@ -185,6 +210,20 @@ export class DoctorOrdersService {
         await tx.prescription.update({ where: { id: order.prescriptionId }, data: { status: "STOPPED" } });
       }
 
+      // The lab link lives in payload, not a real FK (docs review DCMS-061)
+      // - without this, work already queued for a stopped request kept
+      // proceeding (sample collection, processing...) with no trace that
+      // the ordering doctor had cancelled it (DCMS-062). Only items not yet
+      // finalized are touched - a result already entered is a fact of
+      // record, never erased by a later administrative stop.
+      const labOrderId = (order.payload as { labOrderId?: string } | null)?.labOrderId;
+      if (order.type === "LAB_REQUEST" && labOrderId) {
+        await tx.labOrderItem.updateMany({
+          where: { labOrderId, status: { notIn: ["FINAL", "AMENDED", "CANCELLED"] } },
+          data: { status: "CANCELLED" },
+        });
+      }
+
       await this.auditService.log(
         {
           actorId: actor.id,
@@ -238,6 +277,35 @@ export class DoctorOrdersService {
 
       let newPrescriptionId: string | undefined = order.prescriptionId ?? undefined;
       let payload = dto.payload;
+
+      if (order.type === "DRY_WEIGHT_CHANGE") {
+        // modify() used to only special-case MEDICATION - every other type,
+        // including this one, fell through with no validation and no
+        // applied effect at all: the new order looked ACTIVE but
+        // patient.dryWeight stayed at its old value (DCMS-060). The partial
+        // payload merges onto the original order's value first, same as a
+        // real edit rather than a fresh, independently-valid submission.
+        const originalPayload = order.payload as { newDryWeight?: number };
+        const newDryWeight = Number(dto.payload.newDryWeight ?? originalPayload.newDryWeight);
+        assertRealisticDryWeight(newDryWeight);
+        const currentPatient = await tx.patient.findUniqueOrThrow({ where: { id: order.patientId } });
+        const oldDryWeight = currentPatient.dryWeight;
+        await tx.patient.update({ where: { id: order.patientId }, data: { dryWeight: newDryWeight } });
+        payload = { ...dto.payload, newDryWeight, oldDryWeight };
+
+        await this.auditService.log(
+          {
+            actorId: actor.id,
+            actorRole: actor.roles[0] ?? "UNKNOWN",
+            action: "PATIENT_DRY_WEIGHT_CHANGED",
+            entityType: "Patient",
+            entityId: order.patientId,
+            oldValue: { dryWeight: oldDryWeight },
+            newValue: { dryWeight: newDryWeight },
+          },
+          tx,
+        );
+      }
 
       if (order.type === "MEDICATION" && order.prescriptionId) {
         const oldPrescription = await tx.prescription.findUniqueOrThrow({ where: { id: order.prescriptionId } });

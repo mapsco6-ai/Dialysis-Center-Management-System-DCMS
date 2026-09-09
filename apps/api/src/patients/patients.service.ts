@@ -73,9 +73,12 @@ export class PatientsService {
     // Deliberately outside the transaction below: each attempt is a
     // standalone insert, and a unique-constraint hit here is expected control
     // flow (try another random barcode), not a fault to roll anything back
-    // for. Worst case on a crash right after this succeeds: a patient row
-    // whose patientCode still equals its barcode instead of the pretty
-    // P-000123 form - a valid, queryable row, not a corrupt one.
+    // for. If everything after this succeeds, the row is complete. If it
+    // doesn't (e.g. the audit write fails), the catch below deletes this row
+    // too - a caller-visible failure must never leave an orphaned,
+    // half-registered patient behind (DCMS-003: this used to be treated as
+    // an acceptable "valid but not pretty-printed" leftover, but an
+    // unaudited patient record is not an acceptable leftover at all).
     let created: Prisma.PatientGetPayload<object> | undefined;
     for (let attempt = 0; attempt < MAX_BARCODE_ATTEMPTS; attempt++) {
       const barcode = generateBarcode();
@@ -96,37 +99,44 @@ export class PatientsService {
     }
 
     // Everything from here on either all happens or none of it does - no
-    // "renamed but unaudited" or "audited but timeline missing" states.
-    return this.prisma.$transaction(async (tx) => {
-      const patient = await tx.patient.update({
-        where: { id: created.id },
-        data: { patientCode: formatPatientCode(created.humanNumber) },
+    // "renamed but unaudited" or "audited but timeline missing" states. If
+    // this transaction fails, the catch below removes the row created above
+    // too, so the whole operation is atomic from the caller's perspective.
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const patient = await tx.patient.update({
+          where: { id: created.id },
+          data: { patientCode: formatPatientCode(created.humanNumber) },
+        });
+
+        await this.auditService.log(
+          {
+            actorId: actor.id,
+            actorRole: actor.roles[0] ?? "UNKNOWN",
+            action: "PATIENT_CREATED",
+            entityType: "Patient",
+            entityId: patient.id,
+            newValue: patient,
+          },
+          tx,
+        );
+
+        await tx.patientTimelineEvent.create({
+          data: {
+            patientId: patient.id,
+            type: "PATIENT_REGISTERED",
+            payload: { patientCode: patient.patientCode, barcode: patient.barcode },
+            performedById: actor.id,
+            sourceModule: "patients",
+          },
+        });
+
+        return patient;
       });
-
-      await this.auditService.log(
-        {
-          actorId: actor.id,
-          actorRole: actor.roles[0] ?? "UNKNOWN",
-          action: "PATIENT_CREATED",
-          entityType: "Patient",
-          entityId: patient.id,
-          newValue: patient,
-        },
-        tx,
-      );
-
-      await tx.patientTimelineEvent.create({
-        data: {
-          patientId: patient.id,
-          type: "PATIENT_REGISTERED",
-          payload: { patientCode: patient.patientCode, barcode: patient.barcode },
-          performedById: actor.id,
-          sourceModule: "patients",
-        },
-      });
-
-      return patient;
-    });
+    } catch (error) {
+      await this.prisma.patient.delete({ where: { id: created.id } }).catch(() => undefined);
+      throw error;
+    }
   }
 
   async findAll(page = 1, limit = 50) {

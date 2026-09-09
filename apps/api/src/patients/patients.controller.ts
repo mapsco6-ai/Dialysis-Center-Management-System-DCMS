@@ -9,6 +9,7 @@ import { CreatePatientDto } from "./dto/create-patient.dto";
 import { UpdatePatientDto } from "./dto/update-patient.dto";
 import { CreateAlertDto } from "./dto/create-alert.dto";
 import { ResolveAlertDto } from "./dto/resolve-alert.dto";
+import { ListPatientsQueryDto } from "./dto/list-patients-query.dto";
 
 @Controller("patients")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -23,8 +24,8 @@ export class PatientsController {
 
   @Get()
   @RequirePermissions("patient.view")
-  findAll(@Query("page") page?: string, @Query("limit") limit?: string) {
-    return this.patientsService.findAll(page ? Number(page) : undefined, limit ? Number(limit) : undefined);
+  findAll(@Query() query: ListPatientsQueryDto) {
+    return this.patientsService.findAll(query.page, query.limit);
   }
 
   // Must be declared before ':id' so "search" isn't captured as a patient id.

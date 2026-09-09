@@ -12,5 +12,8 @@ import { LabTrendController } from "./lab-trend.controller";
   imports: [AuditModule],
   controllers: [LabCatalogController, LabOrdersController, LabResultsController, LabTrendController],
   providers: [LabCatalogService, LabOrdersService, LabResultsService],
+  // DoctorModule creates a pending-specification LabOrder shell when a
+  // LAB_REQUEST comes through the generic order path (DCMS-061).
+  exports: [LabOrdersService],
 })
 export class LabModule {}

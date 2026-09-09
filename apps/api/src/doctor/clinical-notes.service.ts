@@ -25,6 +25,12 @@ export class ClinicalNotesService {
       if (!session) {
         throw new BadRequestException("sessionId does not refer to an existing session");
       }
+      // A session FK proves the row exists, not that it's this patient's
+      // (DCMS-059) - without this a note could attach to another patient's
+      // dialysis session.
+      if (session.patientId !== patientId) {
+        throw new BadRequestException("sessionId does not belong to this patient");
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {

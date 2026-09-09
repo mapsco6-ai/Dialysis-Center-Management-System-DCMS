@@ -3,6 +3,7 @@ import * as argon2 from "argon2";
 import { PrismaService } from "../prisma/prisma.service";
 import { LoginRateLimiterService } from "../auth/login-rate-limiter.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { PinProofService } from "./pin-proof.service";
 
 // A 4-6 digit PIN has far fewer combinations than a real password, so it
 // needs the same brute-force guard as login - keyed separately (pin:<user>)
@@ -14,6 +15,7 @@ export class PinService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rateLimiter: LoginRateLimiterService,
+    private readonly pinProofService: PinProofService,
   ) {}
 
   async setMyPin(actor: AuthenticatedUser, pin: string) {
@@ -22,7 +24,11 @@ export class PinService {
     return { ok: true };
   }
 
-  async verify(username: string, pin: string) {
+  // deviceActorId is the caller's own JWT identity (the shared device's
+  // logged-in session) - the issued proof is bound to it (see
+  // pin-proof.service.ts, DCMS-055) so it can only be redeemed on this same
+  // device session, not replayed elsewhere.
+  async verify(deviceActorId: string, username: string, pin: string) {
     const key = PIN_RATE_LIMIT_PREFIX + username;
     const retryAfter = this.rateLimiter.getRetryAfterSeconds(key);
     if (retryAfter !== null) {
@@ -39,6 +45,7 @@ export class PinService {
     }
 
     this.rateLimiter.recordSuccess(key);
-    return { id: user.id, username: user.username, fullName: user.fullName };
+    const proofToken = await this.pinProofService.issue(user.id, deviceActorId);
+    return { id: user.id, username: user.username, fullName: user.fullName, proofToken };
   }
 }

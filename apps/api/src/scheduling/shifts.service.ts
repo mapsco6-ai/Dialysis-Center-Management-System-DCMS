@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -21,11 +21,20 @@ export class ShiftsService {
       throw new NotFoundException("Shift not found");
     }
 
+    const nominalCapacity = dto.nominalCapacity;
+    const reservedCapacity = dto.reservedCapacity ?? existing.reservedCapacity;
+    // reservedCapacity carves seats out of nominalCapacity for emergencies -
+    // it cannot exceed the total the shift actually has (DCMS-031: this was
+    // previously accepted unchecked, e.g. nominal=1/reserved=5).
+    if (reservedCapacity > nominalCapacity) {
+      throw new BadRequestException("reservedCapacity cannot exceed nominalCapacity");
+    }
+
     const shift = await this.prisma.shift.update({
       where: { id },
       data: {
-        nominalCapacity: dto.nominalCapacity,
-        reservedCapacity: dto.reservedCapacity ?? existing.reservedCapacity,
+        nominalCapacity,
+        reservedCapacity,
         lateThresholdMinutes: dto.lateThresholdMinutes ?? existing.lateThresholdMinutes,
       },
     });

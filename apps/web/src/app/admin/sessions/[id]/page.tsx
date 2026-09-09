@@ -42,10 +42,10 @@ export default function SessionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [amendingId, setAmendingId] = useState<string | null>(null);
-  const [verifiedActor, setVerifiedActor] = useState<{ id: string; fullName: string } | null>(null);
+  const [verifiedActor, setVerifiedActor] = useState<{ id: string; fullName: string; proofToken: string } | null>(null);
 
   function withVerifiedActor(body: unknown) {
-    return verifiedActor ? { ...(body as Record<string, unknown>), verifiedActorId: verifiedActor.id } : body;
+    return verifiedActor ? { ...(body as Record<string, unknown>), verifiedActorToken: verifiedActor.proofToken } : body;
   }
 
   function refresh() {
@@ -193,12 +193,25 @@ export default function SessionDetailPage() {
                 busy={busy}
                 onCancel={() => setAmendingId(null)}
                 onSubmit={(body) =>
-                  submit(`/readings/${amendingId}/amend`, withVerifiedActor(body), () => setAmendingId(null))
+                  submit(`/readings/${amendingId}/amend`, withVerifiedActor(body), () => {
+                    setAmendingId(null);
+                    // The proof just consumed is single-use (DCMS-055) - drop
+                    // it so the next action requires a fresh PIN check rather
+                    // than silently failing on a spent token.
+                    if (verifiedActor) setVerifiedActor(null);
+                  })
                 }
               />
             )}
             {canReading && !amendingId && (
-              <ReadingForm busy={busy} onSubmit={(body) => submit("/readings", withVerifiedActor(body))} />
+              <ReadingForm
+                busy={busy}
+                onSubmit={(body) =>
+                  submit("/readings", withVerifiedActor(body), () => {
+                    if (verifiedActor) setVerifiedActor(null);
+                  })
+                }
+              />
             )}
           </section>
 
@@ -213,7 +226,16 @@ export default function SessionDetailPage() {
               ))}
               {events.length === 0 && <li className="text-slate-400">لا توجد أحداث بعد</li>}
             </ul>
-            {canEvent && <EventForm busy={busy} onSubmit={(body) => submit("/events", withVerifiedActor(body))} />}
+            {canEvent && (
+              <EventForm
+                busy={busy}
+                onSubmit={(body) =>
+                  submit("/events", withVerifiedActor(body), () => {
+                    if (verifiedActor) setVerifiedActor(null);
+                  })
+                }
+              />
+            )}
           </section>
 
           <PinBanner verifiedActor={verifiedActor} onVerified={setVerifiedActor} />
@@ -485,8 +507,8 @@ function PinBanner({
   verifiedActor,
   onVerified,
 }: {
-  verifiedActor: { id: string; fullName: string } | null;
-  onVerified: (actor: { id: string; fullName: string } | null) => void;
+  verifiedActor: { id: string; fullName: string; proofToken: string } | null;
+  onVerified: (actor: { id: string; fullName: string; proofToken: string } | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [username, setUsername] = useState("");
@@ -514,7 +536,7 @@ function PinBanner({
   if (verifiedActor) {
     return (
       <div className="mt-4 flex items-center justify-between rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-        <span>سيتم تسجيل الإجراءات القادمة باسم: {verifiedActor.fullName}</span>
+        <span>سيتم تسجيل الإجراء القادم فقط باسم: {verifiedActor.fullName}</span>
         <button onClick={() => onVerified(null)} className="text-xs text-emerald-800 hover:underline">
           إلغاء
         </button>

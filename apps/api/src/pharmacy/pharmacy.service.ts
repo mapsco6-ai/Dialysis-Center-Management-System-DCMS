@@ -153,10 +153,28 @@ export class PharmacyService {
     if (!item) {
       throw new BadRequestException("Item not found");
     }
+    // There is no real medication catalog yet linking a Prescription to a
+    // concentration/unit-aware InventoryItem (docs review DCMS-064 flags
+    // the fuller fix - a structured catalog with an authorized-substitution
+    // path); until that exists, an exact name match is the one check that
+    // doesn't invent an equivalence this code has no authority to assert,
+    // and it is enough to stop an unrelated item (e.g. dressing stock)
+    // from ever fulfilling a medication prescription.
+    if (item.name.trim().toLowerCase() !== prescription.medicationName.trim().toLowerCase()) {
+      throw new BadRequestException(
+        `${item.name} does not match the prescribed medication (${prescription.medicationName})`,
+      );
+    }
     if (dto.linkedSessionId) {
       const session = await this.prisma.dialysisSession.findUnique({ where: { id: dto.linkedSessionId } });
       if (!session) {
         throw new BadRequestException("linkedSessionId does not refer to an existing session");
+      }
+      // A session FK proves the row exists, not that it's this patient's
+      // (DCMS-059) - without this a dispense could attach to another
+      // patient's dialysis session.
+      if (session.patientId !== prescription.patientId) {
+        throw new BadRequestException("linkedSessionId does not belong to this patient");
       }
     }
 

@@ -25,7 +25,7 @@ export class PinController {
   // second login.
   @Post("verify-pin")
   @UseGuards(JwtAuthGuard)
-  verify(@Body() dto: VerifyPinDto) {
-    return this.pinService.verify(dto.username, dto.pin);
+  verify(@Body() dto: VerifyPinDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.pinService.verify(actor.id, dto.username, dto.pin);
   }
 }
