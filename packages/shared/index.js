@@ -91,6 +91,12 @@ const PERMISSIONS = [
   // Phase 12 (Maintenance)
   { key: "machine.fault.report", module: "machines", description: "Report a machine fault, taking it out of service and opening a maintenance ticket" },
   { key: "maintenance.manage", module: "maintenance", description: "Assign, progress, and close maintenance tickets" },
+
+  // Phase 15 (Quality & Safety)
+  { key: "incident.report", module: "quality", description: "Report a quality/safety incident against a patient, session, or machine" },
+  { key: "incident.view", module: "quality", description: "View incident reports and the quality incident report" },
+  { key: "incident.review", module: "quality", description: "Review and close incident reports" },
+  { key: "quality.audit.view", module: "quality", description: "View the combined clinical audit trail (audit log + timeline) for a patient" },
 ];
 
 module.exports = { ROLES, PERMISSIONS };

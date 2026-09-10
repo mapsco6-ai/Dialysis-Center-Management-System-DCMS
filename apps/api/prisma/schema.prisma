@@ -62,6 +62,8 @@ model User {
   maintenanceTicketsReported MaintenanceTicket[]              @relation("MaintenanceTicketReportedBy")
   maintenanceTicketsAssigned MaintenanceTicket[]              @relation("MaintenanceTicketAssignedTo")
   maintenanceStatusChanges   MaintenanceTicketStatusHistory[]
+  incidentsReported          IncidentReport[]                 @relation("IncidentReportedBy")
+  incidentStatusChanges      IncidentStatusHistory[]
 
   @@map("users")
 }
@@ -214,6 +216,7 @@ model Patient {
   prescriptions      Prescription[]
   clinicalNotes      ClinicalNote[]
   labOrders          LabOrder[]
+  incidentReports    IncidentReport[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -757,6 +760,7 @@ model Machine {
   schedules          DialysisSchedule[]
   dialysisSessions   DialysisSession[]
   maintenanceTickets MaintenanceTicket[]
+  incidentReports    IncidentReport[]
 
   @@map("machines")
 }
@@ -911,6 +915,7 @@ model DialysisSession {
   clinicalNotes         ClinicalNote[]
   prescriptionDispenses PrescriptionDispense[]
   labOrders             LabOrder[]
+  incidentReports       IncidentReport[]
 
   @@map("dialysis_sessions")
 }
@@ -1514,4 +1519,104 @@ model MaintenanceTicketStatusHistory {
 
   @@index([ticketId, changedAt])
   @@map("maintenance_ticket_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 15 (Quality & Safety): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
+// Documentation-only layer over the operational system - "لا يشمل: أي قرار
+// علاجي آلي" (no automatic treatment decision). Nothing in this codebase
+// reads IncidentReport rows to trigger any automatic clinical action; any
+// such rule (e.g. "3 Hypotension incidents in a month -> alert") requires
+// the center's Medical Director's formal sign-off before it could ever be
+// added (docs: "قاعدة إلزامية"), which has not happened, so it does not
+// exist here.
+// ---------------------------------------------------------------------------
+
+enum IncidentType {
+  ADVERSE_EVENT
+  INFECTION
+  VASCULAR_ACCESS_EVENT
+  HOSPITAL_TRANSFER
+  EMERGENCY_EVENT
+  REPEATED_HYPOTENSION
+  MACHINE_INCIDENT
+}
+
+// Not defined by docs/MODULES-SPEC.md beyond the field's existence - a plain
+// four-level scale is this implementation's documented interim choice, same
+// reasoning as MaintenanceSeverity (an operational judgment call, not a
+// clinical fact this codebase would need special authority to assert).
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  UNDER_REVIEW
+  CLOSED
+}
+
+// Append-or-Amend, no delete (docs/MODULES-SPEC.md Phase 15 validations) -
+// there is deliberately no DELETE route anywhere in IncidentsController.
+// Every one of the three FKs is independently nullable per the docs' own
+// field table, but the service layer still requires at least patientId or
+// machineId (an incident about neither a patient nor a machine has nothing
+// to report on) - a structural requirement, not a clinical judgment call.
+model IncidentReport {
+  id String @id @default(uuid())
+
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+
+  sessionId String?
+  session   DialysisSession? @relation(fields: [sessionId], references: [id])
+
+  machineId String?
+  machine   Machine? @relation(fields: [machineId], references: [id])
+
+  type        IncidentType
+  severity    IncidentSeverity
+  description String
+
+  reportedById String
+  reportedBy   User   @relation("IncidentReportedBy", fields: [reportedById], references: [id])
+
+  status IncidentStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusHistory IncidentStatusHistory[]
+
+  @@index([patientId])
+  @@index([machineId])
+  @@index([sessionId])
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@map("incident_reports")
+}
+
+// Append-only, same pattern as MaintenanceTicketStatusHistory - review/close
+// (docs: "المراجعة/الإغلاق لـMEDICAL_DIRECTOR") is a tracked transition, not
+// a silent field overwrite.
+model IncidentStatusHistory {
+  id String @id @default(uuid())
+
+  incidentId String
+  incident   IncidentReport @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  fromStatus IncidentStatus
+  toStatus   IncidentStatus
+
+  changedById String
+  changedBy   User    @relation(fields: [changedById], references: [id])
+  reason      String?
+
+  changedAt DateTime @default(now())
+
+  @@index([incidentId, changedAt])
+  @@map("incident_status_history")
 }

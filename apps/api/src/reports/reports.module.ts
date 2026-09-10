@@ -21,5 +21,9 @@ import { OperationalReportsController } from "./operational-reports.controller";
   imports: [PharmacyModule, LabModule, InventoryModule, MaintenanceModule],
   controllers: [PatientReportsController, DialysisReportsController, MachineReportsController, OperationalReportsController],
   providers: [ReportExportService, PatientReportsService, DialysisReportsService, MachineReportsService, OperationalReportsService],
+  // Phase 15 (Quality & Safety) reuses this generic PDF/Excel renderer for
+  // the incident report and clinical audit exports, instead of duplicating
+  // pdfkit/exceljs wiring in a second module.
+  exports: [ReportExportService],
 })
 export class ReportsModule {}

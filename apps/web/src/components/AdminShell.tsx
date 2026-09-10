@@ -97,6 +97,14 @@ export function AdminShell({
                 التقارير
               </Link>
             )}
+            {(user.permissions.includes("incident.report") ||
+              user.permissions.includes("incident.view") ||
+              user.permissions.includes("incident.review") ||
+              user.permissions.includes("quality.audit.view")) && (
+              <Link href="/admin/quality" className="text-slate-600 hover:text-slate-900">
+                الجودة والسلامة
+              </Link>
+            )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-slate-500">{user.fullName}</span>

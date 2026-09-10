@@ -20,6 +20,7 @@ import { PharmacyModule } from "./pharmacy/pharmacy.module";
 import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { ReportsModule } from "./reports/reports.module";
+import { QualityModule } from "./quality/quality.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -49,6 +50,7 @@ import { HealthController } from "./health/health.controller";
     MaintenanceModule,
     DashboardModule,
     ReportsModule,
+    QualityModule,
   ],
   controllers: [HealthController],
 })

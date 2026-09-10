@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch, apiFetchBlob } from "@/lib/api";
+import { downloadBlob } from "@/lib/download";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
 import { AuthenticatedUser, Machine, Patient } from "@/lib/types";
@@ -12,17 +13,6 @@ function todayIso(): string {
 
 function monthIso(): string {
   return new Date().toISOString().slice(0, 7);
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
 }
 
 // Every report route accepts ?format=pdf|excel and otherwise returns JSON

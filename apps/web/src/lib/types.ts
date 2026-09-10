@@ -662,3 +662,50 @@ export interface SessionCostDashboardSummary {
   medicationCost: number;
   labConsumablesCost: number;
 }
+
+// Phase 15 (Quality & Safety)
+export type IncidentType =
+  | "ADVERSE_EVENT"
+  | "INFECTION"
+  | "VASCULAR_ACCESS_EVENT"
+  | "HOSPITAL_TRANSFER"
+  | "EMERGENCY_EVENT"
+  | "REPEATED_HYPOTENSION"
+  | "MACHINE_INCIDENT";
+
+export type IncidentSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type IncidentStatus = "OPEN" | "UNDER_REVIEW" | "CLOSED";
+
+export interface IncidentStatusHistoryEntry {
+  id: string;
+  fromStatus: IncidentStatus;
+  toStatus: IncidentStatus;
+  changedBy: { id: string; fullName: string };
+  reason: string | null;
+  changedAt: string;
+}
+
+export interface IncidentReport {
+  id: string;
+  patient: { id: string; patientCode: string; fullName: string } | null;
+  session: { id: string; status: string } | null;
+  machine: { id: string; machineCode: string } | null;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  description: string;
+  reportedBy: { id: string; fullName: string };
+  status: IncidentStatus;
+  statusHistory: IncidentStatusHistoryEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ClinicalAuditRow {
+  timestamp: string;
+  source: "AUDIT_LOG" | "TIMELINE";
+  actor: string;
+  action: string;
+  entityType: string;
+  reason: string;
+}
