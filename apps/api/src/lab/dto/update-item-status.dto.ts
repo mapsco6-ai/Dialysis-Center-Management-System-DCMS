@@ -1,3 +1,4 @@
+import { ApiProperty } from "@nestjs/swagger";
 import { IsIn } from "class-validator";
 
 // Only the two manual staff transitions are reachable here - RESULT_ENTERED
@@ -8,6 +9,7 @@ const REACHABLE_STATUSES = ["SAMPLE_COLLECTED", "PROCESSING"] as const;
 export type ReachableItemStatus = (typeof REACHABLE_STATUSES)[number];
 
 export class UpdateItemStatusDto {
+  @ApiProperty({ enum: REACHABLE_STATUSES })
   @IsIn(REACHABLE_STATUSES)
   status!: ReachableItemStatus;
 }

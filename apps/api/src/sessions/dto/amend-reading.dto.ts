@@ -1,3 +1,4 @@
+import { ApiProperty } from "@nestjs/swagger";
 import { IsNotEmpty, IsString } from "class-validator";
 import { CreateReadingDto } from "./create-reading.dto";
 
@@ -6,6 +7,7 @@ import { CreateReadingDto } from "./create-reading.dto";
 // is mandatory here (unlike a fresh reading) because an amendment is always
 // a correction to something already on the record.
 export class AmendReadingDto extends CreateReadingDto {
+  @ApiProperty({ type: String })
   @IsString()
   @IsNotEmpty()
   reason!: string;

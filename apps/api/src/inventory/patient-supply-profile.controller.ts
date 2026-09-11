@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { PatientSupplyProfileService } from "./patient-supply-profile.service";
 import { SetSupplyProfileDto } from "./dto/set-supply-profile.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Inventory - Patient Supply Profile")
+@ApiBearerAuth("bearer")
 @Controller("patients/:patientId/supply-profile")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PatientSupplyProfileController {

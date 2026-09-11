@@ -1,0 +1,108 @@
+{
+  "suite": "Phase 3 Reception",
+  "database": "disposable PostgreSQL 16",
+  "passed": 25,
+  "failed": 0,
+  "results": [
+    {
+      "name": "HTTP unauthenticated scan -> 401",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP no-permission check-in -> 403",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP no-permission scan -> 403",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP valid scan returns patient/file/today schedule",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP unknown barcode -> 404",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP unknown schedule -> 404",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP rejects client supplied checkInTime -> 400",
+      "status": "PASS"
+    },
+    {
+      "name": "HTTP normal check-in persists actor/station/time + audit + timeline",
+      "status": "PASS"
+    },
+    {
+      "name": "Sequential duplicate -> 409 and no second audit",
+      "status": "PASS"
+    },
+    {
+      "name": "Late boundary 06:30:00 -> ARRIVED",
+      "status": "PASS"
+    },
+    {
+      "name": "Late boundary 06:30:01 -> LATE",
+      "status": "PASS"
+    },
+    {
+      "name": "Late boundary 06:31:00 -> LATE",
+      "status": "PASS"
+    },
+    {
+      "name": "EXTRA can check in and keeps type",
+      "status": "PASS"
+    },
+    {
+      "name": "EMERGENCY can check in and keeps type",
+      "status": "PASS"
+    },
+    {
+      "name": "CANCELLED check-in -> 409",
+      "status": "PASS"
+    },
+    {
+      "name": "Future-day check-in must be rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Previous-day check-in must require explicit correction",
+      "status": "PASS"
+    },
+    {
+      "name": "Missing station must be rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "Board read marks overdue SCHEDULED as ABSENT and reports it",
+      "status": "PASS"
+    },
+    {
+      "name": "Automatic absence must write audit and timeline",
+      "status": "PASS"
+    },
+    {
+      "name": "Repeated absence read preserves marker",
+      "status": "PASS"
+    },
+    {
+      "name": "ABSENT patient can arrive late with timeline",
+      "status": "PASS"
+    },
+    {
+      "name": "Invalid status filter -> 400",
+      "status": "PASS"
+    },
+    {
+      "name": "Concurrent check-in produces one committed check-in",
+      "status": "PASS"
+    },
+    {
+      "name": "Audit failure rolls back check-in transaction",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,4401 @@
+openapi: 3.0.0
+paths:
+  /api/v1/health:
+    get:
+      operationId: HealthController_check
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Health
+  /api/v1/auth/login:
+    post:
+      operationId: AuthController_login
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Auth
+  /api/v1/auth/logout:
+    post:
+      operationId: AuthController_logout
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Auth
+  /api/v1/auth/me:
+    get:
+      operationId: AuthController_me
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Auth
+  /api/v1/users:
+    post:
+      operationId: UsersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.create
+    get:
+      operationId: UsersController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.view
+  /api/v1/users/{id}/deactivate:
+    patch:
+      operationId: UsersController_deactivate
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeactivateUserDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.deactivate
+  /api/v1/audit-logs:
+    get:
+      operationId: AuditController_findAll
+      parameters:
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+        - name: cursor
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-required-permissions:
+        - audit.view
+  /api/v1/roles:
+    get:
+      operationId: RolesController_findAllRoles
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Roles
+      x-required-permissions:
+        - role.manage
+  /api/v1/permissions:
+    get:
+      operationId: RolesController_findAllPermissions
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Roles
+      x-required-permissions:
+        - role.manage
+  /api/v1/roles/{id}/permissions:
+    patch:
+      operationId: RolesController_updateRolePermissions
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRolePermissionsDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Roles
+      x-required-permissions:
+        - permission.manage
+  /api/v1/patients:
+    post:
+      operationId: PatientsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePatientDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.create
+    get:
+      operationId: PatientsController_findAll
+      parameters:
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            nullable: true
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          description: >-
+            Requested page size; the server caps the returned page at 100
+            records.
+          schema:
+            minimum: 1
+            nullable: true
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/patients/search:
+    get:
+      operationId: PatientsController_search
+      parameters:
+        - name: q
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/patients/barcode/{code}:
+    get:
+      operationId: PatientsController_findByBarcode
+      parameters:
+        - name: code
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/patients/{id}:
+    get:
+      operationId: PatientsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+    patch:
+      operationId: PatientsController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePatientDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.edit
+  /api/v1/patients/{id}/timeline:
+    get:
+      operationId: PatientsController_getTimeline
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/patients/{id}/alerts:
+    get:
+      operationId: PatientsController_listAlerts
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+    post:
+      operationId: PatientsController_createAlert
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.alert.manage
+  /api/v1/patients/{id}/alerts/{alertId}/resolve:
+    patch:
+      operationId: PatientsController_resolveAlert
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: alertId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveAlertDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.alert.manage
+  /api/v1/patients/{patientId}/dialysis-plan:
+    post:
+      operationId: DialysisPlanController_setPlan
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDialysisPlanDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Dialysis Plan
+      x-required-permissions:
+        - scheduling.manage
+    get:
+      operationId: DialysisPlanController_getPlan
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Dialysis Plan
+      x-required-permissions:
+        - scheduling.manage
+  /api/v1/schedule/today:
+    get:
+      operationId: ScheduleController_getToday
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Schedule
+      x-any-permissions:
+        - scheduling.manage
+        - attendance.checkin
+  /api/v1/schedule:
+    get:
+      operationId: ScheduleController_getByDate
+      parameters:
+        - name: date
+          required: true
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            type: string
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - SCHEDULED
+              - ARRIVED
+              - LATE
+              - ABSENT
+              - CANCELLED
+              - EXTRA
+              - EMERGENCY
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Schedule
+      x-any-permissions:
+        - scheduling.manage
+        - attendance.checkin
+  /api/v1/sessions/extra:
+    post:
+      operationId: SessionsController_createExtra
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExtraSessionDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Sessions
+      x-required-permissions:
+        - scheduling.manage
+  /api/v1/sessions/emergency:
+    post:
+      operationId: SessionsController_createEmergency
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmergencySessionDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Sessions
+      x-required-permissions:
+        - dialysis.emergency.create
+  /api/v1/sessions/{id}/check-in:
+    post:
+      operationId: SessionsController_checkIn
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckInDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Sessions
+      x-required-permissions:
+        - attendance.checkin
+  /api/v1/shifts:
+    get:
+      operationId: ShiftsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Shifts
+      x-any-permissions:
+        - scheduling.manage
+        - nursing.ward.view
+  /api/v1/shifts/{id}/capacity:
+    patch:
+      operationId: ShiftsController_updateCapacity
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateShiftCapacityDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Shifts
+      x-required-permissions:
+        - shift.manage
+  /api/v1/reception/scan/{barcode}:
+    get:
+      operationId: ReceptionController_scan
+      parameters:
+        - name: barcode
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Reception
+      x-required-permissions:
+        - attendance.checkin
+  /api/v1/inventory/items:
+    post:
+      operationId: InventoryItemsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInventoryItemDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Items
+      x-required-permissions:
+        - inventory.manage
+    get:
+      operationId: InventoryItemsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Items
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/items/{id}:
+    get:
+      operationId: InventoryItemsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Items
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/items/{id}/stock/adjust:
+    post:
+      operationId: InventoryItemsController_adjustStock
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustStockDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Items
+      x-required-permissions:
+        - inventory.manage
+  /api/v1/patients/{patientId}/supply-profile:
+    get:
+      operationId: PatientSupplyProfileController_findAll
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Patient Supply Profile
+      x-required-permissions:
+        - inventory.view
+    put:
+      operationId: PatientSupplyProfileController_setProfile
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetSupplyProfileDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Patient Supply Profile
+      x-required-permissions:
+        - inventory.manage
+  /api/v1/patients/{patientId}/supply-profile/{itemId}:
+    delete:
+      operationId: PatientSupplyProfileController_removeItem
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: itemId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Patient Supply Profile
+      x-required-permissions:
+        - inventory.manage
+  /api/v1/sessions/{id}/supplies:
+    get:
+      operationId: SessionSuppliesController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Session Supplies
+      x-required-permissions:
+        - inventory.view
+  /api/v1/sessions/{id}/supplies/override:
+    patch:
+      operationId: SessionSuppliesController_setOverride
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetSessionOverrideDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Session Supplies
+      x-required-permissions:
+        - inventory.issue
+  /api/v1/sessions/{id}/supplies/confirm-issue:
+    post:
+      operationId: SessionSuppliesController_confirmIssue
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Session Supplies
+      x-required-permissions:
+        - inventory.issue
+  /api/v1/sessions/{id}/supplies/substitute:
+    post:
+      operationId: SessionSuppliesController_substitute
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubstituteSupplyDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Session Supplies
+      x-required-permissions:
+        - inventory.issue
+  /api/v1/inventory/items/{itemId}/batches:
+    post:
+      operationId: InventoryBatchesController_receive
+      parameters:
+        - name: itemId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInventoryBatchDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Batches
+      x-required-permissions:
+        - inventory.batch.manage
+    get:
+      operationId: InventoryBatchesController_list
+      parameters:
+        - name: itemId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: locationId
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Batches
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/transfers:
+    post:
+      operationId: StockTransfersController_request
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStockTransferDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-required-permissions:
+        - inventory.transfer.request
+    get:
+      operationId: StockTransfersController_list
+      parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - REQUESTED
+              - APPROVED
+              - ISSUED
+              - RECEIVED
+              - REJECTED
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-any-permissions:
+        - inventory.view
+        - inventory.transfer.request
+        - inventory.transfer.approve
+        - inventory.transfer.issue
+        - inventory.transfer.receive
+  /api/v1/inventory/transfers/{id}/approve:
+    post:
+      operationId: StockTransfersController_approve
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-required-permissions:
+        - inventory.transfer.approve
+  /api/v1/inventory/transfers/{id}/reject:
+    post:
+      operationId: StockTransfersController_reject
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectStockTransferDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-required-permissions:
+        - inventory.transfer.approve
+  /api/v1/inventory/transfers/{id}/issue:
+    post:
+      operationId: StockTransfersController_issue
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-required-permissions:
+        - inventory.transfer.issue
+  /api/v1/inventory/transfers/{id}/receive:
+    post:
+      operationId: StockTransfersController_receive
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-required-permissions:
+        - inventory.transfer.receive
+  /api/v1/inventory/locations:
+    get:
+      operationId: WarehouseAnalyticsController_locations
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Warehouse Analytics
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/alerts/low-stock:
+    get:
+      operationId: WarehouseAnalyticsController_lowStock
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Warehouse Analytics
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/alerts/expiring:
+    get:
+      operationId: WarehouseAnalyticsController_expiring
+      parameters:
+        - name: withinDays
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            nullable: true
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Warehouse Analytics
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/items/{id}/days-remaining:
+    get:
+      operationId: WarehouseAnalyticsController_daysRemaining
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: lookbackDays
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            nullable: true
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Warehouse Analytics
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/schedules/{scheduleId}/cost:
+    get:
+      operationId: WarehouseAnalyticsController_sessionCost
+      parameters:
+        - name: scheduleId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Warehouse Analytics
+      x-required-permissions:
+        - inventory.view
+  /api/v1/inventory/patients/{patientId}/consumption-report:
+    get:
+      operationId: WarehouseAnalyticsController_consumptionReport
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: month
+          required: true
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}$
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Warehouse Analytics
+      x-required-permissions:
+        - inventory.view
+  /api/v1/wards:
+    post:
+      operationId: WardsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWardDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Wards
+      x-required-permissions:
+        - machine.manage
+    get:
+      operationId: WardsController_findAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Wards
+      x-any-permissions:
+        - machine.view
+        - nursing.ward.view
+  /api/v1/wards/{id}/machines:
+    get:
+      operationId: WardsController_findMachines
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Wards
+      x-required-permissions:
+        - machine.view
+  /api/v1/machines:
+    post:
+      operationId: MachinesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMachineDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines
+      x-required-permissions:
+        - machine.manage
+    get:
+      operationId: MachinesController_findAll
+      parameters:
+        - name: status
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines
+      x-required-permissions:
+        - machine.view
+  /api/v1/machines/capacity:
+    get:
+      operationId: MachinesController_getCapacity
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines
+      x-required-permissions:
+        - machine.view
+  /api/v1/machines/{id}:
+    get:
+      operationId: MachinesController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines
+      x-required-permissions:
+        - machine.view
+  /api/v1/machines/{id}/status:
+    post:
+      operationId: MachinesController_setStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMachineStatusDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines
+      x-required-permissions:
+        - machine.manage
+  /api/v1/approvals/machine-usage:
+    post:
+      operationId: ApprovalsController_request
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestApprovalDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines - Approvals
+      x-required-permissions:
+        - machine.assign
+  /api/v1/approvals:
+    get:
+      operationId: ApprovalsController_list
+      parameters:
+        - name: decision
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines - Approvals
+      x-any-permissions:
+        - machine.assign
+        - approval.machine.decide
+  /api/v1/approvals/{id}/decision:
+    post:
+      operationId: ApprovalsController_decide
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecideApprovalDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines - Approvals
+      x-required-permissions:
+        - approval.machine.decide
+  /api/v1/sessions/{id}/assign-machine:
+    post:
+      operationId: SessionMachineController_assign
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignMachineDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines - Session Assignment
+      x-required-permissions:
+        - machine.assign
+  /api/v1/sessions/{id}:
+    get:
+      operationId: SessionsController_getOverview
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.session.view
+  /api/v1/sessions/{id}/pre-dialysis:
+    post:
+      operationId: SessionsController_preDialysis
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreDialysisDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.pre.record
+  /api/v1/sessions/{id}/confirm-supplies-ready:
+    post:
+      operationId: SessionsController_confirmSuppliesReady
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.pre.record
+  /api/v1/sessions/{id}/start:
+    post:
+      operationId: SessionsController_start
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartDialysisDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.start
+  /api/v1/sessions/{id}/end:
+    post:
+      operationId: SessionsController_end
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EndDialysisDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.end
+  /api/v1/sessions/{id}/discharge:
+    post:
+      operationId: SessionsController_discharge
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.end
+  /api/v1/sessions/{id}/interrupt:
+    post:
+      operationId: SessionsController_interrupt
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterruptSessionDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.end
+  /api/v1/sessions/{id}/resume:
+    post:
+      operationId: SessionsController_resume
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.start
+  /api/v1/sessions/{id}/reassign-machine:
+    post:
+      operationId: SessionsController_reassignMachine
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReassignMachineDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-any-permissions:
+        - dialysis.start
+        - machine.assign
+  /api/v1/sessions/{id}/readings:
+    get:
+      operationId: ReadingsController_list
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions - Readings
+      x-required-permissions:
+        - dialysis.session.view
+    post:
+      operationId: ReadingsController_create
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReadingDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions - Readings
+      x-required-permissions:
+        - dialysis.reading.create
+  /api/v1/sessions/{id}/readings/{readingId}/amend:
+    post:
+      operationId: ReadingsController_amend
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: readingId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendReadingDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions - Readings
+      x-required-permissions:
+        - dialysis.reading.create
+  /api/v1/sessions/{id}/events:
+    get:
+      operationId: EventsController_list
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions - Events
+      x-required-permissions:
+        - dialysis.session.view
+    post:
+      operationId: EventsController_create
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions - Events
+      x-required-permissions:
+        - dialysis.event.create
+  /api/v1/nursing/assignments:
+    post:
+      operationId: AssignmentsController_upsert
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssignmentDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - Assignments
+      x-required-permissions:
+        - nursing.assign
+    get:
+      operationId: AssignmentsController_listForWard
+      parameters:
+        - name: wardId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: shiftId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+        - name: date
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - Assignments
+      x-any-permissions:
+        - nursing.assign
+        - nursing.ward.view.all
+  /api/v1/nursing/nurses:
+    get:
+      operationId: AssignmentsController_listNurseCandidates
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - Assignments
+      x-required-permissions:
+        - nursing.assign
+  /api/v1/nursing/my-assignments:
+    get:
+      operationId: AssignmentsController_listMine
+      parameters:
+        - name: date
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - Assignments
+  /api/v1/wards/{id}/dashboard:
+    get:
+      operationId: WardDashboardController_get
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: date
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+        - name: shiftId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - Ward Dashboard
+      x-required-permissions:
+        - nursing.ward.view
+  /api/v1/nursing/my-pin:
+    patch:
+      operationId: PinController_setMyPin
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPinDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - PIN
+  /api/v1/nursing/verify-pin:
+    post:
+      operationId: PinController_verify
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPinDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Nursing - PIN
+  /api/v1/doctor-orders:
+    post:
+      operationId: DoctorOrdersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDoctorOrderDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Orders
+      x-required-permissions:
+        - prescription.create
+    get:
+      operationId: DoctorOrdersController_listForPatient
+      parameters:
+        - name: patientId
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Orders
+      x-required-permissions:
+        - patient.view
+  /api/v1/doctor-orders/{id}/stop:
+    post:
+      operationId: DoctorOrdersController_stop
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StopDoctorOrderDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Orders
+      x-required-permissions:
+        - prescription.modify
+  /api/v1/doctor-orders/{id}/modify:
+    post:
+      operationId: DoctorOrdersController_modify
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifyDoctorOrderDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Orders
+      x-required-permissions:
+        - prescription.modify
+  /api/v1/patients/{patientId}/prescriptions:
+    get:
+      operationId: PrescriptionsController_listForPatient
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Prescriptions
+      x-required-permissions:
+        - patient.view
+  /api/v1/prescriptions/{id}/administrations:
+    post:
+      operationId: PrescriptionsController_administer
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdministerMedicationDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Prescriptions
+      x-required-permissions:
+        - medication.administer
+    get:
+      operationId: PrescriptionsController_listAdministrations
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Prescriptions
+      x-required-permissions:
+        - patient.view
+  /api/v1/patients/{patientId}/clinical-notes:
+    get:
+      operationId: ClinicalNotesController_listForPatient
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Clinical Notes
+      x-required-permissions:
+        - patient.view
+    post:
+      operationId: ClinicalNotesController_create
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClinicalNoteDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Clinical Notes
+      x-required-permissions:
+        - prescription.create
+  /api/v1/lab/tests:
+    post:
+      operationId: LabCatalogController_createTest
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLabTestDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Catalog
+      x-required-permissions:
+        - lab.catalog.manage
+    get:
+      operationId: LabCatalogController_listTests
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Catalog
+      x-any-permissions:
+        - lab.catalog.manage
+        - lab.request
+        - lab.queue.view
+  /api/v1/lab/panels:
+    post:
+      operationId: LabCatalogController_createPanel
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLabPanelDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Catalog
+      x-required-permissions:
+        - lab.catalog.manage
+    get:
+      operationId: LabCatalogController_listPanels
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Catalog
+      x-any-permissions:
+        - lab.catalog.manage
+        - lab.request
+        - lab.queue.view
+  /api/v1/lab/orders:
+    post:
+      operationId: LabOrdersController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLabOrderDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Orders
+      x-required-permissions:
+        - lab.request
+    get:
+      operationId: LabOrdersController_listForPatient
+      parameters:
+        - name: patientId
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Orders
+      x-required-permissions:
+        - patient.view
+  /api/v1/lab/queue:
+    get:
+      operationId: LabOrdersController_listQueue
+      parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - ORDERED
+              - SAMPLE_COLLECTED
+              - PROCESSING
+              - RESULT_ENTERED
+              - FINAL
+              - AMENDED
+              - CANCELLED
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Orders
+      x-required-permissions:
+        - lab.queue.view
+  /api/v1/lab/order-items/{id}/status:
+    post:
+      operationId: LabResultsController_updateStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateItemStatusDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Results
+      x-required-permissions:
+        - lab.result.create
+  /api/v1/lab/order-items/{id}/results:
+    post:
+      operationId: LabResultsController_enterResult
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnterResultDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Results
+      x-required-permissions:
+        - lab.result.create
+  /api/v1/lab/order-items/{id}/amend-result:
+    post:
+      operationId: LabResultsController_amendResult
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AmendResultDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Results
+      x-required-permissions:
+        - lab.result.create
+  /api/v1/lab/tests/{testId}/trend:
+    get:
+      operationId: LabTrendController_trend
+      parameters:
+        - name: testId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: patientId
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            nullable: true
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Lab - Trends
+      x-required-permissions:
+        - patient.view
+  /api/v1/pharmacy/stock/transfer-in:
+    post:
+      operationId: PharmacyController_transferToPharmacy
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferToPharmacyDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Pharmacy
+      x-required-permissions:
+        - inventory.manage
+  /api/v1/pharmacy/queue:
+    get:
+      operationId: PharmacyController_listQueue
+      parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - ACTIVE
+              - DISPENSING
+              - DISPENSED
+              - MODIFIED
+              - STOPPED
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Pharmacy
+      x-required-permissions:
+        - pharmacy.dispense
+  /api/v1/pharmacy/prescriptions/{id}/start-dispensing:
+    post:
+      operationId: PharmacyController_startDispensing
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Pharmacy
+      x-required-permissions:
+        - pharmacy.dispense
+  /api/v1/pharmacy/prescriptions/{id}/dispense:
+    post:
+      operationId: PharmacyController_dispense
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispensePrescriptionDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Pharmacy
+      x-required-permissions:
+        - pharmacy.dispense
+  /api/v1/patients/{patientId}/medication-history:
+    get:
+      operationId: MedicationHistoryController_get
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Pharmacy - Medication History
+      x-required-permissions:
+        - patient.view
+  /api/v1/maintenance/tickets:
+    post:
+      operationId: MaintenanceTicketsController_reportFault
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportFaultDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-required-permissions:
+        - machine.fault.report
+    get:
+      operationId: MaintenanceTicketsController_list
+      parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - OPEN
+              - ASSIGNED
+              - IN_PROGRESS
+              - WAITING_PART
+              - COMPLETED
+              - CLOSED
+        - name: machineId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/maintenance/staff:
+    get:
+      operationId: MaintenanceTicketsController_listStaff
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-required-permissions:
+        - maintenance.manage
+  /api/v1/maintenance/tickets/{id}:
+    get:
+      operationId: MaintenanceTicketsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/maintenance/tickets/{id}/attachment:
+    get:
+      operationId: MaintenanceTicketsController_getAttachment
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/maintenance/tickets/{id}/assign:
+    post:
+      operationId: MaintenanceTicketsController_assign
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTicketDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-required-permissions:
+        - maintenance.manage
+  /api/v1/maintenance/tickets/{id}/status:
+    post:
+      operationId: MaintenanceTicketsController_updateStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTicketStatusDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-required-permissions:
+        - maintenance.manage
+  /api/v1/maintenance/tickets/{id}/close:
+    post:
+      operationId: MaintenanceTicketsController_close
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseTicketDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-required-permissions:
+        - maintenance.manage
+  /api/v1/machines/{machineId}/timeline:
+    get:
+      operationId: MachineTimelineController_timeline
+      parameters:
+        - name: machineId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Machine Timeline
+      x-required-permissions:
+        - machine.view
+  /api/v1/machines/{machineId}/downtime:
+    get:
+      operationId: MachineTimelineController_downtime
+      parameters:
+        - name: machineId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: from
+          required: true
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: true
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Machine Timeline
+      x-required-permissions:
+        - machine.view
+  /api/v1/dashboard/live-center:
+    get:
+      operationId: DashboardController_liveCenter
+      parameters:
+        - name: date
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: shiftId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dashboard
+      x-any-permissions:
+        - scheduling.manage
+        - attendance.checkin
+        - dialysis.session.view
+  /api/v1/dashboard/machines:
+    get:
+      operationId: DashboardController_machines
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dashboard
+      x-required-permissions:
+        - machine.view
+  /api/v1/dashboard/wards:
+    get:
+      operationId: DashboardController_wards
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dashboard
+      x-required-permissions:
+        - nursing.ward.view
+  /api/v1/dashboard/inventory-alerts:
+    get:
+      operationId: DashboardController_inventoryAlerts
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dashboard
+      x-required-permissions:
+        - inventory.view
+  /api/v1/dashboard/pending-work:
+    get:
+      operationId: DashboardController_pendingWork
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dashboard
+      x-any-permissions:
+        - lab.queue.view
+        - pharmacy.dispense
+  /api/v1/dashboard/session-cost:
+    get:
+      operationId: DashboardController_sessionCost
+      parameters:
+        - name: date
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dashboard
+      x-required-permissions:
+        - inventory.view
+  /api/v1/reports/patients/{patientId}/summary:
+    get:
+      operationId: PatientReportsController_summary
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/patients/{patientId}/session-history:
+    get:
+      operationId: PatientReportsController_sessionHistory
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/patients/{patientId}/medication-history:
+    get:
+      operationId: PatientReportsController_medicationHistory
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/patients/{patientId}/lab-history:
+    get:
+      operationId: PatientReportsController_labHistory
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/patients/{patientId}/absences:
+    get:
+      operationId: PatientReportsController_absences
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/patients/{patientId}/emergency-sessions:
+    get:
+      operationId: PatientReportsController_emergencySessions
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/patients/{patientId}/consumption:
+    get:
+      operationId: PatientReportsController_consumption
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: month
+          required: true
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}$
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/reports/dialysis/daily-sessions-by-ward:
+    get:
+      operationId: DialysisReportsController_dailySessionsByWard
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: date
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Dialysis
+      x-any-permissions:
+        - scheduling.manage
+        - dialysis.session.view
+  /api/v1/reports/dialysis/summary:
+    get:
+      operationId: DialysisReportsController_summary
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: groupBy
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - day
+              - week
+              - month
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Dialysis
+      x-any-permissions:
+        - scheduling.manage
+        - dialysis.session.view
+  /api/v1/reports/machines/utilization:
+    get:
+      operationId: MachineReportsController_utilization
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: wardId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Machines
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/reports/machines/failure-frequency:
+    get:
+      operationId: MachineReportsController_failureFrequency
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Machines
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/reports/machines/{machineId}/downtime:
+    get:
+      operationId: MachineReportsController_downtime
+      parameters:
+        - name: machineId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Machines
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/reports/machines/{machineId}/maintenance-history:
+    get:
+      operationId: MachineReportsController_maintenanceHistory
+      parameters:
+        - name: machineId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Machines
+      x-any-permissions:
+        - machine.view
+        - maintenance.manage
+  /api/v1/reports/operations/stock-movements:
+    get:
+      operationId: OperationalReportsController_stockMovements
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Operations
+      x-required-permissions:
+        - inventory.view
+  /api/v1/reports/operations/drug-consumption:
+    get:
+      operationId: OperationalReportsController_drugConsumption
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: month
+          required: true
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}$
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Operations
+      x-required-permissions:
+        - pharmacy.dispense
+  /api/v1/reports/operations/lab-volume:
+    get:
+      operationId: OperationalReportsController_labVolume
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Reports - Operations
+      x-required-permissions:
+        - lab.queue.view
+  /api/v1/incidents:
+    post:
+      operationId: IncidentsController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIncidentDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Quality & Safety - Incidents
+      x-required-permissions:
+        - incident.report
+    get:
+      operationId: IncidentsController_list
+      parameters:
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+        - name: type
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - ADVERSE_EVENT
+              - INFECTION
+              - VASCULAR_ACCESS_EVENT
+              - HOSPITAL_TRANSFER
+              - EMERGENCY_EVENT
+              - REPEATED_HYPOTENSION
+              - MACHINE_INCIDENT
+        - name: severity
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - LOW
+              - MEDIUM
+              - HIGH
+              - CRITICAL
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - OPEN
+              - UNDER_REVIEW
+              - CLOSED
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+        - name: machineId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+        - name: from
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Quality & Safety - Incidents
+      x-any-permissions:
+        - incident.view
+        - incident.review
+  /api/v1/incidents/{id}:
+    get:
+      operationId: IncidentsController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Quality & Safety - Incidents
+      x-any-permissions:
+        - incident.view
+        - incident.review
+  /api/v1/incidents/{id}/status:
+    post:
+      operationId: IncidentsController_updateStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIncidentStatusDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Quality & Safety - Incidents
+      x-required-permissions:
+        - incident.review
+  /api/v1/quality/clinical-audit/{patientId}:
+    get:
+      operationId: ClinicalAuditController_getPatientAudit
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: format
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - pdf
+              - excel
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Quality & Safety - Clinical Audit
+      x-required-permissions:
+        - quality.audit.view
+info:
+  title: DCMS API
+  description: >-
+    Dialysis Center Management System - REST API covering all 16 project phases
+    (docs/PROJECT-PHASES-PLAN.md). Every protected route requires the bearer JWT
+    returned by POST /auth/login, and every request is re-checked against the
+    caller's current permissions - nothing here is cached from login time.
+  version: '1.0'
+  contact: {}
+tags: []
+servers: []
+components:
+  securitySchemes:
+    bearer:
+      scheme: bearer
+      bearerFormat: JWT
+      type: http
+  schemas:
+    LoginDto:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+    CreateUserDto:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        fullName:
+          type: string
+        roleNames:
+          type: array
+          items:
+            type: string
+      required:
+        - username
+        - password
+        - fullName
+        - roleNames
+    DeactivateUserDto:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
+    UpdateRolePermissionsDto:
+      type: object
+      properties:
+        permissionKeys:
+          type: array
+          items:
+            type: string
+      required:
+        - permissionKeys
+    CreatePatientDto:
+      type: object
+      properties:
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+        dateOfBirth:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        fileNumber:
+          type: string
+          nullable: true
+        dialysisStartDate:
+          type: string
+          nullable: true
+        dryWeight:
+          type: number
+          nullable: true
+          minimum: 1
+          maximum: 300
+        vascularAccessType:
+          type: string
+          enum:
+            - FISTULA
+            - CATHETER
+            - GRAFT
+          nullable: true
+        vascularAccessLocation:
+          type: string
+          nullable: true
+        diagnoses:
+          type: string
+          nullable: true
+        chronicDiseases:
+          nullable: true
+          type: array
+          items:
+            type: string
+        allergies:
+          type: string
+          nullable: true
+        medicalNotes:
+          type: string
+          nullable: true
+        specialInstructions:
+          type: string
+          nullable: true
+      required:
+        - fullName
+        - gender
+        - dateOfBirth
+    UpdatePatientDto:
+      type: object
+      properties:
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum:
+            - MALE
+            - FEMALE
+        dateOfBirth:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        fileNumber:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - INACTIVE
+            - DECEASED
+            - TRANSFERRED
+        dialysisStartDate:
+          type: string
+          nullable: true
+        dryWeight:
+          type: number
+          nullable: true
+          minimum: 1
+          maximum: 300
+        vascularAccessType:
+          type: string
+          enum:
+            - FISTULA
+            - CATHETER
+            - GRAFT
+          nullable: true
+        vascularAccessLocation:
+          type: string
+          nullable: true
+        diagnoses:
+          type: string
+          nullable: true
+        chronicDiseases:
+          nullable: true
+          type: array
+          items:
+            type: string
+        allergies:
+          type: string
+          nullable: true
+        medicalNotes:
+          type: string
+          nullable: true
+        specialInstructions:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    CreateAlertDto:
+      type: object
+      properties:
+        severity:
+          type: string
+          enum:
+            - CRITICAL
+            - IMPORTANT
+            - INFORMATION
+        category:
+          type: string
+        message:
+          type: string
+      required:
+        - severity
+        - category
+        - message
+    ResolveAlertDto:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+    DialysisPlanEntryDto:
+      type: object
+      properties:
+        weekday:
+          type: string
+          enum:
+            - SUN
+            - MON
+            - TUE
+            - WED
+            - THU
+            - FRI
+            - SAT
+        shiftId:
+          type: string
+      required:
+        - weekday
+        - shiftId
+    SetDialysisPlanDto:
+      type: object
+      properties:
+        entries:
+          minItems: 1
+          maxItems: 4
+          type: array
+          items:
+            $ref: '#/components/schemas/DialysisPlanEntryDto'
+      required:
+        - entries
+    CreateExtraSessionDto:
+      type: object
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        scheduledDate:
+          type: string
+        shiftId:
+          type: string
+        extraReason:
+          type: string
+        requestedByDoctorId:
+          type: string
+          nullable: true
+          format: uuid
+      required:
+        - patientId
+        - scheduledDate
+        - shiftId
+        - extraReason
+    CreateEmergencySessionDto:
+      type: object
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        scheduledDate:
+          type: string
+        shiftId:
+          type: string
+        emergencySourceHospital:
+          type: string
+          nullable: true
+        emergencyReason:
+          type: string
+      required:
+        - patientId
+        - scheduledDate
+        - shiftId
+        - emergencyReason
+    CheckInDto:
+      type: object
+      properties:
+        stationId:
+          type: string
+      required:
+        - stationId
+    UpdateShiftCapacityDto:
+      type: object
+      properties:
+        nominalCapacity:
+          type: integer
+          minimum: 0
+        reservedCapacity:
+          type: integer
+          nullable: true
+          minimum: 0
+        lateThresholdMinutes:
+          type: integer
+          nullable: true
+          minimum: 0
+      required:
+        - nominalCapacity
+    CreateInventoryItemDto:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+        barcode:
+          type: string
+          nullable: true
+        minimumStock:
+          type: number
+          nullable: true
+          minimum: 0
+        cost:
+          type: number
+          nullable: true
+          minimum: 0
+        requiresBatchTracking:
+          type: boolean
+          nullable: true
+      required:
+        - name
+        - category
+        - unit
+    AdjustStockDto:
+      type: object
+      properties:
+        quantity:
+          type: number
+          minimum: 0.01
+        direction:
+          type: string
+          enum:
+            - INCREASE
+            - DECREASE
+        reason:
+          type: string
+      required:
+        - quantity
+        - direction
+        - reason
+    SupplyProfileEntryDto:
+      type: object
+      properties:
+        itemId:
+          type: string
+        defaultQuantity:
+          type: number
+          minimum: 0.01
+      required:
+        - itemId
+        - defaultQuantity
+    SetSupplyProfileDto:
+      type: object
+      properties:
+        entries:
+          maxItems: 50
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplyProfileEntryDto'
+      required:
+        - entries
+    SetSessionOverrideDto:
+      type: object
+      properties:
+        itemId:
+          type: string
+        overrideQuantity:
+          type: number
+          minimum: 0.01
+        reason:
+          type: string
+          nullable: true
+      required:
+        - itemId
+        - overrideQuantity
+    SubstituteSupplyDto:
+      type: object
+      properties:
+        originalItemId:
+          type: string
+        substituteItemId:
+          type: string
+        quantity:
+          type: number
+          minimum: 0.01
+        reason:
+          type: string
+      required:
+        - originalItemId
+        - substituteItemId
+        - quantity
+        - reason
+    CreateInventoryBatchDto:
+      type: object
+      properties:
+        locationId:
+          type: string
+        batchNumber:
+          type: string
+        quantity:
+          type: number
+          minimum: 0.01
+        expiryDate:
+          type: string
+      required:
+        - locationId
+        - batchNumber
+        - quantity
+        - expiryDate
+    CreateStockTransferDto:
+      type: object
+      properties:
+        itemId:
+          type: string
+        fromLocationId:
+          type: string
+        toLocationId:
+          type: string
+        quantity:
+          type: number
+          minimum: 0.01
+        reason:
+          type: string
+          nullable: true
+      required:
+        - itemId
+        - fromLocationId
+        - toLocationId
+        - quantity
+    RejectStockTransferDto:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
+    CreateWardDto:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+    CreateMachineDto:
+      type: object
+      properties:
+        machineCode:
+          type: string
+        wardId:
+          type: string
+        serialNumber:
+          type: string
+          nullable: true
+        manufacturer:
+          type: string
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        isEmergencyDedicated:
+          type: boolean
+          nullable: true
+        isProtected:
+          type: boolean
+          nullable: true
+      required:
+        - machineCode
+        - wardId
+    UpdateMachineStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - CLEANING
+            - WAITING_CLEANING
+            - MAINTENANCE
+            - OUT_OF_SERVICE
+        reason:
+          type: string
+      required:
+        - status
+        - reason
+    RequestApprovalDto:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        machineId:
+          type: string
+        reason:
+          type: string
+      required:
+        - scheduleId
+        - machineId
+        - reason
+    DecideApprovalDto:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+            - APPROVED
+            - REJECTED
+        reason:
+          type: string
+          nullable: true
+      required:
+        - decision
+    AssignMachineDto:
+      type: object
+      properties:
+        machineId:
+          type: string
+          nullable: true
+        reason:
+          type: string
+    PreDialysisDto:
+      type: object
+      properties:
+        weight:
+          type: number
+          minimum: 1
+          maximum: 300
+        bp:
+          type: string
+          pattern: ^\d{2,3}\/\d{2,3}$
+        pulse:
+          type: integer
+          minimum: 1
+          maximum: 300
+        temperature:
+          type: number
+          nullable: true
+          minimum: 30
+          maximum: 45
+        glucose:
+          type: number
+          nullable: true
+          minimum: 0
+        dryWeight:
+          type: number
+          nullable: true
+          minimum: 1
+          maximum: 300
+        notes:
+          type: string
+          nullable: true
+      required:
+        - weight
+        - bp
+        - pulse
+    StartDialysisDto:
+      type: object
+      properties:
+        nurseId:
+          type: string
+          nullable: true
+        dialyzerType:
+          type: string
+        bloodLineType:
+          type: string
+        prescribedDurationMinutes:
+          type: integer
+          minimum: 1
+          maximum: 600
+        requiredUF:
+          type: number
+          minimum: 0
+        accessInfo:
+          type: object
+          additionalProperties: true
+          nullable: true
+      required:
+        - dialyzerType
+        - bloodLineType
+        - prescribedDurationMinutes
+        - requiredUF
+    EndDialysisDto:
+      type: object
+      properties:
+        postWeight:
+          type: number
+          minimum: 1
+          maximum: 300
+        postBP:
+          type: string
+          pattern: ^\d{2,3}\/\d{2,3}$
+        postPulse:
+          type: integer
+          minimum: 1
+          maximum: 300
+        actualUF:
+          type: number
+          minimum: 0
+        complications:
+          type: string
+          nullable: true
+        finalNote:
+          type: string
+          nullable: true
+      required:
+        - postWeight
+        - postBP
+        - postPulse
+        - actualUF
+    InterruptSessionDto:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
+    ReassignMachineDto:
+      type: object
+      properties:
+        newMachineId:
+          type: string
+        reason:
+          type: string
+      required:
+        - newMachineId
+        - reason
+    CreateReadingDto:
+      type: object
+      properties:
+        time:
+          type: string
+          nullable: true
+        bp:
+          type: string
+          pattern: ^\d{2,3}\/\d{2,3}$
+        pulse:
+          type: integer
+          minimum: 1
+        arterialPressure:
+          type: number
+          nullable: true
+        venousPressure:
+          type: number
+          nullable: true
+        tmp:
+          type: number
+          nullable: true
+        bloodFlow:
+          type: number
+          nullable: true
+          minimum: 0
+        uf:
+          type: number
+          nullable: true
+          minimum: 0
+        verifiedActorToken:
+          type: string
+          nullable: true
+      required:
+        - bp
+        - pulse
+    AmendReadingDto:
+      type: object
+      properties:
+        time:
+          type: string
+          nullable: true
+        bp:
+          type: string
+          pattern: ^\d{2,3}\/\d{2,3}$
+        pulse:
+          type: integer
+          minimum: 1
+        arterialPressure:
+          type: number
+          nullable: true
+        venousPressure:
+          type: number
+          nullable: true
+        tmp:
+          type: number
+          nullable: true
+        bloodFlow:
+          type: number
+          nullable: true
+          minimum: 0
+        uf:
+          type: number
+          nullable: true
+          minimum: 0
+        verifiedActorToken:
+          type: string
+          nullable: true
+        reason:
+          type: string
+      required:
+        - bp
+        - pulse
+        - reason
+    CreateEventDto:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - NORMAL
+            - HYPOTENSION
+            - ACCESS_ISSUE
+            - MACHINE_ISSUE
+            - MEDICATION_GIVEN
+            - PHYSICIAN_CALLED
+            - SESSION_INTERRUPTED
+            - OTHER
+        note:
+          type: string
+          nullable: true
+        verifiedActorToken:
+          type: string
+          nullable: true
+      required:
+        - type
+    CreateAssignmentDto:
+      type: object
+      properties:
+        wardId:
+          type: string
+        shiftId:
+          type: string
+        date:
+          type: string
+        nurseId:
+          type: string
+        patientIds:
+          type: array
+          items:
+            type: string
+      required:
+        - wardId
+        - shiftId
+        - date
+        - nurseId
+        - patientIds
+    SetPinDto:
+      type: object
+      properties:
+        pin:
+          type: string
+          pattern: ^\d{4,6}$
+      required:
+        - pin
+    VerifyPinDto:
+      type: object
+      properties:
+        username:
+          type: string
+        pin:
+          type: string
+          pattern: ^\d{4,6}$
+      required:
+        - username
+        - pin
+    CreateDoctorOrderDto:
+      type: object
+      properties:
+        patientId:
+          type: string
+        type:
+          type: string
+          enum:
+            - MEDICATION
+            - LAB_REQUEST
+            - NURSING_INSTRUCTION
+            - DRY_WEIGHT_CHANGE
+            - EXTRA_SESSION_REQUEST
+            - PHARMACY_RECOMMENDATION
+        payload:
+          type: object
+          additionalProperties: true
+          description: >-
+            Fields depend on type. MEDICATION: medicationName, dose, frequency.
+            DRY_WEIGHT_CHANGE: numeric newDryWeight. NURSING_INSTRUCTION:
+            instruction. LAB_REQUEST: details plus labTestIds and/or labPanelId;
+            requires lab.request permission. Other request types: details.
+        reason:
+          type: string
+          nullable: true
+      required:
+        - patientId
+        - type
+        - payload
+    StopDoctorOrderDto:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
+    ModifyDoctorOrderDto:
+      type: object
+      properties:
+        reason:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+      required:
+        - reason
+        - payload
+    AdministerMedicationDto:
+      type: object
+      properties:
+        doseGiven:
+          type: string
+        sessionId:
+          type: string
+          nullable: true
+      required:
+        - doseGiven
+    CreateClinicalNoteDto:
+      type: object
+      properties:
+        text:
+          type: string
+        sessionId:
+          type: string
+          nullable: true
+      required:
+        - text
+    CreateLabTestDto:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+          nullable: true
+        referenceRangeLow:
+          type: number
+          nullable: true
+        referenceRangeHigh:
+          type: number
+          nullable: true
+        consumableItemId:
+          type: string
+          nullable: true
+        consumableQuantity:
+          type: number
+          nullable: true
+      required:
+        - code
+        - name
+    CreateLabPanelDto:
+      type: object
+      properties:
+        name:
+          type: string
+        labTestIds:
+          minItems: 1
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - labTestIds
+    CreateLabOrderDto:
+      type: object
+      properties:
+        patientId:
+          type: string
+        labPanelId:
+          type: string
+          nullable: true
+        labTestIds:
+          nullable: true
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+          nullable: true
+        linkedSessionId:
+          type: string
+          nullable: true
+      required:
+        - patientId
+    UpdateItemStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - SAMPLE_COLLECTED
+            - PROCESSING
+      required:
+        - status
+    EnterResultDto:
+      type: object
+      properties:
+        value:
+          type: string
+        flagCritical:
+          type: boolean
+          nullable: true
+        alertMessage:
+          type: string
+          nullable: true
+      required:
+        - value
+    AmendResultDto:
+      type: object
+      properties:
+        value:
+          type: string
+        reason:
+          type: string
+      required:
+        - value
+        - reason
+    TransferToPharmacyDto:
+      type: object
+      properties:
+        itemId:
+          type: string
+        quantity:
+          type: number
+          minimum: 0.01
+        reason:
+          type: string
+          nullable: true
+      required:
+        - itemId
+        - quantity
+    DispensePrescriptionDto:
+      type: object
+      properties:
+        itemId:
+          type: string
+        quantity:
+          type: number
+          minimum: 0.01
+        linkedSessionId:
+          type: string
+          nullable: true
+      required:
+        - itemId
+        - quantity
+    ReportFaultDto:
+      type: object
+      properties:
+        machineId:
+          type: string
+        problem:
+          type: string
+        severity:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - CRITICAL
+      required:
+        - machineId
+        - problem
+        - severity
+    AssignTicketDto:
+      type: object
+      properties:
+        assignedToId:
+          type: string
+      required:
+        - assignedToId
+    UpdateTicketStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - IN_PROGRESS
+            - WAITING_PART
+            - COMPLETED
+        reason:
+          type: string
+          nullable: true
+      required:
+        - status
+    CloseTicketDto:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+    CreateIncidentDto:
+      type: object
+      properties:
+        patientId:
+          type: string
+          nullable: true
+        sessionId:
+          type: string
+          nullable: true
+        machineId:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum:
+            - ADVERSE_EVENT
+            - INFECTION
+            - VASCULAR_ACCESS_EVENT
+            - HOSPITAL_TRANSFER
+            - EMERGENCY_EVENT
+            - REPEATED_HYPOTENSION
+            - MACHINE_INCIDENT
+        severity:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - CRITICAL
+        description:
+          type: string
+      required:
+        - type
+        - severity
+        - description
+    UpdateIncidentStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - UNDER_REVIEW
+            - CLOSED
+        reason:
+          type: string
+          nullable: true
+      required:
+        - status

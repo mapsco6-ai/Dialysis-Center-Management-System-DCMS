@@ -7,6 +7,7 @@ import { OperationalReportsService } from "./operational-reports.service";
 import { ReportExportService } from "./report-export.service";
 import { DateRangeQueryDto } from "./dto/date-range-query.dto";
 import { MonthQueryDto } from "./dto/month-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 function defaultRange(from?: string, to?: string, fallbackDays = 30): { from: string; to: string } {
   const today = new Date().toISOString().slice(0, 10);
@@ -19,6 +20,8 @@ function defaultRange(from?: string, to?: string, fallbackDays = 30): { from: st
 // report) - deliberately no class-level @RequirePermissions here, since the
 // three reports below belong to three different modules with unrelated
 // permission sets.
+@ApiTags("Reports - Operations")
+@ApiBearerAuth("bearer")
 @Controller("reports/operations")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OperationalReportsController {

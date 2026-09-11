@@ -8,7 +8,10 @@ import { LabOrdersService } from "./lab-orders.service";
 import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
 import { ListLabOrdersQueryDto } from "./dto/list-lab-orders-query.dto";
 import { ListQueueQueryDto } from "./dto/list-queue-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Lab - Orders")
+@ApiBearerAuth("bearer")
 @Controller("lab")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class LabOrdersController {

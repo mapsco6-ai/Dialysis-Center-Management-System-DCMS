@@ -1,3 +1,4 @@
+import { ApiProperty } from "@nestjs/swagger";
 import { IsIn, IsNotEmpty, IsOptional, IsString } from "class-validator";
 
 // ASSIGNED has its own dedicated endpoint/DTO (POST .../assign) since it
@@ -10,9 +11,11 @@ const TICKET_UPDATABLE_STATUSES = ["IN_PROGRESS", "WAITING_PART", "COMPLETED"] a
 export type TicketUpdatableStatus = (typeof TICKET_UPDATABLE_STATUSES)[number];
 
 export class UpdateTicketStatusDto {
+  @ApiProperty({ enum: TICKET_UPDATABLE_STATUSES })
   @IsIn(TICKET_UPDATABLE_STATUSES)
   status!: TicketUpdatableStatus;
 
+  @ApiProperty({ type: String, required: false, nullable: true })
   @IsOptional()
   @IsString()
   reason?: string;

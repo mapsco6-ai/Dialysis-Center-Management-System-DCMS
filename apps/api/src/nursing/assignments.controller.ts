@@ -9,7 +9,10 @@ import { AssignmentsService } from "./assignments.service";
 import { CreateAssignmentDto } from "./dto/create-assignment.dto";
 import { ListAssignmentsQueryDto } from "./dto/list-assignments-query.dto";
 import { MyAssignmentsQueryDto } from "./dto/my-assignments-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Nursing - Assignments")
+@ApiBearerAuth("bearer")
 @Controller("nursing")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AssignmentsController {

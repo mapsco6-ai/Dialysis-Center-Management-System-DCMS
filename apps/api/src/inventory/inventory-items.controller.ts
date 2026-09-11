@@ -7,7 +7,10 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { InventoryItemsService } from "./inventory-items.service";
 import { CreateInventoryItemDto } from "./dto/create-inventory-item.dto";
 import { AdjustStockDto } from "./dto/adjust-stock.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Inventory - Items")
+@ApiBearerAuth("bearer")
 @Controller("inventory/items")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InventoryItemsController {

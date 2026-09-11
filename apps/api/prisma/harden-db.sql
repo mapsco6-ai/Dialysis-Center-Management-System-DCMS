@@ -10,3 +10,7 @@
 -- absent API endpoint (docs review DCMS-018).
 REVOKE UPDATE, DELETE ON audit_logs FROM dcms_app;
 REVOKE DELETE ON patients, clinical_alerts, patient_timeline_events FROM dcms_app;
+-- Corrections to these facts are appended as new records, never overwritten.
+REVOKE UPDATE, DELETE ON patient_timeline_events, dialysis_readings,
+  dialysis_events, lab_results, clinical_notes, medication_administrations,
+  prescription_dispenses, stock_movements, machine_status_history FROM dcms_app;

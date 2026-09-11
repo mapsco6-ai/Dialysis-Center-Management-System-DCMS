@@ -8,7 +8,10 @@ import { SchedulingService } from "./scheduling.service";
 import { CreateExtraSessionDto } from "./dto/create-extra-session.dto";
 import { CreateEmergencySessionDto } from "./dto/create-emergency-session.dto";
 import { CheckInDto } from "./dto/check-in.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Scheduling - Sessions")
+@ApiBearerAuth("bearer")
 @Controller("sessions")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SessionsController {

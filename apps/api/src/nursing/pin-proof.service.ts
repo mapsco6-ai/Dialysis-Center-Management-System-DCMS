@@ -1,6 +1,8 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { randomUUID } from "crypto";
+import { PrismaService } from "../prisma/prisma.service";
+import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 
 const PROOF_TYPE = "pin-proof";
 const PROOF_TTL_SECONDS = 120;
@@ -10,6 +12,9 @@ interface PinProofPayload {
   verifiedUserId: string;
   deviceActorId: string;
   jti: string;
+  deviceTokenVersion: number;
+  verifiedTokenVersion: number;
+  exp?: number;
 }
 
 // Closes DCMS-055: a bare `verifiedActorId` in the request body was
@@ -23,18 +28,18 @@ interface PinProofPayload {
 // regular auth token.
 @Injectable()
 export class PinProofService {
-  private readonly usedJti = new Map<string, number>();
-
-  constructor(private readonly jwtService: JwtService) {}
-
-  private sweepExpired(now: number) {
-    for (const [jti, expiresAt] of this.usedJti) {
-      if (expiresAt <= now) this.usedJti.delete(jti);
-    }
-  }
+  constructor(private readonly jwtService: JwtService, private readonly prisma: PrismaService) {}
 
   async issue(verifiedUserId: string, deviceActorId: string): Promise<string> {
-    const payload: PinProofPayload = { typ: PROOF_TYPE, verifiedUserId, deviceActorId, jti: randomUUID() };
+    const [device, verified] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: deviceActorId } }),
+      this.prisma.user.findUnique({ where: { id: verifiedUserId } }),
+    ]);
+    if (!device?.isActive || !verified?.isActive) throw new UnauthorizedException("Account is inactive");
+    const payload: PinProofPayload = {
+      typ: PROOF_TYPE, verifiedUserId, deviceActorId, jti: randomUUID(),
+      deviceTokenVersion: device.tokenVersion, verifiedTokenVersion: verified.tokenVersion,
+    };
     return this.jwtService.signAsync(payload, { expiresIn: `${PROOF_TTL_SECONDS}s` });
   }
 
@@ -48,18 +53,28 @@ export class PinProofService {
     } catch {
       throw new UnauthorizedException("verifiedActorToken is invalid or expired");
     }
-    if (payload.typ !== PROOF_TYPE) {
+    if (payload.typ !== PROOF_TYPE || typeof payload.jti !== "string" || !payload.jti ||
+        typeof payload.verifiedUserId !== "string" || !Number.isFinite(payload.exp)) {
       throw new UnauthorizedException("verifiedActorToken is invalid or expired");
     }
     if (payload.deviceActorId !== deviceActorId) {
       throw new UnauthorizedException("verifiedActorToken was not issued to this session");
     }
-    const now = Date.now();
-    this.sweepExpired(now);
-    if (this.usedJti.has(payload.jti)) {
-      throw new UnauthorizedException("verifiedActorToken has already been used");
+    const [device, verified] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: deviceActorId } }),
+      this.prisma.user.findUnique({ where: { id: payload.verifiedUserId } }),
+    ]);
+    if (!device?.isActive || !verified?.isActive || device.tokenVersion !== payload.deviceTokenVersion ||
+        verified.tokenVersion !== payload.verifiedTokenVersion) {
+      throw new UnauthorizedException("verifiedActorToken was revoked");
     }
-    this.usedJti.set(payload.jti, now + PROOF_TTL_SECONDS * 1000);
+    await this.prisma.pinProofConsumption.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+    try {
+      await this.prisma.pinProofConsumption.create({ data: { id: payload.jti, expiresAt: new Date(payload.exp! * 1000) } });
+    } catch (error) {
+      if (isUniqueConstraintOn(error, "id")) throw new UnauthorizedException("verifiedActorToken has already been used");
+      throw error;
+    }
     return payload.verifiedUserId;
   }
 }

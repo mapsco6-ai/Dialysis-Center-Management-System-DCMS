@@ -8,7 +8,10 @@ import { PharmacyService } from "./pharmacy.service";
 import { TransferToPharmacyDto } from "./dto/transfer-to-pharmacy.dto";
 import { DispensePrescriptionDto } from "./dto/dispense-prescription.dto";
 import { ListPharmacyQueueQueryDto } from "./dto/list-pharmacy-queue-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Pharmacy")
+@ApiBearerAuth("bearer")
 @Controller("pharmacy")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PharmacyController {

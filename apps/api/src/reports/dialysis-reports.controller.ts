@@ -7,7 +7,10 @@ import { DialysisReportsService } from "./dialysis-reports.service";
 import { ReportExportService } from "./report-export.service";
 import { DayQueryDto } from "./dto/day-query.dto";
 import { PeriodSummaryQueryDto } from "./dto/period-summary-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Reports - Dialysis")
+@ApiBearerAuth("bearer")
 @Controller("reports/dialysis")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequireAnyPermission("scheduling.manage", "dialysis.session.view")

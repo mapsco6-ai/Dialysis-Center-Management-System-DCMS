@@ -4,9 +4,12 @@ import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator";
 import { LabResultsService } from "./lab-results.service";
 import { TrendQueryDto } from "./dto/trend-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 const DEFAULT_TREND_LIMIT = 5;
 
+@ApiTags("Lab - Trends")
+@ApiBearerAuth("bearer")
 @Controller("lab/tests/:testId/trend")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class LabTrendController {

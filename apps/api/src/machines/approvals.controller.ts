@@ -8,7 +8,10 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { MachinesService } from "./machines.service";
 import { RequestApprovalDto } from "./dto/request-approval.dto";
 import { DecideApprovalDto } from "./dto/decide-approval.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Machines - Approvals")
+@ApiBearerAuth("bearer")
 @Controller("approvals")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ApprovalsController {

@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { ClinicalNotesService } from "./clinical-notes.service";
 import { CreateClinicalNoteDto } from "./dto/create-clinical-note.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Doctor - Clinical Notes")
+@ApiBearerAuth("bearer")
 @Controller("patients/:patientId/clinical-notes")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ClinicalNotesController {

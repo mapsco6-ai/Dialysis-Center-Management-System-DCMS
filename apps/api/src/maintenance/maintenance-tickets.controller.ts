@@ -24,7 +24,10 @@ import { AssignTicketDto } from "./dto/assign-ticket.dto";
 import { UpdateTicketStatusDto } from "./dto/update-ticket-status.dto";
 import { CloseTicketDto } from "./dto/close-ticket.dto";
 import { ListTicketsQueryDto } from "./dto/list-tickets-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Maintenance - Tickets")
+@ApiBearerAuth("bearer")
 @Controller("maintenance")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MaintenanceTicketsController {

@@ -11,6 +11,7 @@ import { IncidentsService } from "./incidents.service";
 import { CreateIncidentDto } from "./dto/create-incident.dto";
 import { UpdateIncidentStatusDto } from "./dto/update-incident-status.dto";
 import { ListIncidentsQueryDto } from "./dto/list-incidents-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 const INCIDENT_REPORT_COLUMNS: ReportColumn[] = [
   { key: "createdAt", header: "التاريخ" },
@@ -23,6 +24,8 @@ const INCIDENT_REPORT_COLUMNS: ReportColumn[] = [
   { key: "description", header: "الوصف", width: 2 },
 ];
 
+@ApiTags("Quality & Safety - Incidents")
+@ApiBearerAuth("bearer")
 @Controller("incidents")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class IncidentsController {

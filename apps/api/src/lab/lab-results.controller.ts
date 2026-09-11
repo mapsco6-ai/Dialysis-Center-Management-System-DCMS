@@ -8,7 +8,10 @@ import { LabResultsService } from "./lab-results.service";
 import { UpdateItemStatusDto } from "./dto/update-item-status.dto";
 import { EnterResultDto } from "./dto/enter-result.dto";
 import { AmendResultDto } from "./dto/amend-result.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Lab - Results")
+@ApiBearerAuth("bearer")
 @Controller("lab/order-items/:id")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class LabResultsController {

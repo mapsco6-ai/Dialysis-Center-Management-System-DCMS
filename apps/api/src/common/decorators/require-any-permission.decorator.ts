@@ -1,4 +1,5 @@
-import { SetMetadata } from "@nestjs/common";
+import { applyDecorators, SetMetadata } from "@nestjs/common";
+import { ApiExtension } from "@nestjs/swagger";
 
 export const ANY_PERMISSIONS_KEY = "anyPermissions";
 
@@ -7,4 +8,4 @@ export const ANY_PERMISSIONS_KEY = "anyPermissions";
 // otherwise unrelated permission sets (e.g. a schedule view useful to both
 // full scheduling managers and reception staff who only check patients in).
 export const RequireAnyPermission = (...permissions: string[]) =>
-  SetMetadata(ANY_PERMISSIONS_KEY, permissions);
+  applyDecorators(SetMetadata(ANY_PERMISSIONS_KEY, permissions), ApiExtension("x-any-permissions", permissions));

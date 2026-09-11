@@ -6,6 +6,7 @@ import { RequirePermissions } from "../common/decorators/require-permissions.dec
 import { ReportColumn, ReportExportService } from "../reports/report-export.service";
 import { ExportQueryDto } from "../reports/dto/export-query.dto";
 import { ClinicalAuditService } from "./clinical-audit.service";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 const AUDIT_COLUMNS: ReportColumn[] = [
   { key: "timestamp", header: "التاريخ" },
@@ -16,6 +17,8 @@ const AUDIT_COLUMNS: ReportColumn[] = [
   { key: "reason", header: "السبب", width: 2 },
 ];
 
+@ApiTags("Quality & Safety - Clinical Audit")
+@ApiBearerAuth("bearer")
 @Controller("quality/clinical-audit")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions("quality.audit.view")

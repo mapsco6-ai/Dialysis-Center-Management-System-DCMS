@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { SchedulingService } from "./scheduling.service";
 import { SetDialysisPlanDto } from "./dto/set-dialysis-plan.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Scheduling - Dialysis Plan")
+@ApiBearerAuth("bearer")
 @Controller("patients/:patientId/dialysis-plan")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DialysisPlanController {

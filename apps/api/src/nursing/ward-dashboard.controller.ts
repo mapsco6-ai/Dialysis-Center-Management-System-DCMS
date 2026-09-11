@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { WardDashboardService } from "./ward-dashboard.service";
 import { WardDashboardQueryDto } from "./dto/ward-dashboard-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Nursing - Ward Dashboard")
+@ApiBearerAuth("bearer")
 @Controller("wards/:id/dashboard")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class WardDashboardController {

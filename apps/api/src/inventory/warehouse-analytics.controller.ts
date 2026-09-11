@@ -7,7 +7,10 @@ import { InventoryItemsService } from "./inventory-items.service";
 import { ExpiryAlertsQueryDto } from "./dto/expiry-alerts-query.dto";
 import { DaysRemainingQueryDto } from "./dto/days-remaining-query.dto";
 import { ConsumptionReportQueryDto } from "./dto/consumption-report-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Inventory - Warehouse Analytics")
+@ApiBearerAuth("bearer")
 @Controller("inventory")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class WarehouseAnalyticsController {

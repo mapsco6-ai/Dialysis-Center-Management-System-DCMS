@@ -9,7 +9,10 @@ import { CreateDoctorOrderDto } from "./dto/create-doctor-order.dto";
 import { StopDoctorOrderDto } from "./dto/stop-doctor-order.dto";
 import { ModifyDoctorOrderDto } from "./dto/modify-doctor-order.dto";
 import { ListDoctorOrdersQueryDto } from "./dto/list-doctor-orders-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Doctor - Orders")
+@ApiBearerAuth("bearer")
 @Controller("doctor-orders")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DoctorOrdersController {

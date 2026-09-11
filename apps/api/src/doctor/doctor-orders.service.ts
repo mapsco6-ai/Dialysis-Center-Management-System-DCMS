@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { DoctorOrderType, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -17,13 +17,8 @@ function assertRealisticDryWeight(newDryWeight: number) {
   }
 }
 
-// What each order type needs in its payload at creation time - there's no
-// shared schema across types (docs/MODULES-SPEC.md: "تفاصيل حسب النوع"), and
-// LAB_REQUEST/EXTRA_SESSION_REQUEST/PHARMACY_RECOMMENDATION stay a plain
-// text `details` field on purpose: the catalogs that would structure them
-// (LabTest in Phase 9, the pharmacy/extra-session workflows) don't exist
-// yet, and inventing one here would just be a fact this codebase has no
-// authority to assert.
+// Required clinical content differs by order type. LAB_REQUEST additionally
+// requires catalog selections and delegates to the executable lab workflow.
 const REQUIRED_PAYLOAD_FIELDS: Record<DoctorOrderType, string[]> = {
   MEDICATION: ["medicationName", "dose", "frequency"],
   LAB_REQUEST: ["details"],
@@ -35,7 +30,9 @@ const REQUIRED_PAYLOAD_FIELDS: Record<DoctorOrderType, string[]> = {
 
 function requirePayloadFields(type: DoctorOrderType, payload: Record<string, unknown>) {
   const missing = REQUIRED_PAYLOAD_FIELDS[type].filter(
-    (field) => payload[field] === undefined || payload[field] === null || payload[field] === "",
+    (field) => field === "newDryWeight"
+      ? typeof payload[field] !== "number"
+      : typeof payload[field] !== "string" || !(payload[field] as string).trim(),
   );
   if (missing.length > 0) {
     throw new BadRequestException(`Missing required payload field(s) for ${type}: ${missing.join(", ")}`);
@@ -77,6 +74,34 @@ export class DoctorOrdersService {
     }
     requirePayloadFields(dto.type, dto.payload);
 
+    // Lab requests must contain executable catalog selections. An empty
+    // episode is invisible to the item-based lab queue and cannot be processed.
+    if (dto.type === "LAB_REQUEST") {
+      if (!actor.permissions.includes("lab.request")) {
+        throw new ForbiddenException("Missing required permission: lab.request");
+      }
+      const { labTestIds, labPanelId, linkedSessionId } = dto.payload;
+      if (labTestIds !== undefined && (!Array.isArray(labTestIds) || !labTestIds.every(id => typeof id === "string" && id.trim()))) {
+        throw new BadRequestException("labTestIds must be an array of test IDs");
+      }
+      if (labPanelId !== undefined && typeof labPanelId !== "string") {
+        throw new BadRequestException("labPanelId must be a string");
+      }
+      if (linkedSessionId !== undefined && typeof linkedSessionId !== "string") {
+        throw new BadRequestException("linkedSessionId must be a string");
+      }
+      const labOrder = await this.labOrdersService.create({
+        patientId: dto.patientId,
+        labTestIds: labTestIds as string[] | undefined,
+        labPanelId: labPanelId as string | undefined,
+        linkedSessionId: linkedSessionId as string | undefined,
+        reason: dto.reason ?? String(dto.payload.details),
+      }, actor);
+      return this.prisma.doctorOrder.findFirstOrThrow({
+        where: { patientId: dto.patientId, type: "LAB_REQUEST", payload: { path: ["labOrderId"], equals: labOrder.id } },
+      });
+    }
+
     if (dto.type === "MEDICATION" && dto.payload.linkedSessionId) {
       const session = await this.prisma.dialysisSession.findUnique({
         where: { id: dto.payload.linkedSessionId as string },
@@ -110,16 +135,6 @@ export class DoctorOrdersService {
         });
         prescriptionId = prescription.id;
         payload = { ...dto.payload, action: "ADD", prescriptionId: prescription.id };
-      }
-
-      if (dto.type === "LAB_REQUEST") {
-        // The generic order path only carries free-text `details` - no
-        // catalog test selection - so this can't assert which tests are
-        // needed. It still has to become real, visible lab-module work
-        // instead of text nobody in the lab module ever sees (DCMS-061):
-        // an episode shell that lab staff must specify actual tests for.
-        const labOrderId = await this.labOrdersService.createPendingSpecification(tx, dto.patientId, actor.id);
-        payload = { ...dto.payload, labOrderId };
       }
 
       if (dto.type === "DRY_WEIGHT_CHANGE") {
@@ -265,6 +280,9 @@ export class DoctorOrdersService {
     if (Object.keys(dto.payload).length === 0) {
       throw new BadRequestException("payload must include at least one field to change");
     }
+    if (order.type === "LAB_REQUEST") {
+      throw new BadRequestException("Stop the existing lab request and create a new request with the required tests");
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const result = await tx.doctorOrder.updateMany({
@@ -276,7 +294,8 @@ export class DoctorOrdersService {
       }
 
       let newPrescriptionId: string | undefined = order.prescriptionId ?? undefined;
-      let payload = dto.payload;
+      let payload = { ...(order.payload as Record<string, unknown>), ...dto.payload };
+      if (order.type !== "MEDICATION") requirePayloadFields(order.type, payload);
 
       if (order.type === "DRY_WEIGHT_CHANGE") {
         // modify() used to only special-case MEDICATION - every other type,
@@ -309,6 +328,12 @@ export class DoctorOrdersService {
 
       if (order.type === "MEDICATION" && order.prescriptionId) {
         const oldPrescription = await tx.prescription.findUniqueOrThrow({ where: { id: order.prescriptionId } });
+        const medication = {
+          medicationName: dto.payload.medicationName !== undefined ? dto.payload.medicationName : oldPrescription.medicationName,
+          dose: dto.payload.dose !== undefined ? dto.payload.dose : oldPrescription.dose,
+          frequency: dto.payload.frequency !== undefined ? dto.payload.frequency : oldPrescription.frequency,
+        };
+        requirePayloadFields("MEDICATION", medication);
         const newPrescription = await tx.prescription.create({
           data: {
             patientId: order.patientId,
@@ -328,7 +353,8 @@ export class DoctorOrdersService {
         await tx.prescription.update({ where: { id: oldPrescription.id }, data: { status: "MODIFIED" } });
         newPrescriptionId = newPrescription.id;
         payload = {
-          ...dto.payload,
+          ...payload,
+          ...medication,
           prescriptionId: newPrescription.id,
           oldDose: oldPrescription.dose,
           newDose: newPrescription.dose,

@@ -8,7 +8,10 @@ import { ReportExportService } from "./report-export.service";
 import { ExportQueryDto } from "./dto/export-query.dto";
 import { DateRangeQueryDto } from "./dto/date-range-query.dto";
 import { MonthQueryDto } from "./dto/month-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Reports - Patients")
+@ApiBearerAuth("bearer")
 @Controller("reports/patients/:patientId")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequirePermissions("patient.view")

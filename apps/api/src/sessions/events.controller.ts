@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { SessionsService } from "./sessions.service";
 import { CreateEventDto } from "./dto/create-event.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Dialysis Sessions - Events")
+@ApiBearerAuth("bearer")
 @Controller("sessions/:id/events")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class EventsController {
@@ -14,8 +17,8 @@ export class EventsController {
 
   @Get()
   @RequirePermissions("dialysis.session.view")
-  list(@Param("id") id: string) {
-    return this.sessionsService.listEvents(id);
+  list(@Param("id") id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.sessionsService.listEvents(id, actor);
   }
 
   @Post()

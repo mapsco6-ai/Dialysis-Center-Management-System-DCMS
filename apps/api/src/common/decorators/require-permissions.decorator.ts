@@ -1,6 +1,7 @@
-import { SetMetadata } from "@nestjs/common";
+import { applyDecorators, SetMetadata } from "@nestjs/common";
+import { ApiExtension } from "@nestjs/swagger";
 
 export const PERMISSIONS_KEY = "permissions";
 
 export const RequirePermissions = (...permissions: string[]) =>
-  SetMetadata(PERMISSIONS_KEY, permissions);
+  applyDecorators(SetMetadata(PERMISSIONS_KEY, permissions), ApiExtension("x-required-permissions", permissions));

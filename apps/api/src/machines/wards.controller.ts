@@ -7,7 +7,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { WardsService } from "./wards.service";
 import { CreateWardDto } from "./dto/create-ward.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Wards")
+@ApiBearerAuth("bearer")
 @Controller("wards")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class WardsController {

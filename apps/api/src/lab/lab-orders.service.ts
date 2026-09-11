@@ -47,19 +47,6 @@ export class LabOrdersService {
     return created.id;
   }
 
-  // Creates a bare episode with zero items - used when a doctor requests
-  // labs through the generic /doctor-orders path (payload is free-text
-  // `details`, no catalog test selection) instead of the dedicated /lab/
-  // orders flow (docs review DCMS-061). This doesn't assert which tests are
-  // needed - that would be inventing a clinical decision this endpoint has
-  // no authority to make - it only guarantees the request becomes real,
-  // visible lab-module work instead of text nobody in the lab ever sees.
-  // Lab staff still specify the actual test(s) before any processing can
-  // start; the episode exists so that link isn't lost.
-  async createPendingSpecification(tx: Prisma.TransactionClient, patientId: string, doctorId: string): Promise<string> {
-    return this.buildOrderWithItems(tx, patientId, doctorId, []);
-  }
-
   async create(dto: CreateLabOrderDto, actor: AuthenticatedUser) {
     const patient = await this.prisma.patient.findUnique({ where: { id: dto.patientId } });
     if (!patient) {

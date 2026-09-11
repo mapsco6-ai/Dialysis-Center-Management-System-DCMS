@@ -5,7 +5,9 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { PinService } from "./pin.service";
 import { SetPinDto } from "./dto/set-pin.dto";
 import { VerifyPinDto } from "./dto/verify-pin.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Nursing - PIN")
 @Controller("nursing")
 export class PinController {
   constructor(private readonly pinService: PinService) {}
@@ -13,6 +15,7 @@ export class PinController {
   // Self-service, own account only - matches the password-change pattern
   // of requiring nothing beyond being logged in as yourself.
   @Patch("my-pin")
+  @ApiBearerAuth("bearer")
   @UseGuards(JwtAuthGuard)
   setMyPin(@Body() dto: SetPinDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.pinService.setMyPin(actor, dto.pin);
@@ -24,6 +27,7 @@ export class PinController {
   // this resolves an identity to attach to the next action, it is not a
   // second login.
   @Post("verify-pin")
+  @ApiBearerAuth("bearer")
   @UseGuards(JwtAuthGuard)
   verify(@Body() dto: VerifyPinDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.pinService.verify(actor.id, dto.username, dto.pin);

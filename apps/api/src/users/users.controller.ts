@@ -7,7 +7,10 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { DeactivateUserDto } from "./dto/deactivate-user.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Users")
+@ApiBearerAuth("bearer")
 @Controller("users")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UsersController {

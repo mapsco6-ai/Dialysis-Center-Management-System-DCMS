@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { InventoryBatchesService } from "./inventory-batches.service";
 import { CreateInventoryBatchDto } from "./dto/create-inventory-batch.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Inventory - Batches")
+@ApiBearerAuth("bearer")
 @Controller("inventory/items/:itemId/batches")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class InventoryBatchesController {

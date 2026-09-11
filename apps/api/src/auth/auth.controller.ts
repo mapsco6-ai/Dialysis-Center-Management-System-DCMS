@@ -4,7 +4,9 @@ import { LoginDto } from "./dto/login.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -19,12 +21,14 @@ export class AuthController {
   // for this account (not just the one used here) - see jwt.strategy.ts.
   @Post("logout")
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth("bearer")
   @UseGuards(JwtAuthGuard)
   logout(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.logout(user.id);
   }
 
   @Get("me")
+  @ApiBearerAuth("bearer")
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
     return user;

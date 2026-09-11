@@ -8,6 +8,7 @@ import { ReportExportService } from "./report-export.service";
 import { UtilizationQueryDto } from "./dto/utilization-query.dto";
 import { DateRangeQueryDto } from "./dto/date-range-query.dto";
 import { ExportQueryDto } from "./dto/export-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 function defaultRange(from?: string, to?: string, fallbackDays = 0): { from: string; to: string } {
   const today = new Date().toISOString().slice(0, 10);
@@ -15,6 +16,8 @@ function defaultRange(from?: string, to?: string, fallbackDays = 0): { from: str
   return { from: from ?? fallbackFrom, to: to ?? today };
 }
 
+@ApiTags("Reports - Machines")
+@ApiBearerAuth("bearer")
 @Controller("reports/machines")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequireAnyPermission("machine.view", "maintenance.manage")

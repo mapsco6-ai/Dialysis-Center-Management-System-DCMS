@@ -6,10 +6,9 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreatePatientDto } from "./dto/create-patient.dto";
 import { UpdatePatientDto } from "./dto/update-patient.dto";
 import { CreateAlertDto } from "./dto/create-alert.dto";
-import { generateBarcode, formatPatientCode } from "./patient-code.util";
+import { createPatientAtomically } from "./create-patient-atomically";
 import { isUniqueConstraintOn } from "./prisma-errors.util";
 
-const MAX_BARCODE_ATTEMPTS = 5;
 const MAX_PAGE_SIZE = 100;
 
 // Editing these fields is a clinical decision, not clerical data entry, so
@@ -50,9 +49,7 @@ export class PatientsService {
   }
 
   async create(dto: CreatePatientDto, actor: AuthenticatedUser) {
-    const data: Prisma.PatientCreateInput = {
-      barcode: "", // filled in the retry loop below
-      patientCode: "", // filled in the retry loop below
+    const data: Omit<Prisma.PatientCreateInput, "barcode" | "patientCode"> = {
       fullName: dto.fullName,
       gender: dto.gender,
       dateOfBirth: new Date(dto.dateOfBirth),
@@ -70,73 +67,29 @@ export class PatientsService {
       specialInstructions: dto.specialInstructions,
     };
 
-    // Deliberately outside the transaction below: each attempt is a
-    // standalone insert, and a unique-constraint hit here is expected control
-    // flow (try another random barcode), not a fault to roll anything back
-    // for. If everything after this succeeds, the row is complete. If it
-    // doesn't (e.g. the audit write fails), the catch below deletes this row
-    // too - a caller-visible failure must never leave an orphaned,
-    // half-registered patient behind (DCMS-003: this used to be treated as
-    // an acceptable "valid but not pretty-printed" leftover, but an
-    // unaudited patient record is not an acceptable leftover at all).
-    let created: Prisma.PatientGetPayload<object> | undefined;
-    for (let attempt = 0; attempt < MAX_BARCODE_ATTEMPTS; attempt++) {
-      const barcode = generateBarcode();
-      try {
-        created = await this.prisma.patient.create({
-          data: { ...data, barcode, patientCode: barcode },
-        });
-        break;
-      } catch (error) {
-        if (isUniqueConstraintOn(error, "barcode") && attempt < MAX_BARCODE_ATTEMPTS - 1) {
-          continue;
-        }
-        throw error;
-      }
-    }
-    if (!created) {
-      throw new BadRequestException("Could not generate a unique barcode, please retry");
-    }
+    return createPatientAtomically(this.prisma, data, async (tx, patient) => {
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "PATIENT_CREATED",
+          entityType: "Patient",
+          entityId: patient.id,
+          newValue: patient,
+        },
+        tx,
+      );
 
-    // Everything from here on either all happens or none of it does - no
-    // "renamed but unaudited" or "audited but timeline missing" states. If
-    // this transaction fails, the catch below removes the row created above
-    // too, so the whole operation is atomic from the caller's perspective.
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        const patient = await tx.patient.update({
-          where: { id: created.id },
-          data: { patientCode: formatPatientCode(created.humanNumber) },
-        });
-
-        await this.auditService.log(
-          {
-            actorId: actor.id,
-            actorRole: actor.roles[0] ?? "UNKNOWN",
-            action: "PATIENT_CREATED",
-            entityType: "Patient",
-            entityId: patient.id,
-            newValue: patient,
-          },
-          tx,
-        );
-
-        await tx.patientTimelineEvent.create({
-          data: {
-            patientId: patient.id,
-            type: "PATIENT_REGISTERED",
-            payload: { patientCode: patient.patientCode, barcode: patient.barcode },
-            performedById: actor.id,
-            sourceModule: "patients",
-          },
-        });
-
-        return patient;
+      await tx.patientTimelineEvent.create({
+        data: {
+          patientId: patient.id,
+          type: "PATIENT_REGISTERED",
+          payload: { patientCode: patient.patientCode, barcode: patient.barcode },
+          performedById: actor.id,
+          sourceModule: "patients",
+        },
       });
-    } catch (error) {
-      await this.prisma.patient.delete({ where: { id: created.id } }).catch(() => undefined);
-      throw error;
-    }
+    });
   }
 
   async findAll(page = 1, limit = 50) {

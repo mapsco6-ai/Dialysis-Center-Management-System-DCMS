@@ -8,7 +8,10 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { MachinesService } from "./machines.service";
 import { CreateMachineDto } from "./dto/create-machine.dto";
 import { UpdateMachineStatusDto } from "./dto/update-machine-status.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Machines")
+@ApiBearerAuth("bearer")
 @Controller("machines")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MachinesController {

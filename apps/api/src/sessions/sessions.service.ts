@@ -513,8 +513,9 @@ export class SessionsService {
     }
   }
 
-  async listReadings(scheduleId: string) {
+  async listReadings(scheduleId: string, actor: AuthenticatedUser) {
     const session = await this.requireSession(scheduleId);
+    await this.enforceNursingAssignmentForSession(session, actor);
     return this.prisma.dialysisReading.findMany({
       where: { sessionId: session.id },
       orderBy: [{ time: "asc" }, { createdAt: "asc" }],
@@ -606,8 +607,9 @@ export class SessionsService {
 
   // --- Events -----------------------------------------------------------------
 
-  async listEvents(scheduleId: string) {
+  async listEvents(scheduleId: string, actor: AuthenticatedUser) {
     const session = await this.requireSession(scheduleId);
+    await this.enforceNursingAssignmentForSession(session, actor);
     return this.prisma.dialysisEvent.findMany({
       where: { sessionId: session.id },
       orderBy: { recordedAt: "asc" },

@@ -9,12 +9,11 @@
 // Excel export note: save as "CSV UTF-8 (Comma delimited)" - real .xlsx files
 // are not parsed here (docs review DCMS-015); that needs a separate reader.
 import "dotenv/config";
+import { createPatientAtomically } from "../src/patients/create-patient-atomically";
 import * as fs from "fs";
 import { Gender, PrismaClient, VascularAccessType } from "@prisma/client";
-import { formatPatientCode, generateBarcode } from "../src/patients/patient-code.util";
 
 const prisma = new PrismaClient();
-const MAX_BARCODE_ATTEMPTS = 5;
 const VALID_VASCULAR_ACCESS_TYPES = new Set<VascularAccessType>(["FISTULA", "CATHETER", "GRAFT"]);
 
 // Single-pass, quote-aware, handles fields containing literal newlines or
@@ -119,51 +118,19 @@ async function createPatientFromRow(row: Record<string, string>, actorId: string
     }
   }
 
-  let created: Awaited<ReturnType<typeof prisma.patient.create>> | undefined;
-  for (let attempt = 0; attempt < MAX_BARCODE_ATTEMPTS; attempt++) {
-    const barcode = generateBarcode();
-    try {
-      created = await prisma.patient.create({
-        data: {
-          barcode,
-          patientCode: barcode, // temporary unique placeholder, fixed below
-          fullName: row.fullName,
-          gender,
-          dateOfBirth,
-          phone: row.phone || undefined,
-          address: row.address || undefined,
-          fileNumber: row.fileNumber || undefined,
-          dialysisStartDate: row.dialysisStartDate ? new Date(row.dialysisStartDate) : undefined,
-          dryWeight,
-          vascularAccessType,
-          allergies: row.allergies || undefined,
-          medicalNotes: row.medicalNotes || undefined,
-        },
-      });
-      break;
-    } catch (error: unknown) {
-      const isBarcodeConflict =
-        error instanceof Object &&
-        (error as { code?: string }).code === "P2002" &&
-        attempt < MAX_BARCODE_ATTEMPTS - 1;
-      if (isBarcodeConflict) continue;
-      throw error;
-    }
-  }
-  if (!created) {
-    throw new Error("Could not generate a unique barcode after several attempts");
-  }
-
-  // Finalizing the code, auditing, and writing the timeline event either all
-  // commit together or none do (docs review DCMS-003). The barcode-retry
-  // create above is deliberately outside this transaction - see the same
-  // note in PatientsService.create.
-  return prisma.$transaction(async (tx) => {
-    const patient = await tx.patient.update({
-      where: { id: created!.id },
-      data: { patientCode: formatPatientCode(created!.humanNumber) },
-    });
-
+  return createPatientAtomically(prisma, {
+    fullName: row.fullName,
+    gender,
+    dateOfBirth,
+    phone: row.phone || undefined,
+    address: row.address || undefined,
+    fileNumber: row.fileNumber || undefined,
+    dialysisStartDate: row.dialysisStartDate ? new Date(row.dialysisStartDate) : undefined,
+    dryWeight,
+    vascularAccessType,
+    allergies: row.allergies || undefined,
+    medicalNotes: row.medicalNotes || undefined,
+  }, async (tx, patient) => {
     await tx.auditLog.create({
       data: {
         actorId,
@@ -186,7 +153,6 @@ async function createPatientFromRow(row: Record<string, string>, actorId: string
       },
     });
 
-    return patient;
   });
 }
 

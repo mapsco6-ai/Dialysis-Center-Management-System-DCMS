@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { RolesService } from "./roles.service";
 import { UpdateRolePermissionsDto } from "./dto/update-role-permissions.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Roles")
+@ApiBearerAuth("bearer")
 @Controller()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RolesController {

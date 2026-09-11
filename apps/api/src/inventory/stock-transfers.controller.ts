@@ -9,7 +9,10 @@ import { StockTransfersService } from "./stock-transfers.service";
 import { CreateStockTransferDto } from "./dto/create-stock-transfer.dto";
 import { RejectStockTransferDto } from "./dto/reject-stock-transfer.dto";
 import { ListStockTransfersQueryDto } from "./dto/list-stock-transfers-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Inventory - Stock Transfers")
+@ApiBearerAuth("bearer")
 @Controller("inventory/transfers")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class StockTransfersController {

@@ -7,7 +7,10 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { SessionSuppliesService } from "./session-supplies.service";
 import { SetSessionOverrideDto } from "./dto/set-session-override.dto";
 import { SubstituteSupplyDto } from "./dto/substitute-supply.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Inventory - Session Supplies")
+@ApiBearerAuth("bearer")
 @Controller("sessions/:id/supplies")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SessionSuppliesController {

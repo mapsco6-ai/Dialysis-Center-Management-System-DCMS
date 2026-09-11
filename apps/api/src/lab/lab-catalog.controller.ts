@@ -6,7 +6,10 @@ import { RequireAnyPermission } from "../common/decorators/require-any-permissio
 import { LabCatalogService } from "./lab-catalog.service";
 import { CreateLabTestDto } from "./dto/create-lab-test.dto";
 import { CreateLabPanelDto } from "./dto/create-lab-panel.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Lab - Catalog")
+@ApiBearerAuth("bearer")
 @Controller("lab")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class LabCatalogController {

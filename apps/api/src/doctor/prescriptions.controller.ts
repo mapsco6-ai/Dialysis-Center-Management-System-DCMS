@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { PrescriptionsService } from "./prescriptions.service";
 import { AdministerMedicationDto } from "./dto/administer-medication.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Doctor - Prescriptions")
+@ApiBearerAuth("bearer")
 @Controller()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PrescriptionsController {

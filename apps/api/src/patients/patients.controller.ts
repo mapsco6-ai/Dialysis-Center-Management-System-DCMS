@@ -10,7 +10,10 @@ import { UpdatePatientDto } from "./dto/update-patient.dto";
 import { CreateAlertDto } from "./dto/create-alert.dto";
 import { ResolveAlertDto } from "./dto/resolve-alert.dto";
 import { ListPatientsQueryDto } from "./dto/list-patients-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Patients")
+@ApiBearerAuth("bearer")
 @Controller("patients")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PatientsController {

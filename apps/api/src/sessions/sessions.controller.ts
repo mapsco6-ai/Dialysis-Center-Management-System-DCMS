@@ -11,7 +11,10 @@ import { StartDialysisDto } from "./dto/start-dialysis.dto";
 import { EndDialysisDto } from "./dto/end-dialysis.dto";
 import { ReassignMachineDto } from "./dto/reassign-machine.dto";
 import { InterruptSessionDto } from "./dto/interrupt-session.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Dialysis Sessions")
+@ApiBearerAuth("bearer")
 @Controller("sessions/:id")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SessionsController {

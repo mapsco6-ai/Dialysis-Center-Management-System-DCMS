@@ -8,12 +8,15 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { DashboardService } from "./dashboard.service";
 import { LiveCenterQueryDto } from "./dto/live-center-query.dto";
 import { DashboardDateQueryDto } from "./dto/dashboard-date-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 // One route per widget, each gated by the exact same permission that
 // already guards that widget's underlying data elsewhere in the app - a
 // limited-permission user (e.g. Reception) gets a plain 403 on any widget
 // they can't see, rather than a 200 with that section quietly omitted
 // (docs/PROJECT-PHASES-PLAN.md Phase 13 acceptance criterion 5).
+@ApiTags("Dashboard")
+@ApiBearerAuth("bearer")
 @Controller("dashboard")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DashboardController {

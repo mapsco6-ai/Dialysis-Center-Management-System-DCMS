@@ -6,7 +6,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { MachinesService } from "./machines.service";
 import { AssignMachineDto } from "./dto/assign-machine.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Machines - Session Assignment")
+@ApiBearerAuth("bearer")
 @Controller("sessions")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SessionMachineController {

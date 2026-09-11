@@ -7,7 +7,10 @@ import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { ShiftsService } from "./shifts.service";
 import { UpdateShiftCapacityDto } from "./dto/update-shift-capacity.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Scheduling - Shifts")
+@ApiBearerAuth("bearer")
 @Controller("shifts")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ShiftsController {

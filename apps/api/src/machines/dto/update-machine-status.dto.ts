@@ -1,3 +1,4 @@
+import { ApiProperty } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
 import { IsIn, IsNotEmpty, IsString } from "class-validator";
 
@@ -9,9 +10,11 @@ const GENERIC_TARGET_STATUSES = ["AVAILABLE", "CLEANING", "WAITING_CLEANING", "M
 export type GenericMachineStatus = (typeof GENERIC_TARGET_STATUSES)[number];
 
 export class UpdateMachineStatusDto {
+  @ApiProperty({ enum: GENERIC_TARGET_STATUSES })
   @IsIn(GENERIC_TARGET_STATUSES)
   status!: GenericMachineStatus;
 
+  @ApiProperty({ type: String })
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   @IsString()
   @IsNotEmpty()

@@ -7,7 +7,10 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { SessionsService } from "./sessions.service";
 import { CreateReadingDto } from "./dto/create-reading.dto";
 import { AmendReadingDto } from "./dto/amend-reading.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Dialysis Sessions - Readings")
+@ApiBearerAuth("bearer")
 @Controller("sessions/:id/readings")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ReadingsController {
@@ -15,8 +18,8 @@ export class ReadingsController {
 
   @Get()
   @RequirePermissions("dialysis.session.view")
-  list(@Param("id") id: string) {
-    return this.sessionsService.listReadings(id);
+  list(@Param("id") id: string, @CurrentUser() actor: AuthenticatedUser) {
+    return this.sessionsService.listReadings(id, actor);
   }
 
   @Post()

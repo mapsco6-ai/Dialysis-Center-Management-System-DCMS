@@ -4,11 +4,14 @@ import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequireAnyPermission } from "../common/decorators/require-any-permission.decorator";
 import { SchedulingService } from "./scheduling.service";
 import { GetScheduleQueryDto } from "./dto/get-schedule-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 // Viewable by full scheduling managers AND reception staff (who only hold
 // attendance.checkin) - it's the same status board both need to see.
 const VIEW_PERMISSIONS = ["scheduling.manage", "attendance.checkin"];
 
+@ApiTags("Scheduling - Schedule")
+@ApiBearerAuth("bearer")
 @Controller("schedule")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ScheduleController {

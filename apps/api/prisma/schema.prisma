@@ -1026,6 +1026,16 @@ model NursingAssignmentPatient {
   @@map("nursing_assignment_patients")
 }
 
+// Shared replay protection for short-lived PIN proofs across API replicas -
+// see PinProofService (docs/PROJECT-PHASES-PLAN.md Phase 7: "PIN سريع").
+model PinProofConsumption {
+  id        String   @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("pin_proof_consumptions")
+}
+
 // ---------------------------------------------------------------------------
 // Phase 8 (Doctor PWA): docs/PROJECT-PHASES-PLAN.md + docs/MODULES-SPEC.md
 // ---------------------------------------------------------------------------

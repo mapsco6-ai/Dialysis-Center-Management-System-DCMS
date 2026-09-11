@@ -1,0 +1,41 @@
+{
+  "suite": "OpenAPI request contract",
+  "schemas": 59,
+  "paths": 129,
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "name": "Every DTO schema has documented properties",
+      "status": "PASS"
+    },
+    {
+      "name": "All references resolve inside the document",
+      "status": "PASS"
+    },
+    {
+      "name": "Login body requires username/password and is public",
+      "status": "PASS"
+    },
+    {
+      "name": "Protected routes retain bearer authentication and actual permissions",
+      "status": "PASS"
+    },
+    {
+      "name": "Nested plan array describes items and allowed size",
+      "status": "PASS"
+    },
+    {
+      "name": "Optional fields, enums, bounds and inherited properties are described",
+      "status": "PASS"
+    },
+    {
+      "name": "Patient pagination query documents positive integer inputs",
+      "status": "PASS"
+    },
+    {
+      "name": "All documented paths use the running API prefix",
+      "status": "PASS"
+    }
+  ]
+}

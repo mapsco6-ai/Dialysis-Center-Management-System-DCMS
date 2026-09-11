@@ -1,9 +1,9 @@
 {
   "suite": "Completed phases review: additional coverage 0,1,7-10",
-  "date": "2026-09-10T12:51:58.017Z",
+  "date": "2026-09-11T08:28:25.082Z",
   "database": "disposable PostgreSQL 16",
   "completed": true,
-  "passed": 114,
+  "passed": 130,
   "failed": 0,
   "results": [
     {
@@ -71,6 +71,21 @@
       "issue": "DCMS-003"
     },
     {
+      "phase": 1,
+      "name": "Barcode collision retries a complete transaction without orphan records",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Audit pagination rejects invalid values with 400",
+      "status": "PASS"
+    },
+    {
+      "phase": 0,
+      "name": "Runtime DB role cannot rewrite clinical facts",
+      "status": "PASS"
+    },
+    {
       "phase": 2,
       "name": "Duplicate weekday rejected",
       "status": "PASS"
@@ -134,6 +149,26 @@
     },
     {
       "phase": 7,
+      "name": "PIN proof cannot be used by another account",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "PIN proof is single-use across concurrent service instances",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "PIN proof is revoked by device account logout",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
+      "name": "PIN proof is revoked by verified account logout",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
       "name": "Unassigned nurse cannot add reading",
       "status": "PASS"
     },
@@ -156,6 +191,11 @@
     },
     {
       "phase": 7,
+      "name": "Verified PIN records correct nurse once over HTTP",
+      "status": "PASS"
+    },
+    {
+      "phase": 7,
       "name": "Assignment conflict rejected atomically",
       "status": "PASS"
     },
@@ -167,6 +207,18 @@
     {
       "phase": 7,
       "name": "Direct session endpoint enforces same nursing scope",
+      "status": "PASS",
+      "issue": "DCMS-006"
+    },
+    {
+      "phase": 7,
+      "name": "Direct readings enforce nursing scope",
+      "status": "PASS",
+      "issue": "DCMS-006"
+    },
+    {
+      "phase": 7,
+      "name": "Direct events enforce nursing scope",
       "status": "PASS",
       "issue": "DCMS-006"
     },
@@ -243,6 +295,16 @@
     },
     {
       "phase": 8,
+      "name": "Malformed medication payload returns 400 instead of Prisma 500",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Blank modified instruction rolls back predecessor state",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
       "name": "Stopped doctor order cannot be stopped or modified twice",
       "status": "PASS"
     },
@@ -270,9 +332,30 @@
     },
     {
       "phase": 8,
-      "name": "Generic doctor lab request creates actionable lab work",
+      "name": "Text-only lab request rejected without creating invisible work",
       "status": "PASS",
       "issue": "DCMS-061"
+    },
+    {
+      "phase": 8,
+      "name": "Generic selected lab test appears in actionable queue",
+      "status": "PASS",
+      "issue": "DCMS-061"
+    },
+    {
+      "phase": 8,
+      "name": "Lab order modification cannot forge link to another order",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Generic lab route cannot bypass lab.request permission",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Null medication amendment does not silently reuse old dose",
+      "status": "PASS"
     },
     {
       "phase": 9,

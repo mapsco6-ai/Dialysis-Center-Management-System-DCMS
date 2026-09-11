@@ -4,7 +4,10 @@ import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator";
 import { MaintenanceService } from "./maintenance.service";
 import { DowntimeQueryDto } from "./dto/downtime-query.dto";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Maintenance - Machine Timeline")
+@ApiBearerAuth("bearer")
 @Controller("machines/:machineId")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MachineTimelineController {

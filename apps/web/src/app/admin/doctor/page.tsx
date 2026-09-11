@@ -745,7 +745,6 @@ function OrdersTab({
 
   const nonMedicationTypes: DoctorOrderType[] = [
     "NURSING_INSTRUCTION",
-    "LAB_REQUEST",
     "EXTRA_SESSION_REQUEST",
     "PHARMACY_RECOMMENDATION",
   ];

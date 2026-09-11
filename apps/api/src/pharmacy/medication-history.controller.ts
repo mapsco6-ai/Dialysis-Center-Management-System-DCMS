@@ -3,7 +3,10 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequirePermissions } from "../common/decorators/require-permissions.decorator";
 import { PharmacyService } from "./pharmacy.service";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
+@ApiTags("Pharmacy - Medication History")
+@ApiBearerAuth("bearer")
 @Controller("patients/:patientId/medication-history")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class MedicationHistoryController {
