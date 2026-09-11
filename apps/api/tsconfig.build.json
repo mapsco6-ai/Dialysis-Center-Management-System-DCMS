@@ -1,4 +1,12 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "dist", "test", "**/*spec.ts", "prisma/seed.ts"]
+  // The editor-facing tsconfig.json widens rootDir/include so it also
+  // covers scripts/ and prisma/seed.ts (they import from src/ but aren't
+  // meant to ship) - the real production build narrows both back to
+  // exactly what ends up in dist/main.js, unchanged from before.
+  "compilerOptions": {
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

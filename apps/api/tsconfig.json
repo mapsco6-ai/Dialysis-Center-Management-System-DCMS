@@ -5,7 +5,12 @@
     "moduleResolution": "node",
     "lib": ["ES2021"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    // "." (not "./src") so the editor/ts-node also cover scripts/ and
+    // prisma/seed.ts, which import from src/ but live outside it -
+    // tsconfig.build.json (the actual production build) overrides this
+    // back to "./src" so dist/ layout and Docker's `node dist/main.js`
+    // stay exactly as before.
+    "rootDir": ".",
     "baseUrl": "./",
     "declaration": false,
     "removeComments": true,
@@ -22,6 +27,6 @@
     "forceConsistentCasingInFileNames": true,
     "incremental": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "prisma/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
