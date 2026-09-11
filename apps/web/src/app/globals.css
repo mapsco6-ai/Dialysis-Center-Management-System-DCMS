@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4 - must come first */
+@import "tailwindcss";
+
+/* HeroUI v3 styles - must come after Tailwind (.agents/skills/heroui-react) */
+@import "@heroui/styles";
 
 body {
   background-color: #f8fafc;
