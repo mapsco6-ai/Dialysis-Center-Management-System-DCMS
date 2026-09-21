@@ -4,4 +4,6 @@ export interface AuthenticatedUser {
   fullName: string;
   roles: string[];
   permissions: string[];
+  landingPath: string;
+  mustChangePassword: boolean;
 }

@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { MachineStatus, MaintenanceTicket, MaintenanceTicketStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { emitNotification } from "../common/notify";
 import { AuditService } from "../audit/audit.service";
 import { MachinesService } from "../machines/machines.service";
 import { MinioService } from "../storage/minio.service";
@@ -51,6 +53,7 @@ export class MaintenanceService {
     private readonly auditService: AuditService,
     private readonly machinesService: MachinesService,
     private readonly minioService: MinioService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async requireTicket(id: string) {
@@ -133,6 +136,14 @@ export class MaintenanceService {
           },
           tx,
         );
+        emitNotification(this.eventEmitter, {
+          permission: "maintenance.manage",
+          excludeUserId: actor.id,
+          type: "MACHINE_FAULT",
+          title: `Machine fault (${dto.severity}): ${machine.machineCode}`,
+          body: dto.problem,
+          link: "/admin/maintenance",
+        });
 
         return tx.maintenanceTicket.findUniqueOrThrow({ where: { id: ticket.id }, include: TICKET_INCLUDE });
       });

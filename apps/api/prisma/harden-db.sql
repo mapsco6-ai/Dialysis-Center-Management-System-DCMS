@@ -14,3 +14,8 @@ REVOKE DELETE ON patients, clinical_alerts, patient_timeline_events FROM dcms_ap
 REVOKE UPDATE, DELETE ON patient_timeline_events, dialysis_readings,
   dialysis_events, lab_results, clinical_notes, medication_administrations,
   prescription_dispenses, stock_movements, machine_status_history FROM dcms_app;
+-- Staff entries keep their full trail: history is append-only, entries are never deleted.
+REVOKE UPDATE, DELETE ON staff_entry_status_history FROM dcms_app;
+REVOKE DELETE ON staff_entries FROM dcms_app;
+-- Tamper-evidence and history tables are insert-only for the app role.
+REVOKE UPDATE, DELETE ON audit_seals, session_status_history FROM dcms_app;

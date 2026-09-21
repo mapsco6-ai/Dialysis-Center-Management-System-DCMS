@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dcms
+          POSTGRES_PASSWORD: ci-password
+          POSTGRES_DB: dcms
+        ports: ["15432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dcms -d dcms" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://dcms:ci-password@localhost:15432/dcms?schema=public
+      JWT_SECRET: ci-only-secret-with-enough-length-0123456789
+      SUPER_ADMIN_USERNAME: admin
+      SUPER_ADMIN_PASSWORD: ci-admin-password
+      PORT: "3001"
+      TZ: Asia/Baghdad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx prisma generate --schema apps/api/prisma/schema.prisma
+      - name: Type-check and build API
+        run: npm run build:api
+      - name: Migrate and seed
+        working-directory: apps/api
+        run: |
+          npx prisma migrate deploy
+          npm run prisma:seed
+      - name: Start API
+        working-directory: apps/api
+        run: |
+          node dist/main.js > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:3001/api/v1/health && exit 0; sleep 2; done
+          cat api.log; exit 1
+      - name: Integration checks (staff, audit chain, notifications, oversight, states)
+        run: node apps/api/scripts/test-staff-admin.cjs
+      - name: OpenAPI spec is current
+        run: |
+          npm run generate:openapi --workspace=@dcms/api
+          git diff --exit-code apps/api/openapi.yaml
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx tsc --noEmit -p apps/web
+      - run: npm run build:web
+      - name: Browser tests (fixture API, no real data)
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:ui --workspace=@dcms/web

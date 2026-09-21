@@ -11,6 +11,7 @@ export declare const ROLES: readonly [
   "RECEPTION",
   "MAINTENANCE",
   "ACCOUNTANT",
+  "AUDITOR",
 ];
 
 export type Role = (typeof ROLES)[number];
@@ -22,3 +23,5 @@ export interface PermissionSeed {
 }
 
 export declare const PERMISSIONS: PermissionSeed[];
+
+export declare const ROLE_TEMPLATES: Record<string, { landingPath: string; permissions: string[] }>;

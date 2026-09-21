@@ -7,11 +7,22 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { SwaggerModule } from "@nestjs/swagger";
+import helmet from "helmet";
+import { allowedOrigins } from "./common/cookie";
+import { ipRateLimit } from "./common/rate-limit.middleware";
 import { AppModule } from "./app.module";
 import { buildOpenApiConfig, GLOBAL_PREFIX } from "./openapi.config";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  const app = await NestFactory.create(AppModule);
+
+  // Security headers. CSP is left to the web app/proxy: it would break the
+  // Swagger UI and a JSON API has no page to protect. CORP must stay
+  // cross-origin because the web app lives on another origin.
+  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  // Explicit origins + credentials: required by the HttpOnly cookie login.
+  app.enableCors({ origin: allowedOrigins(), credentials: true });
+  app.use(ipRateLimit());
 
   app.setGlobalPrefix(GLOBAL_PREFIX);
   app.useGlobalPipes(

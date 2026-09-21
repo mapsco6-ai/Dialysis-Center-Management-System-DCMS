@@ -2,33 +2,42 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { EmptyState } from "@/components/EmptyState";
+import { SkeletonTable } from "@/components/Skeleton";
+import { toast } from "@/components/Toaster";
 import { InventoryItem, Prescription, PrescriptionStatus } from "@/lib/types";
 
-const statusLabel: Record<PrescriptionStatus, string> = {
-  ACTIVE: "بانتظار الصرف",
-  DISPENSING: "قيد الصرف",
-  DISPENSED: "تم الصرف",
-  MODIFIED: "عُدِّلت (قديمة)",
-  STOPPED: "أُوقفت",
-};
+const getStatusLabels = (t: (arabic: string, english: string) => string): Record<PrescriptionStatus, string> => ({
+  ACTIVE: t("بانتظار الصرف", "Awaiting dispensing"),
+  DISPENSING: t("قيد الصرف", "Dispensing"),
+  DISPENSED: t("تم الصرف", "Dispensed"),
+  MODIFIED: t("عُدِّلت (قديمة)", "Modified (previous)"),
+  STOPPED: t("أُوقفت", "Stopped"),
+});
 
 const POLL_MS = 15000;
 
 export default function PharmacyPage() {
+  const { t, formatNumber } = useI18n();
+  const statusLabel = getStatusLabels(t);
   const user = useCurrentUser();
   const [filter, setFilter] = useState<PrescriptionStatus | "">("");
   const [queue, setQueue] = useState<Prescription[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dispenseFormId, setDispenseFormId] = useState<string | null>(null);
+  const [queueLoaded, setQueueLoaded] = useState(false);
 
   function refreshQueue() {
     const params = filter ? `?status=${filter}` : "";
-    apiFetch(`/pharmacy/queue${params}`).then(setQueue).catch(() => setQueue([]));
+    apiFetch(`/pharmacy/queue${params}`)
+      .then(setQueue)
+      .catch(() => setQueue([]))
+      .finally(() => setQueueLoaded(true));
   }
 
   useEffect(() => {
@@ -42,12 +51,12 @@ export default function PharmacyPage() {
 
   async function startDispensing(id: string) {
     setBusy(true);
-    setError(null);
     try {
       await apiFetch(`/pharmacy/prescriptions/${id}/start-dispensing`, { method: "POST" });
       refreshQueue();
+      toast.info(t("بدأ الصرف — أكمل إدخال الكمية", "Dispensing started - enter the quantity"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر بدء الصرف");
+      toast.error(err instanceof Error ? err.message : t("تعذر بدء الصرف", "Unable to start dispensing"));
     } finally {
       setBusy(false);
     }
@@ -57,7 +66,6 @@ export default function PharmacyPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     setBusy(true);
-    setError(null);
     try {
       await apiFetch(`/pharmacy/prescriptions/${id}/dispense`, {
         method: "POST",
@@ -69,15 +77,16 @@ export default function PharmacyPage() {
       });
       setDispenseFormId(null);
       refreshQueue();
+      toast.success(t("تم الصرف", "Dispensed"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر الصرف");
+      toast.error(err instanceof Error ? err.message : t("تعذر الصرف", "Unable to dispense"));
     } finally {
       setBusy(false);
     }
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canManageStock = user.permissions.includes("inventory.manage");
@@ -85,28 +94,34 @@ export default function PharmacyPage() {
   return (
     <AdminShell user={user}>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">الصيدلية — طابور الوصفات</h1>
+        <h1 className="text-xl font-semibold text-slate-800">{t("الصيدلية — طابور الوصفات", "Pharmacy — Prescription queue")}</h1>
         <select value={filter} onChange={(e) => setFilter(e.target.value as PrescriptionStatus | "")} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
-          <option value="">الحالية (بانتظار/قيد الصرف)</option>
-          <option value="DISPENSED">تم الصرف</option>
-          <option value="STOPPED">أُوقفت</option>
-          <option value="MODIFIED">عُدِّلت</option>
+          <option value="">{t("الحالية (بانتظار/قيد الصرف)", "Current (awaiting / dispensing)")}</option>
+          <option value="DISPENSED">{t("تم الصرف", "Dispensed")}</option>
+          <option value="STOPPED">{t("أُوقفت", "Stopped")}</option>
+          <option value="MODIFIED">{t("عُدِّلت", "Modified")}</option>
         </select>
       </div>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
       <section className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-right text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-slate-400">
             <tr>
-              <th className="px-4 py-2 font-medium">المريض</th>
-              <th className="px-4 py-2 font-medium">الدواء</th>
-              <th className="px-4 py-2 font-medium">الطبيب</th>
-              <th className="px-4 py-2 font-medium">الحالة</th>
+              <th className="px-4 py-2 font-medium">{t("المريض", "Patient")}</th>
+              <th className="px-4 py-2 font-medium">{t("الدواء", "Medication")}</th>
+              <th className="px-4 py-2 font-medium">{t("الطبيب", "Doctor")}</th>
+              <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
+            {!queueLoaded && queue.length === 0 && (
+              <tr>
+                <td colSpan={5} className="p-0">
+                  <SkeletonTable rows={4} columns={5} />
+                </td>
+              </tr>
+            )}
             {queue.map((p) => (
               <tr key={p.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">
@@ -120,37 +135,40 @@ export default function PharmacyPage() {
                 <td className="px-4 py-2">
                   {p.status === "ACTIVE" && (
                     <button onClick={() => startDispensing(p.id)} disabled={busy} className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50">
-                      بدء الصرف
+                      {t("بدء الصرف", "Start dispensing")}
                     </button>
                   )}
                   {p.status === "DISPENSING" && (
                     <button onClick={() => setDispenseFormId(dispenseFormId === p.id ? null : p.id)} className="text-xs font-medium text-emerald-600 hover:underline">
-                      صرف
+                      {t("صرف", "Dispense")}
                     </button>
                   )}
                   {dispenseFormId === p.id && (
                     <form onSubmit={(e) => submitDispense(e, p.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
                       <select name="itemId" required className="rounded-md border border-slate-300 px-2 py-1 text-xs">
-                        <option value="">اختر المادة...</option>
+                        <option value="">{t("اختر المادة...", "Select an item...")}</option>
                         {items.map((i) => (
                           <option key={i.id} value={i.id}>{i.name}</option>
                         ))}
                       </select>
-                      <input name="quantity" type="number" step="0.01" required placeholder="الكمية" className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                      <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">تأكيد الصرف</button>
+                      <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+                      <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("تأكيد الصرف", "Confirm dispensing")}</button>
                     </form>
                   )}
                   {(p.dispenses ?? []).length > 0 && (
                     <p className="mt-1 text-xs text-slate-400">
-                      صُرف: {p.dispenses![0].item?.name} × {p.dispenses![0].quantity} بواسطة {p.dispenses![0].dispensedBy?.fullName}
+                      {t("صُرف:", "Dispensed:")} {p.dispenses![0].item?.name} × {formatNumber(Number(p.dispenses![0].quantity))} {t("بواسطة", "by")} {p.dispenses![0].dispensedBy?.fullName}
                     </p>
                   )}
                 </td>
               </tr>
             ))}
-            {queue.length === 0 && (
+            {queueLoaded && queue.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">لا توجد وصفات في هذه القائمة</td>
+                <td colSpan={5}>
+                  <EmptyState icon="✓" title={t("لا توجد وصفات في هذه القائمة", "No prescriptions in this list")}
+                    description={t("جرّب تغيير الفلتر أعلى الجدول — الوصفات الجديدة تظهر تلقائياً.", "Try changing the filter above - new prescriptions appear automatically.")} />
+                </td>
               </tr>
             )}
           </tbody>
@@ -163,6 +181,7 @@ export default function PharmacyPage() {
 }
 
 function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onChanged: () => void }) {
+  const { t, formatNumber } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -182,8 +201,9 @@ function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onCha
       });
       (e.target as HTMLFormElement).reset();
       onChanged();
+      toast.success(t("تم التحويل إلى مخزون الصيدلية", "Stock transferred to the pharmacy"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر التحويل");
+      toast.error(err instanceof Error ? err.message : t("تعذر التحويل", "Unable to transfer stock"));
     } finally {
       setBusy(false);
     }
@@ -191,18 +211,18 @@ function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onCha
 
   return (
     <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-2 text-sm font-semibold text-slate-500">تغذية مخزون الصيدلية (تحويل من المخزن الرئيسي)</h2>
+      <h2 className="mb-2 text-sm font-semibold text-slate-500">{t("تغذية مخزون الصيدلية (تحويل من المخزن الرئيسي)", "Replenish pharmacy stock (transfer from main warehouse)")}</h2>
       {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
       <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
         <select name="itemId" required className="rounded-md border border-slate-300 px-2 py-1 text-xs">
-          <option value="">اختر المادة...</option>
+          <option value="">{t("اختر المادة...", "Select an item...")}</option>
           {items.map((i) => (
-            <option key={i.id} value={i.id}>{i.name} (متوفر بالمخزن: {i.quantityInStock})</option>
+            <option key={i.id} value={i.id}>{i.name} {t("(متوفر بالمخزن:", "(Available in warehouse:")} {formatNumber(Number(i.quantityInStock))})</option>
           ))}
         </select>
-        <input name="quantity" type="number" step="0.01" required placeholder="الكمية" className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-        <input name="reason" placeholder="السبب (اختياري)" className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-        <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">تحويل</button>
+        <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+        <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+        <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("تحويل", "Transfer")}</button>
       </form>
     </section>
   );

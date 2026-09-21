@@ -2,7 +2,7 @@ import "dotenv/config";
 import * as crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
 import * as argon2 from "argon2";
-import { ROLES, PERMISSIONS } from "@dcms/shared";
+import { ROLES, PERMISSIONS, ROLE_TEMPLATES } from "@dcms/shared";
 import { SYSTEM_USERNAME } from "../src/common/system-user";
 
 const prisma = new PrismaClient();
@@ -15,6 +15,11 @@ async function main() {
       create: { name },
     });
   }
+
+  // Permissions this run introduces (used below to roll them out to the
+  // default roles of existing installs).
+  const knownKeys = new Set((await prisma.permission.findMany({ select: { key: true } })).map((p) => p.key));
+  const newKeys = new Set(PERMISSIONS.map((p) => p.key).filter((key) => !knownKeys.has(key)));
 
   for (const permission of PERMISSIONS) {
     await prisma.permission.upsert({
@@ -39,6 +44,28 @@ async function main() {
       },
       update: {},
       create: { roleId: superAdminRole.id, permissionId: permission.id },
+    });
+  }
+
+  // Default permissions for the other roles. A director's later edits survive
+  // every re-seed: a role that already holds permissions only receives
+  // permissions that are brand new in this release. Two exceptions:
+  //  - AUDITOR (committee account) is locked to its template, so it can never
+  //    quietly grow beyond the read-only dashboard;
+  //  - RESET_ROLE_TEMPLATES=1 deliberately re-applies every template.
+  const resetAll = process.env.RESET_ROLE_TEMPLATES === "1";
+  for (const [roleName, template] of Object.entries(ROLE_TEMPLATES)) {
+    if (roleName === "SUPER_ADMIN") continue;
+    const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
+    const holdsAny = (await prisma.rolePermission.count({ where: { roleId: role.id } })) > 0;
+    const locked = roleName === "AUDITOR" || resetAll;
+    const wanted = allPermissions.filter(
+      (p) => template.permissions.includes(p.key) && (locked || !holdsAny || newKeys.has(p.key)),
+    );
+    if (locked) await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    await prisma.rolePermission.createMany({
+      data: wanted.map((p) => ({ roleId: role.id, permissionId: p.id })),
+      skipDuplicates: true,
     });
   }
 

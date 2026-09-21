@@ -16,7 +16,7 @@ type PrismaTx = Prisma.TransactionClient;
 // Statuses reachable through the generic status endpoint - see the DTO
 // comment for why IN_USE/RESERVED/EMERGENCY_RESERVED/APPROVAL_REQUIRED are
 // excluded here.
-const GENERIC_STATUSES: MachineStatus[] = ["AVAILABLE", "CLEANING", "WAITING_CLEANING", "MAINTENANCE", "OUT_OF_SERVICE"];
+const GENERIC_STATUSES: MachineStatus[] = ["AVAILABLE", "CLEANING", "WAITING_CLEANING", "MAINTENANCE", "OUT_OF_SERVICE", "RETIRED"];
 
 // Which generic status each generic status may move to directly - in
 // particular, WAITING_CLEANING can only reach AVAILABLE via CLEANING, never
@@ -25,11 +25,13 @@ const GENERIC_STATUSES: MachineStatus[] = ["AVAILABLE", "CLEANING", "WAITING_CLE
 // is reachable from anywhere (handled separately, above this table) as the
 // equipment-failure escape hatch.
 const ALLOWED_GENERIC_TRANSITIONS: Partial<Record<MachineStatus, MachineStatus[]>> = {
-  AVAILABLE: ["MAINTENANCE", "OUT_OF_SERVICE"],
+  AVAILABLE: ["MAINTENANCE", "OUT_OF_SERVICE", "RETIRED"],
   CLEANING: ["AVAILABLE", "OUT_OF_SERVICE"],
   WAITING_CLEANING: ["CLEANING", "OUT_OF_SERVICE"],
-  MAINTENANCE: ["AVAILABLE", "OUT_OF_SERVICE"],
-  OUT_OF_SERVICE: ["AVAILABLE", "MAINTENANCE"],
+  MAINTENANCE: ["AVAILABLE", "OUT_OF_SERVICE", "RETIRED"],
+  OUT_OF_SERVICE: ["AVAILABLE", "MAINTENANCE", "RETIRED"],
+  // Decommissioned for good: terminal, never assignable again.
+  RETIRED: [],
 };
 
 @Injectable()

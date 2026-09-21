@@ -1,9 +1,11 @@
+import { ROLE_TEMPLATES } from "@dcms/shared";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 
 type UserWithRoles = {
   id: string;
   username: string;
   fullName: string;
+  mustChangePassword?: boolean;
   roles: {
     role: {
       name: string;
@@ -11,6 +13,16 @@ type UserWithRoles = {
     };
   }[];
 };
+
+// First of the user's roles that defines a landing page wins; roles the
+// director creates later (no template) fall back to the dashboard.
+export function landingPathFor(roles: string[]): string {
+  for (const role of roles) {
+    const path = ROLE_TEMPLATES[role]?.landingPath;
+    if (path) return path;
+  }
+  return "/admin";
+}
 
 export function toAuthenticatedUser(user: UserWithRoles): AuthenticatedUser {
   const roles = user.roles.map((userRole) => userRole.role.name);
@@ -28,6 +40,8 @@ export function toAuthenticatedUser(user: UserWithRoles): AuthenticatedUser {
     fullName: user.fullName,
     roles,
     permissions,
+    landingPath: landingPathFor(roles),
+    mustChangePassword: user.mustChangePassword ?? false,
   };
 }
 

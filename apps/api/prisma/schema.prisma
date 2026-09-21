@@ -12,23 +12,35 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  username     String    @unique
-  passwordHash String
-  fullName     String
+  id                 String    @id @default(uuid())
+  username           String    @unique
+  passwordHash       String
+  fullName           String
   // Quick-PIN for identifying the actual performer on a shared/logged-in
   // device (docs/PROJECT-PHASES-PLAN.md Phase 7: "Username+Password أو PIN
   // سريع بعد الدخول الأساسي"). Hashed exactly like passwordHash - never
   // stored or compared in plaintext.
-  pinHash      String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
+  pinHash            String?
+  isActive           Boolean   @default(true)
+  lastLoginAt        DateTime?
   // Bumped on logout (and could be bumped on deactivation/password reset) so
   // every JWT issued before that moment is rejected immediately by
   // JwtStrategy, instead of staying valid until its natural expiry.
-  tokenVersion Int       @default(0)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  tokenVersion       Int       @default(0)
+  // Staff profile (employment/licensing details oversight bodies ask for).
+  employeeNo         String?   @unique
+  phone              String?
+  email              String?
+  jobTitle           String?
+  specialty          String?
+  licenseNo          String?
+  department         String?
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+  // Time-limited accounts (e.g. external inspectors); rejected after this.
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   roles                      UserRole[]
   auditLogs                  AuditLog[]
@@ -64,6 +76,12 @@ model User {
   maintenanceStatusChanges   MaintenanceTicketStatusHistory[]
   incidentsReported          IncidentReport[]                 @relation("IncidentReportedBy")
   incidentStatusChanges      IncidentStatusHistory[]
+  staffEntries               StaffEntry[]                     @relation("StaffEntryAuthor")
+  staffEntriesAssigned       StaffEntry[]                     @relation("StaffEntryAssignee")
+  staffEntryStatusChanges    StaffEntryStatusHistory[]
+  alertsAcknowledged         ClinicalAlert[]                  @relation("AlertAcknowledgedBy")
+  notifications              Notification[]
+  accessRecordsCreated       AccessRecord[]
 
   @@map("users")
 }
@@ -131,10 +149,20 @@ model AuditLog {
   reason     String?
   device     String?
   ipAddress  String?
+  // Optional context so "everything that happened to this patient/session"
+  // is one indexed query for oversight committees.
+  patientId  String?
+  sessionId  String?
   createdAt  DateTime @default(now())
+  // Insert order, used to walk the hash chain (see AuditSeal).
+  seq        Int      @unique @default(autoincrement())
+
+  seal AuditSeal?
 
   actor User @relation(fields: [actorId], references: [id])
 
+  @@index([patientId, createdAt])
+  @@index([actorId, createdAt])
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([createdAt])
@@ -155,6 +183,8 @@ enum PatientStatus {
   INACTIVE
   DECEASED
   TRANSFERRED
+  ON_HOLD
+  TRANSPLANTED
 }
 
 enum VascularAccessType {
@@ -187,8 +217,13 @@ model Patient {
   address    String?
   fileNumber String?
 
-  registeredAt DateTime      @default(now())
-  status       PatientStatus @default(ACTIVE)
+  registeredAt     DateTime      @default(now())
+  status           PatientStatus @default(ACTIVE)
+  statusReason     String?
+  statusChangedAt  DateTime?
+  // Break-the-glass: opening a restricted chart needs a stated reason (audited).
+  isRestricted     Boolean       @default(false)
+  restrictedReason String?
 
   dialysisStartDate      DateTime?
   dryWeight              Decimal?            @db.Decimal(5, 2)
@@ -217,6 +252,7 @@ model Patient {
   clinicalNotes      ClinicalNote[]
   labOrders          LabOrder[]
   incidentReports    IncidentReport[]
+  accessRecords      AccessRecord[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -241,6 +277,10 @@ model ClinicalAlert {
 
   resolvedAt DateTime?
   createdAt  DateTime  @default(now())
+
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+  acknowledgedBy   User?     @relation("AlertAcknowledgedBy", fields: [acknowledgedById], references: [id])
 
   @@index([patientId])
   @@map("clinical_alerts")
@@ -456,6 +496,7 @@ enum StockTransferStatus {
   ISSUED
   RECEIVED
   REJECTED
+  CANCELLED
 }
 
 // UNAVAILABLE is never silently replaced - a shortage is a fact on the
@@ -681,6 +722,7 @@ enum MachineStatus {
   CLEANING
   MAINTENANCE
   OUT_OF_SERVICE
+  RETIRED
 }
 
 enum ApprovalDecision {
@@ -844,6 +886,10 @@ enum DialysisEventType {
   MEDICATION_GIVEN
   PHYSICIAN_CALLED
   SESSION_INTERRUPTED
+  CRAMPS
+  BLEEDING
+  CHEST_PAIN
+  CLOTTING
   OTHER
 }
 
@@ -908,14 +954,15 @@ model DialysisSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  readings              DialysisReading[]
-  events                DialysisEvent[]
-  linkedPrescriptions   Prescription[]
-  medicationsGiven      MedicationAdministration[]
-  clinicalNotes         ClinicalNote[]
-  prescriptionDispenses PrescriptionDispense[]
-  labOrders             LabOrder[]
-  incidentReports       IncidentReport[]
+  readings               DialysisReading[]
+  events                 DialysisEvent[]
+  linkedPrescriptions    Prescription[]
+  medicationsGiven       MedicationAdministration[]
+  clinicalNotes          ClinicalNote[]
+  prescriptionDispenses  PrescriptionDispense[]
+  labOrders              LabOrder[]
+  incidentReports        IncidentReport[]
+  sessionStatusHistories SessionStatusHistory[]
 
   @@map("dialysis_sessions")
 }
@@ -1061,6 +1108,7 @@ enum PrescriptionStatus {
   DISPENSED
   MODIFIED
   STOPPED
+  REJECTED_BY_PHARMACY
 }
 
 // Every doctor action - of any type - is one of these rows. Amending never
@@ -1252,6 +1300,7 @@ enum LabOrderItemStatus {
   FINAL
   AMENDED
   CANCELLED
+  SAMPLE_REJECTED
 }
 
 // One LabOrder groups every item requested together, and episodeCode is
@@ -1315,8 +1364,10 @@ model LabResult {
   labOrderItemId String
   labOrderItem   LabOrderItem @relation(fields: [labOrderItemId], references: [id], onDelete: Cascade)
 
-  value   String
-  isFinal Boolean @default(true)
+  value      String
+  isFinal    Boolean @default(true)
+  // Set by the technician; raises a notification to the ordering doctor.
+  isCritical Boolean @default(false)
 
   enteredById String
   enteredBy   User   @relation(fields: [enteredById], references: [id])
@@ -1566,6 +1617,8 @@ enum IncidentSeverity {
 enum IncidentStatus {
   OPEN
   UNDER_REVIEW
+  ACTION_REQUIRED
+  ACTION_DONE
   CLOSED
 }
 
@@ -1629,4 +1682,188 @@ model IncidentStatusHistory {
 
   @@index([incidentId, changedAt])
   @@map("incident_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Staff entries: action notes, shift reports, problems, complaints,
+// suggestions written by any employee and reviewed by management. One model,
+// `type` differs (docs/SYSTEM-IMPROVEMENT-STUDY-AR.md §9.3).
+// ---------------------------------------------------------------------------
+enum StaffEntryType {
+  ACTION_NOTE
+  SHIFT_REPORT
+  PROBLEM
+  COMPLAINT
+  SUGGESTION
+}
+
+enum StaffEntryStatus {
+  SUBMITTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+enum ComplaintSource {
+  STAFF
+  PATIENT
+  FAMILY
+}
+
+model StaffEntry {
+  id String @id @default(uuid())
+
+  type     StaffEntryType
+  category String?
+  title    String
+  body     String
+  severity IncidentSeverity @default(LOW)
+
+  authorId String
+  author   User   @relation("StaffEntryAuthor", fields: [authorId], references: [id])
+
+  shiftId   String?
+  entryDate DateTime @default(now())
+
+  patientId String?
+  sessionId String?
+  machineId String?
+
+  complaintSource ComplaintSource?
+  // Complaints about colleagues/management: hidden from everyone except the
+  // author and holders of entry.review.
+  isConfidential  Boolean          @default(false)
+
+  status       StaffEntryStatus @default(SUBMITTED)
+  assignedToId String?
+  assignedTo   User?            @relation("StaffEntryAssignee", fields: [assignedToId], references: [id])
+  response     String?
+  respondedAt  DateTime?
+
+  escalatedIncidentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  history StaffEntryStatusHistory[]
+
+  @@index([authorId, entryDate])
+  @@index([type, status])
+  @@index([patientId])
+  @@map("staff_entries")
+}
+
+// Append-only, same pattern as MaintenanceTicketStatusHistory.
+model StaffEntryStatusHistory {
+  id String @id @default(uuid())
+
+  entryId String
+  entry   StaffEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  fromStatus StaffEntryStatus?
+  toStatus   StaffEntryStatus
+
+  changedById String
+  changedBy   User     @relation(fields: [changedById], references: [id])
+  reason      String?
+  changedAt   DateTime @default(now())
+
+  @@index([entryId, changedAt])
+  @@map("staff_entry_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Platform tables: settings, tamper-evident audit chain, DB-backed login
+// throttle, notifications, session history, vascular access history.
+// ---------------------------------------------------------------------------
+
+// Small key/value store for super-admin switches (e.g. shiftReportRequired).
+model SystemSetting {
+  key         String   @id
+  value       Json
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  @@map("system_settings")
+}
+
+// Insert-only companion of AuditLog (audit_logs itself is never updatable by
+// the app role). Each seal commits to the previous one, so editing or
+// deleting any sealed audit row outside the app breaks the chain.
+model AuditSeal {
+  id         String   @id @default(uuid())
+  auditLogId String   @unique
+  auditLog   AuditLog @relation(fields: [auditLogId], references: [id])
+  seq        Int      @unique
+  prevHash   String?
+  hash       String
+  sealedAt   DateTime @default(now())
+
+  @@map("audit_seals")
+}
+
+// Replaces the in-memory limiter so lockouts survive restarts and work with
+// more than one API instance.
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  username  String
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+  @@map("login_attempts")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+// Filled by a DB trigger on dialysis_sessions (see the migration), so every
+// status change - from any service - is recorded in one place.
+model SessionStatusHistory {
+  id         String                 @id @default(uuid())
+  sessionId  String
+  session    DialysisSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fromStatus DialysisSessionStatus?
+  toStatus   DialysisSessionStatus
+  changedAt  DateTime               @default(now())
+
+  @@index([sessionId, changedAt])
+  @@map("session_status_history")
+}
+
+enum AccessRecordStatus {
+  ACTIVE
+  REMOVED
+  FAILED
+}
+
+model AccessRecord {
+  id          String             @id @default(uuid())
+  patientId   String
+  patient     Patient            @relation(fields: [patientId], references: [id])
+  type        VascularAccessType
+  location    String
+  placedAt    DateTime
+  removedAt   DateTime?
+  status      AccessRecordStatus @default(ACTIVE)
+  notes       String?
+  createdById String
+  createdBy   User               @relation(fields: [createdById], references: [id])
+  createdAt   DateTime           @default(now())
+
+  @@index([patientId, placedAt])
+  @@map("access_records")
 }

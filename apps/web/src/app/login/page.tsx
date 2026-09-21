@@ -2,71 +2,47 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, setToken } from "@/lib/api";
+import { Button, Input, Label, TextField } from "@heroui/react";
+import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { CenterMark, WorkspaceIcon } from "@/components/WorkspaceIcon";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t, locale, setLocale } = useI18n();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setError(null);
+    setHasError(false);
     setLoading(true);
     try {
-      const data = await apiFetch("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ username, password }),
-      });
-      setToken(data.accessToken);
-      router.push("/admin");
+      const data = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
+      // The API sets the HttpOnly session cookie itself.
+      router.push(data.user?.landingPath ?? "/admin");
     } catch {
-      setError("اسم المستخدم أو كلمة المرور غير صحيحة");
+      setHasError(true);
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm"
-      >
-        <h1 className="mb-6 text-center text-xl font-semibold text-slate-800">
-          نظام إدارة مركز الديلزة
-        </h1>
-
-        <label className="mb-1 block text-sm font-medium text-slate-600">اسم المستخدم</label>
-        <input
-          className="mb-4 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-          autoFocus
-        />
-
-        <label className="mb-1 block text-sm font-medium text-slate-600">كلمة المرور</label>
-        <input
-          type="password"
-          className="mb-4 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-
-        {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-slate-800 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-        >
-          {loading ? "جاري الدخول..." : "تسجيل الدخول"}
-        </button>
+  return <main className="login-page">
+    <header className="login-header"><div className="login-brand"><CenterMark /><span>DCMS</span></div>
+      <Button variant="outline" size="sm" onPress={() => setLocale(locale === "ar" ? "en" : "ar")} aria-label={locale === "ar" ? "Switch to English" : "التبديل إلى العربية"}><WorkspaceIcon name="language" width={16} height={16} />{locale === "ar" ? "English" : "العربية"}</Button>
+    </header>
+    <div className="login-body"><div className="login-intro"><span className="login-eyebrow">{t("رعاية أفضل، كل يوم", "Better care, every day")}</span><h1>{t("أهلاً بعودتك", "Welcome back")}</h1><p>{t("سجّل دخولك إلى نظام إدارة مركز الديلزة.", "Sign in to your dialysis center workspace.")}</p></div>
+      <form onSubmit={handleSubmit} className="login-form">
+        <TextField name="username" value={username} onChange={setUsername} isRequired className="w-full"><Label>{t("اسم المستخدم", "Username")}</Label><Input autoComplete="username" autoFocus dir="auto" placeholder={t("أدخل اسم المستخدم", "Enter your username")} /></TextField>
+        <TextField name="password" type="password" value={password} onChange={setPassword} isRequired className="w-full"><Label>{t("كلمة المرور", "Password")}</Label><Input autoComplete="current-password" placeholder={t("أدخل كلمة المرور", "Enter your password")} /></TextField>
+        {hasError && <p role="alert" className="login-error">{t("تعذر تسجيل الدخول. تحقق من بياناتك واتصالك ثم حاول مجدداً.", "Unable to sign in. Check your credentials and connection, then try again.")}</p>}
+        <Button type="submit" variant="primary" isDisabled={loading} className="w-full">{loading ? t("جاري الدخول...", "Signing in...") : t("تسجيل الدخول", "Sign in")}</Button>
       </form>
-    </main>
-  );
+      <p className="login-help">{t("تحتاج مساعدة بالدخول؟ تواصل مع مسؤول النظام في المركز.", "Need access? Contact your center’s system administrator.")}</p>
+    </div>
+    <footer className="login-footer">{t("نظام إدارة مركز الديلزة", "Dialysis Center Management System")}<span>DCMS</span></footer>
+  </main>;
 }

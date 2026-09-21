@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
-import { API_URL, getToken } from "@/lib/api";
+import { API_URL } from "@/lib/api";
 
 export type LiveUpdateEntity = "session" | "schedule" | "machine";
 
@@ -26,10 +26,7 @@ export function useLiveUpdates(onUpdate: (entity: LiveUpdateEntity) => void) {
   callbackRef.current = onUpdate;
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-
-    const socket: Socket = io(wsOrigin(), { auth: { token }, transports: ["websocket"] });
+    const socket: Socket = io(wsOrigin(), { withCredentials: true, transports: ["websocket"] });
     socket.on("live:update", (payload: { entity: LiveUpdateEntity }) => {
       callbackRef.current(payload.entity);
     });

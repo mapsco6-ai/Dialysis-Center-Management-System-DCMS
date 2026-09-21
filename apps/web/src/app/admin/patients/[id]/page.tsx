@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { TIMELINE_LABELS } from "@/lib/timelineLabels";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
 import {
@@ -21,16 +23,6 @@ const severityStyles: Record<string, string> = {
   INFORMATION: "bg-slate-50 border-slate-300 text-slate-700",
 };
 
-const WEEKDAY_LABELS: Record<Weekday, string> = {
-  SUN: "الأحد",
-  MON: "الاثنين",
-  TUE: "الثلاثاء",
-  WED: "الأربعاء",
-  THU: "الخميس",
-  FRI: "الجمعة",
-  SAT: "السبت",
-};
-
 const WEEKDAYS: Weekday[] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 function InfoField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -43,6 +35,41 @@ function InfoField({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export default function PatientProfilePage() {
+  const { t, formatDate, formatNumber } = useI18n();
+  const patientStatusLabel = {
+    ACTIVE: t("نشط", "Active"),
+    INACTIVE: t("غير نشط", "Inactive"),
+    DECEASED: t("متوفى", "Deceased"),
+    TRANSFERRED: t("منقول", "Transferred"),
+    ON_HOLD: t("موقوف مؤقتاً", "On hold"),
+    TRANSPLANTED: t("زراعة كلية", "Transplanted"),
+  };
+  const severityLabel = {
+    CRITICAL: t("حرج", "Critical"),
+    IMPORTANT: t("مهم", "Important"),
+    INFORMATION: t("معلومات", "Information"),
+  };
+  const vascularAccessLabel = {
+    FISTULA: t("ناسور", "Fistula"),
+    CATHETER: t("قسطرة", "Catheter"),
+    GRAFT: t("وصلة وعائية", "Graft"),
+  };
+  const shiftLabel: Record<string, string> = {
+    SHIFT_1: t("الشفت الأول", "Shift 1"),
+    SHIFT_2: t("الشفت الثاني", "Shift 2"),
+    SHIFT_3: t("الشفت الثالث", "Shift 3"),
+    SHIFT_4: t("الشفت الرابع", "Shift 4"),
+  };
+  const WEEKDAY_LABELS: Record<Weekday, string> = {
+    SUN: t("الأحد", "Sunday"),
+    MON: t("الاثنين", "Monday"),
+    TUE: t("الثلاثاء", "Tuesday"),
+    WED: t("الأربعاء", "Wednesday"),
+    THU: t("الخميس", "Thursday"),
+    FRI: t("الجمعة", "Friday"),
+    SAT: t("السبت", "Saturday"),
+  };
+
   const params = useParams<{ id: string }>();
   const user = useCurrentUser();
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -67,7 +94,7 @@ export default function PatientProfilePage() {
     setPatientError(null);
     apiFetch(`/patients/${params.id}`)
       .then(setPatient)
-      .catch((err) => setPatientError(err instanceof Error ? err.message : "تعذر تحميل ملف المريض"));
+      .catch((err) => setPatientError(err instanceof Error ? err.message : t("تعذر تحميل ملف المريض", "Unable to load patient record")));
     apiFetch(`/patients/${params.id}/timeline`).then(setTimeline).catch(() => setTimeline([]));
     apiFetch(`/patients/${params.id}/dialysis-plan`).then(setPlan).catch(() => setPlan([]));
     apiFetch(`/patients/${params.id}/supply-profile`).then(setSupplyProfile).catch(() => setSupplyProfile([]));
@@ -105,7 +132,7 @@ export default function PatientProfilePage() {
       setEditingSupplyProfile(false);
       refresh();
     } catch (err) {
-      setSupplyProfileError(err instanceof Error ? err.message : "تعذر حفظ ملف المستلزمات");
+      setSupplyProfileError(err instanceof Error ? err.message : t("تعذر حفظ ملف المستلزمات", "Unable to save supply profile"));
     }
   }
 
@@ -129,7 +156,7 @@ export default function PatientProfilePage() {
       setEditingPlan(false);
       refresh();
     } catch (err) {
-      setPlanError(err instanceof Error ? err.message : "تعذر حفظ الخطة");
+      setPlanError(err instanceof Error ? err.message : t("تعذر حفظ الخطة", "Unable to save plan"));
     }
   }
 
@@ -149,12 +176,12 @@ export default function PatientProfilePage() {
       setShowAlertForm(false);
       refresh();
     } catch (err) {
-      setAlertError(err instanceof Error ? err.message : "تعذر إضافة التنبيه");
+      setAlertError(err instanceof Error ? err.message : t("تعذر إضافة التنبيه", "Unable to add alert"));
     }
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   if (patientError) {
@@ -162,7 +189,7 @@ export default function PatientProfilePage() {
   }
 
   if (!patient) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
@@ -175,7 +202,7 @@ export default function PatientProfilePage() {
           </p>
         </div>
         <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-          {patient.status}
+          {patientStatusLabel[patient.status]}
         </span>
       </div>
 
@@ -188,7 +215,7 @@ export default function PatientProfilePage() {
                 key={alert.id}
                 className={`rounded-md border px-4 py-2 text-sm ${severityStyles[alert.severity]}`}
               >
-                <span className="font-semibold">[{alert.severity}]</span> {alert.category}: {alert.message}
+                <span className="font-semibold">[{severityLabel[alert.severity]}]</span> {alert.category}: {alert.message}
               </div>
             ))}
         </div>
@@ -196,35 +223,35 @@ export default function PatientProfilePage() {
 
       <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
         <section className="rounded-lg border border-slate-200 bg-white p-6 md:col-span-2">
-          <h2 className="mb-4 text-sm font-semibold text-slate-500">البيانات الأساسية</h2>
+          <h2 className="mb-4 text-sm font-semibold text-slate-500">{t("البيانات الأساسية", "Basic information")}</h2>
           <div className="grid grid-cols-2 gap-4">
-            <InfoField label="الجنس" value={patient.gender === "MALE" ? "ذكر" : "أنثى"} />
-            <InfoField label="تاريخ الميلاد" value={patient.dateOfBirth?.slice(0, 10)} />
-            <InfoField label="الهاتف" value={patient.phone} />
-            <InfoField label="العنوان" value={patient.address} />
-            <InfoField label="رقم الإضبارة" value={patient.fileNumber} />
-            <InfoField label="تاريخ بدء الديلزة" value={patient.dialysisStartDate?.slice(0, 10)} />
-            <InfoField label="الوزن الجاف" value={patient.dryWeight} />
-            <InfoField label="نوع الوصول الوعائي" value={patient.vascularAccessType} />
-            <InfoField label="الحساسية" value={patient.allergies} />
-            <InfoField label="الأمراض المزمنة" value={patient.chronicDiseases?.join(", ")} />
+            <InfoField label={t("الجنس", "Sex")} value={patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")} />
+            <InfoField label={t("تاريخ الميلاد", "Date of birth")} value={formatDate(patient.dateOfBirth, { timeZone: "UTC" })} />
+            <InfoField label={t("الهاتف", "Phone")} value={patient.phone} />
+            <InfoField label={t("العنوان", "Address")} value={patient.address} />
+            <InfoField label={t("رقم الإضبارة", "File number")} value={patient.fileNumber} />
+            <InfoField label={t("تاريخ بدء الديلزة", "Dialysis start date")} value={patient.dialysisStartDate ? formatDate(patient.dialysisStartDate, { timeZone: "UTC" }) : null} />
+            <InfoField label={t("الوزن الجاف", "Dry weight")} value={patient.dryWeight != null ? formatNumber(Number(patient.dryWeight)) : null} />
+            <InfoField label={t("نوع الوصول الوعائي", "Vascular access type")} value={patient.vascularAccessType ? vascularAccessLabel[patient.vascularAccessType] : null} />
+            <InfoField label={t("الحساسية", "Allergies")} value={patient.allergies} />
+            <InfoField label={t("الأمراض المزمنة", "Chronic conditions")} value={patient.chronicDiseases?.join(", ")} />
           </div>
           {patient.medicalNotes && (
             <div className="mt-4">
-              <InfoField label="ملاحظات طبية" value={patient.medicalNotes} />
+              <InfoField label={t("ملاحظات طبية", "Medical notes")} value={patient.medicalNotes} />
             </div>
           )}
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-500">التنبيهات السريرية</h2>
+            <h2 className="text-sm font-semibold text-slate-500">{t("التنبيهات السريرية", "Clinical alerts")}</h2>
             {user.permissions.includes("patient.alert.manage") && (
               <button
                 onClick={() => setShowAlertForm((v) => !v)}
                 className="text-xs font-medium text-slate-600 hover:underline"
               >
-                + تنبيه
+                {t("+ تنبيه", "+ Add alert")}
               </button>
             )}
           </div>
@@ -232,20 +259,20 @@ export default function PatientProfilePage() {
           {showAlertForm && (
             <form onSubmit={handleCreateAlert} className="mt-3 space-y-2 rounded-md border border-slate-200 p-3">
               <select name="severity" required className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm">
-                <option value="CRITICAL">CRITICAL</option>
-                <option value="IMPORTANT">IMPORTANT</option>
-                <option value="INFORMATION">INFORMATION</option>
+                <option value="CRITICAL">{severityLabel.CRITICAL}</option>
+                <option value="IMPORTANT">{severityLabel.IMPORTANT}</option>
+                <option value="INFORMATION">{severityLabel.INFORMATION}</option>
               </select>
               <input
                 name="category"
                 required
-                placeholder="التصنيف (مثال: Drug Allergy)"
+                placeholder={t("التصنيف (مثال: Drug Allergy)", "Category (e.g. Drug allergy)")}
                 className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
               />
               <textarea
                 name="message"
                 required
-                placeholder="نص التنبيه"
+                placeholder={t("نص التنبيه", "Alert message")}
                 className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
                 rows={2}
               />
@@ -254,7 +281,7 @@ export default function PatientProfilePage() {
                 type="submit"
                 className="w-full rounded-md bg-slate-800 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
               >
-                حفظ التنبيه
+                {t("حفظ التنبيه", "Save alert")}
               </button>
             </form>
           )}
@@ -262,12 +289,12 @@ export default function PatientProfilePage() {
           <ul className="mt-3 space-y-2">
             {(patient.alerts ?? []).map((alert) => (
               <li key={alert.id} className="text-xs text-slate-600">
-                <span className="font-semibold">{alert.severity}</span> - {alert.category}
-                {alert.resolvedAt && <span className="text-slate-400"> (محلول)</span>}
+                <span className="font-semibold">{severityLabel[alert.severity]}</span> - {alert.category}
+                {alert.resolvedAt && <span className="text-slate-400"> {t("(محلول)", "(Resolved)")}</span>}
               </li>
             ))}
             {(patient.alerts ?? []).length === 0 && (
-              <li className="text-xs text-slate-400">لا توجد تنبيهات</li>
+              <li className="text-xs text-slate-400">{t("لا توجد تنبيهات", "No alerts")}</li>
             )}
           </ul>
         </section>
@@ -276,23 +303,23 @@ export default function PatientProfilePage() {
       {user.permissions.includes("scheduling.manage") && (
         <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-500">خطة الغسيل الأسبوعية</h2>
+            <h2 className="text-sm font-semibold text-slate-500">{t("خطة الغسيل الأسبوعية", "Weekly dialysis plan")}</h2>
             {!editingPlan && (
               <button onClick={startEditingPlan} className="text-xs font-medium text-slate-600 hover:underline">
-                تعديل الخطة
+                {t("تعديل الخطة", "Edit plan")}
               </button>
             )}
           </div>
 
           {!editingPlan && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {plan.length === 0 && <p className="text-xs text-slate-400">لا توجد خطة غسيل مسجّلة</p>}
+              {plan.length === 0 && <p className="text-xs text-slate-400">{t("لا توجد خطة غسيل مسجّلة", "No dialysis plan recorded")}</p>}
               {plan.map((entry) => (
                 <span
                   key={entry.id}
                   className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"
                 >
-                  {WEEKDAY_LABELS[entry.weekday]} - {entry.shift.name}
+                  {WEEKDAY_LABELS[entry.weekday]} - {shiftLabel[entry.shift.name] ?? entry.shift.name}
                 </span>
               ))}
             </div>
@@ -328,7 +355,7 @@ export default function PatientProfilePage() {
                   >
                     {shifts.map((shift) => (
                       <option key={shift.id} value={shift.id}>
-                        {shift.name} ({shift.dialysisStart}-{shift.dialysisEnd})
+                        {shiftLabel[shift.name] ?? shift.name} ({shift.dialysisStart}-{shift.dialysisEnd})
                       </option>
                     ))}
                   </select>
@@ -336,7 +363,7 @@ export default function PatientProfilePage() {
                     onClick={() => setPlanDraft((prev) => prev.filter((_, i) => i !== index))}
                     className="text-xs text-red-600 hover:underline"
                   >
-                    حذف
+                    {t("حذف", "Remove")}
                   </button>
                 </div>
               ))}
@@ -348,7 +375,7 @@ export default function PatientProfilePage() {
                   }
                   className="text-xs font-medium text-slate-600 hover:underline"
                 >
-                  + إضافة يوم
+                  {t("+ إضافة يوم", "+ Add day")}
                 </button>
               )}
 
@@ -359,13 +386,13 @@ export default function PatientProfilePage() {
                   onClick={handleSavePlan}
                   className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
                 >
-                  حفظ الخطة
+                  {t("حفظ الخطة", "Save plan")}
                 </button>
                 <button
                   onClick={() => setEditingPlan(false)}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
                 >
-                  إلغاء
+                  {t("إلغاء", "Cancel")}
                 </button>
               </div>
             </div>
@@ -376,23 +403,23 @@ export default function PatientProfilePage() {
       {(user.permissions.includes("inventory.view") || user.permissions.includes("inventory.manage")) && (
         <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-500">مستلزمات الجلسة الافتراضية</h2>
+            <h2 className="text-sm font-semibold text-slate-500">{t("مستلزمات الجلسة الافتراضية", "Default session supplies")}</h2>
             {!editingSupplyProfile && user.permissions.includes("inventory.manage") && (
               <button
                 onClick={startEditingSupplyProfile}
                 className="text-xs font-medium text-slate-600 hover:underline"
               >
-                تعديل
+                {t("تعديل", "Edit")}
               </button>
             )}
           </div>
 
           {!editingSupplyProfile && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {supplyProfile.length === 0 && <p className="text-xs text-slate-400">لا يوجد ملف مستلزمات مسجّل</p>}
+              {supplyProfile.length === 0 && <p className="text-xs text-slate-400">{t("لا يوجد ملف مستلزمات مسجّل", "No supply profile recorded")}</p>}
               {supplyProfile.map((entry) => (
                 <span key={entry.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  {entry.item.name} &times; {entry.defaultQuantity} {entry.item.unit}
+                  {entry.item.name} &times; {formatNumber(Number(entry.defaultQuantity))} {entry.item.unit}
                 </span>
               ))}
             </div>
@@ -433,7 +460,7 @@ export default function PatientProfilePage() {
                     onClick={() => setSupplyProfileDraft((prev) => prev.filter((_, i) => i !== index))}
                     className="text-xs text-red-600 hover:underline"
                   >
-                    حذف
+                    {t("حذف", "Remove")}
                   </button>
                 </div>
               ))}
@@ -444,7 +471,7 @@ export default function PatientProfilePage() {
                 }
                 className="text-xs font-medium text-slate-600 hover:underline"
               >
-                + إضافة مادة
+                {t("+ إضافة مادة", "+ Add item")}
               </button>
 
               {supplyProfileError && <p className="text-xs text-red-600">{supplyProfileError}</p>}
@@ -454,13 +481,13 @@ export default function PatientProfilePage() {
                   onClick={handleSaveSupplyProfile}
                   className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
                 >
-                  حفظ
+                  {t("حفظ", "Save")}
                 </button>
                 <button
                   onClick={() => setEditingSupplyProfile(false)}
                   className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
                 >
-                  إلغاء
+                  {t("إلغاء", "Cancel")}
                 </button>
               </div>
             </div>
@@ -469,15 +496,15 @@ export default function PatientProfilePage() {
       )}
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-semibold text-slate-500">السجل الزمني (Timeline)</h2>
-        {timeline.length === 0 && <p className="text-sm text-slate-400">لا توجد أحداث بعد</p>}
-        <ol className="space-y-3 border-r-2 border-slate-100 pr-4">
+        <h2 className="mb-4 text-sm font-semibold text-slate-500">{t("السجل الزمني (Timeline)", "Patient timeline")}</h2>
+        {timeline.length === 0 && <p className="text-sm text-slate-400">{t("لا توجد أحداث بعد", "No events yet")}</p>}
+        <ol className="space-y-3 border-s-2 border-slate-100 ps-4">
           {timeline.map((event) => (
             <li key={event.id} className="text-sm">
-              <p className="font-medium text-slate-700">{event.type}</p>
+              <p className="font-medium text-slate-700">{TIMELINE_LABELS[event.type] ? t(...TIMELINE_LABELS[event.type]) : event.type}</p>
               <p className="text-xs text-slate-400">
-                {new Date(event.performedAt).toLocaleString("ar")} &middot;{" "}
-                {event.performedBy?.fullName ?? "النظام"}
+                {formatDate(event.performedAt, { dateStyle: "medium", timeStyle: "short" })} &middot;{" "}
+                {event.performedBy?.fullName ?? t("النظام", "System")}
               </p>
             </li>
           ))}

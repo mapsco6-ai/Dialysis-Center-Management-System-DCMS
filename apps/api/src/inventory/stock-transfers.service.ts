@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, StockTransferStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -113,6 +113,41 @@ export class StockTransfersService {
   // Either a still-pending request or an already-approved one can be
   // rejected - only ISSUED (stock has physically left) or already-decided
   // transfers cannot.
+  // The requester (or an approver) withdraws a transfer that has not been
+  // issued yet; stock only ever moves at ISSUED/RECEIVED, so nothing to undo.
+  async cancel(id: string, dto: RejectStockTransferDto, actor: AuthenticatedUser) {
+    const transfer = await this.requireTransfer(id);
+    if (transfer.status !== "REQUESTED" && transfer.status !== "APPROVED") {
+      throw new ConflictException(`Cannot cancel a transfer that is ${transfer.status}`);
+    }
+    if (transfer.requestedById !== actor.id && !actor.permissions.includes("inventory.transfer.approve")) {
+      throw new ForbiddenException("Only the requester or an approver can cancel this transfer");
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.stockTransfer.updateMany({
+        where: { id, status: transfer.status },
+        data: { status: "CANCELLED", rejectionReason: dto.reason },
+      });
+      if (result.count === 0) {
+        throw new ConflictException("This transfer's status changed since it was read");
+      }
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "STOCK_TRANSFER_CANCELLED",
+          entityType: "StockTransfer",
+          entityId: id,
+          oldValue: { status: transfer.status },
+          newValue: { status: "CANCELLED" },
+          reason: dto.reason,
+        },
+        tx,
+      );
+      return tx.stockTransfer.findUniqueOrThrow({ where: { id }, include: TRANSFER_INCLUDE });
+    });
+  }
+
   async reject(id: string, dto: RejectStockTransferDto, actor: AuthenticatedUser) {
     const transfer = await this.requireTransfer(id);
     if (transfer.status !== "REQUESTED" && transfer.status !== "APPROVED") {

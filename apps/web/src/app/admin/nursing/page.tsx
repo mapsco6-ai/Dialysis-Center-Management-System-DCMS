@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
@@ -14,28 +15,52 @@ function toLocalDateInputValue(date: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-const statusLabel: Record<string, string> = {
-  AVAILABLE: "متاح",
-  IN_USE: "قيد الاستخدام",
-  RESERVED: "محجوز",
-  EMERGENCY_RESERVED: "محجوز للطوارئ",
-  APPROVAL_REQUIRED: "بانتظار الموافقة",
-  WAITING_CLEANING: "بانتظار التعقيم",
-  CLEANING: "قيد التعقيم",
-  MAINTENANCE: "صيانة",
-  OUT_OF_SERVICE: "خارج الخدمة",
-};
+const getStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
+  AVAILABLE: t("متاح", "Available"),
+  IN_USE: t("قيد الاستخدام", "In use"),
+  RESERVED: t("محجوز", "Reserved"),
+  EMERGENCY_RESERVED: t("محجوز للطوارئ", "Emergency reserved"),
+  APPROVAL_REQUIRED: t("بانتظار الموافقة", "Awaiting approval"),
+  WAITING_CLEANING: t("بانتظار التعقيم", "Awaiting cleaning"),
+  CLEANING: t("قيد التعقيم", "Cleaning"),
+  MAINTENANCE: t("صيانة", "Maintenance"),
+  OUT_OF_SERVICE: t("خارج الخدمة", "Out of service"),
+});
 
-const sessionStatusLabel: Record<string, string> = {
-  ASSIGNED: "تم تعيين الجهاز",
-  IN_DIALYSIS: "الديلزة جارية",
-  POST_DIALYSIS: "ما بعد الديلزة",
-  INTERRUPTED: "متوقفة",
-};
+const getSessionStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
+  ASSIGNED: t("تم تعيين الجهاز", "Machine assigned"),
+  IN_DIALYSIS: t("الديلزة جارية", "Dialysis in progress"),
+  POST_DIALYSIS: t("ما بعد الديلزة", "Post-dialysis"),
+  INTERRUPTED: t("متوقفة", "Interrupted"),
+});
 
 const POLL_MS = 15000;
 
+const getShiftLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
+  SHIFT_1: t("الوجبة الأولى", "Shift 1"),
+  SHIFT_2: t("الوجبة الثانية", "Shift 2"),
+  SHIFT_3: t("الوجبة الثالثة", "Shift 3"),
+  SHIFT_4: t("الوجبة الرابعة", "Shift 4"),
+});
+
+const getClinicalLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
+  CRITICAL: t("حرج", "Critical"),
+  IMPORTANT: t("مهم", "Important"),
+  INFORMATION: t("معلومات", "Information"),
+  MEDICATION: t("دواء", "Medication"),
+  LAB_REQUEST: t("طلب تحليل", "Lab request"),
+  NURSING_INSTRUCTION: t("تعليمات التمريض", "Nursing instruction"),
+  DRY_WEIGHT_CHANGE: t("تغيير الوزن الجاف", "Dry weight change"),
+  EXTRA_SESSION_REQUEST: t("طلب جلسة إضافية", "Additional session request"),
+  PHARMACY_RECOMMENDATION: t("توصية للصيدلي", "Pharmacy recommendation"),
+});
+
 export default function NursingPage() {
+  const { t, formatNumber } = useI18n();
+  const shiftLabels = getShiftLabels(t);
+  const clinicalLabels = getClinicalLabels(t);
+  const statusLabel = getStatusLabels(t);
+  const sessionStatusLabel = getSessionStatusLabels(t);
   const user = useCurrentUser();
   const [wards, setWards] = useState<Ward[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -70,7 +95,7 @@ export default function NursingPage() {
     if (shiftId) params.set("shiftId", shiftId);
     apiFetch(`/wards/${wardId}/dashboard?${params.toString()}`)
       .then(setDashboard)
-      .catch((err) => setError(err instanceof Error ? err.message : "تعذر تحميل لوحة الردهة"));
+      .catch((err) => setError(err instanceof Error ? err.message : t("تعذر تحميل لوحة الردهة", "Unable to load ward dashboard")));
   }
 
   function refreshMyAssignments() {
@@ -104,17 +129,17 @@ export default function NursingPage() {
     setPinMessage(null);
     try {
       await apiFetch("/nursing/my-pin", { method: "PATCH", body: JSON.stringify({ pin: pinValue }) });
-      setPinMessage("تم حفظ الرمز");
+      setPinMessage(t("تم حفظ الرمز", "PIN saved"));
       setPinValue("");
     } catch (err) {
-      setPinMessage(err instanceof Error ? err.message : "تعذر حفظ الرمز");
+      setPinMessage(err instanceof Error ? err.message : t("تعذر حفظ الرمز", "Unable to save PIN"));
     } finally {
       setPinBusy(false);
     }
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canViewAll = user.permissions.includes("nursing.ward.view.all");
@@ -123,7 +148,7 @@ export default function NursingPage() {
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">التمريض - لوحة الردهة</h1>
+        <h1 className="text-xl font-semibold text-slate-800">{t("التمريض - لوحة الردهة", "Nursing — Ward dashboard")}</h1>
         <div className="flex flex-wrap items-center gap-2">
           <select value={wardId} onChange={(e) => setWardId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
             {wards.map((w) => (
@@ -131,13 +156,13 @@ export default function NursingPage() {
             ))}
           </select>
           <select value={shiftId} onChange={(e) => setShiftId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
-            <option value="">كل الوجبات</option>
+            <option value="">{t("كل الوجبات", "All shifts")}</option>
             {shifts.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+              <option key={s.id} value={s.id}>{shiftLabels[s.name] ?? s.name}</option>
             ))}
           </select>
           <button onClick={() => setDate(toLocalDateInputValue(new Date()))} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
-            اليوم
+            {t("اليوم", "Today")}
           </button>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
         </div>
@@ -146,23 +171,23 @@ export default function NursingPage() {
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
       {!canViewAll && (
         <p className="mt-3 text-xs text-amber-600">
-          تعرض هذه الشاشة فقط المرضى المخصصين لك اليوم لهذه الردهة/الوجبة.
+          {t("تعرض هذه الشاشة فقط المرضى المخصصين لك اليوم لهذه الردهة/الوجبة.", "This page shows only the patients assigned to you today for this ward and shift.")}
         </p>
       )}
 
       {dashboard && (
         <section className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-right text-sm">
+          <table className="w-full text-start text-sm">
             <thead className="bg-slate-50 text-slate-400">
               <tr>
-                <th className="px-4 py-2 font-medium">الجهاز</th>
-                <th className="px-4 py-2 font-medium">حالة الجهاز</th>
-                <th className="px-4 py-2 font-medium">المريض</th>
-                <th className="px-4 py-2 font-medium">حالة الجلسة</th>
-                <th className="px-4 py-2 font-medium">الممرض</th>
-                <th className="px-4 py-2 font-medium">آخر قراءة</th>
-                <th className="px-4 py-2 font-medium">تنبيهات</th>
-                <th className="px-4 py-2 font-medium">أوامر الطبيب</th>
+                <th className="px-4 py-2 font-medium">{t("الجهاز", "Machine")}</th>
+                <th className="px-4 py-2 font-medium">{t("حالة الجهاز", "Machine status")}</th>
+                <th className="px-4 py-2 font-medium">{t("المريض", "Patient")}</th>
+                <th className="px-4 py-2 font-medium">{t("حالة الجلسة", "Session status")}</th>
+                <th className="px-4 py-2 font-medium">{t("الممرض", "Nurse")}</th>
+                <th className="px-4 py-2 font-medium">{t("آخر قراءة", "Last reading")}</th>
+                <th className="px-4 py-2 font-medium">{t("تنبيهات", "Alerts")}</th>
+                <th className="px-4 py-2 font-medium">{t("أوامر الطبيب", "Doctor orders")}</th>
                 <th className="px-4 py-2 font-medium"></th>
               </tr>
             </thead>
@@ -181,19 +206,19 @@ export default function NursingPage() {
                       <td className="px-4 py-2 text-slate-600">{sessionStatusLabel[m.session.status] ?? m.session.status}</td>
                       <td className="px-4 py-2 text-slate-500">{m.session.nurse?.fullName ?? "-"}</td>
                       <td className="px-4 py-2 text-slate-500">
-                        {m.session.minutesSinceLastReading != null ? `منذ ${m.session.minutesSinceLastReading} د` : "لا توجد"}
+                        {m.session.minutesSinceLastReading != null ? t(`منذ ${formatNumber(m.session.minutesSinceLastReading)} د`, `${formatNumber(m.session.minutesSinceLastReading)} min ago`) : t("لا توجد", "None")}
                       </td>
                       <td className="px-4 py-2">
                         {m.session.openAlerts.length > 0 ? (
                           <span
-                            title={m.session.openAlerts.map((a) => `[${a.severity}] ${a.category}: ${a.message}`).join("\n")}
+                            title={m.session.openAlerts.map((a) => `[${clinicalLabels[a.severity] ?? a.severity}] ${a.category}: ${a.message}`).join("\n")}
                             className={`rounded-md px-2 py-1 text-xs font-medium ${
                               m.session.openAlerts.some((a) => a.severity === "CRITICAL")
                                 ? "bg-red-100 text-red-700"
                                 : "bg-amber-100 text-amber-700"
                             }`}
                           >
-                            {m.session.openAlerts.length}
+                            {formatNumber(m.session.openAlerts.length)}
                           </span>
                         ) : (
                           <span className="text-slate-300">-</span>
@@ -202,10 +227,10 @@ export default function NursingPage() {
                       <td className="px-4 py-2">
                         {m.session.activeDoctorOrders.length > 0 ? (
                           <span
-                            title={m.session.activeDoctorOrders.map((o) => `${o.type} — ${o.doctor.fullName}`).join("\n")}
+                            title={m.session.activeDoctorOrders.map((o) => `${clinicalLabels[o.type] ?? o.type} — ${o.doctor.fullName}`).join("\n")}
                             className="rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700"
                           >
-                            {m.session.activeDoctorOrders.length}
+                            {formatNumber(m.session.activeDoctorOrders.length)}
                           </span>
                         ) : (
                           <span className="text-slate-300">-</span>
@@ -213,20 +238,20 @@ export default function NursingPage() {
                       </td>
                       <td className="px-4 py-2">
                         <Link href={`/admin/sessions/${m.session.id}`} className="text-xs font-medium text-slate-600 hover:underline">
-                          فتح الجلسة
+                          {t("فتح الجلسة", "Open session")}
                         </Link>
                       </td>
                     </>
                   ) : (
                     <td className="px-4 py-2 text-slate-300" colSpan={6}>
-                      لا يوجد مريض ظاهر
+                      {t("لا يوجد مريض ظاهر", "No patient to display")}
                     </td>
                   )}
                 </tr>
               ))}
               {dashboard.machines.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-slate-400">لا توجد أجهزة في هذه الردهة</td>
+                  <td colSpan={9} className="px-4 py-6 text-center text-slate-400">{t("لا توجد أجهزة في هذه الردهة", "No machines in this ward")}</td>
                 </tr>
               )}
             </tbody>
@@ -236,15 +261,15 @@ export default function NursingPage() {
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">توزيعي اليوم (مرضاي)</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("توزيعي اليوم (مرضاي)", "My assignments today")}</h2>
           {myAssignments.length === 0 ? (
-            <p className="text-sm text-slate-400">لا يوجد توزيع مسجل لك في هذا التاريخ</p>
+            <p className="text-sm text-slate-400">{t("لا يوجد توزيع مسجل لك في هذا التاريخ", "No assignments for you on this date")}</p>
           ) : (
             <ul className="space-y-2 text-sm">
               {myAssignments.map((a) => (
                 <li key={a.id} className="rounded-md border border-slate-100 p-2">
-                  <div className="font-medium text-slate-700">{a.ward.name} — {a.shift.name}</div>
-                  <div className="text-slate-500">{a.patients.map((p) => p.patient.fullName).join("، ") || "لا يوجد مرضى"}</div>
+                  <div className="font-medium text-slate-700">{a.ward.name} — {shiftLabels[a.shift.name] ?? a.shift.name}</div>
+                  <div className="text-slate-500">{a.patients.map((p) => p.patient.fullName).join(t("، ", ", ")) || t("لا يوجد مرضى", "No patients")}</div>
                 </li>
               ))}
             </ul>
@@ -252,20 +277,20 @@ export default function NursingPage() {
         </section>
 
         <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">رمز PIN السريع الخاص بي</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("رمز PIN السريع الخاص بي", "My quick-access PIN")}</h2>
           <p className="mb-2 text-xs text-slate-400">
-            يُستخدم لتحديد هويتك بدقة عند تنفيذ إجراء من جهاز مشترك يسجّل دخوله بحساب آخر.
+            {t("يُستخدم لتحديد هويتك بدقة عند تنفيذ إجراء من جهاز مشترك يسجّل دخوله بحساب آخر.", "Identifies you when you perform an action on a shared device signed in with another account.")}
           </p>
           <form onSubmit={handleSetPin} className="flex items-center gap-2">
             <input
               value={pinValue}
               onChange={(e) => setPinValue(e.target.value)}
-              placeholder="4-6 أرقام"
+              placeholder={t("4-6 أرقام", "4–6 digits")}
               inputMode="numeric"
               className="w-28 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
             />
             <button type="submit" disabled={pinBusy} className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-              حفظ
+              {t("حفظ", "Save")}
             </button>
           </form>
           {pinMessage && <p className="mt-2 text-xs text-slate-500">{pinMessage}</p>}
@@ -301,6 +326,8 @@ function AssignmentManager({
   assignments: NursingAssignment[];
   onChanged: () => void;
 }) {
+  const { t } = useI18n();
+  const shiftLabels = getShiftLabels(t);
   const [nurses, setNurses] = useState<{ id: string; fullName: string; username: string }[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [formShiftId, setFormShiftId] = useState(shiftId);
@@ -311,7 +338,9 @@ function AssignmentManager({
 
   useEffect(() => {
     apiFetch("/nursing/nurses").then(setNurses).catch(() => setNurses([]));
-    apiFetch("/patients").then(setPatients).catch(() => setPatients([]));
+    // GET /patients now returns { data, total } (V1.1 paged registry) - the
+    // assignment picker only needs the rows, capped at 100 like before.
+    apiFetch("/patients?limit=100").then((data: { data: Patient[] }) => setPatients(data.data)).catch(() => setPatients([]));
   }, []);
 
   useEffect(() => {
@@ -321,7 +350,7 @@ function AssignmentManager({
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!nurseId || !formShiftId) {
-      setError("اختر الممرض والوجبة");
+      setError(t("اختر الممرض والوجبة", "Select a nurse and shift"));
       return;
     }
     setBusy(true);
@@ -334,7 +363,7 @@ function AssignmentManager({
       setSelectedPatientIds([]);
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر حفظ التوزيع");
+      setError(err instanceof Error ? err.message : t("تعذر حفظ التوزيع", "Unable to save assignment"));
     } finally {
       setBusy(false);
     }
@@ -346,18 +375,18 @@ function AssignmentManager({
 
   return (
     <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-500">توزيع الممرضين (HEAD_NURSE)</h2>
+      <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("توزيع الممرضين (HEAD_NURSE)", "Nurse assignments (head nurse)")}</h2>
       {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-2">
         <div className="flex flex-wrap gap-2">
           <select value={formShiftId} onChange={(e) => setFormShiftId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
-            <option value="">اختر الوجبة...</option>
+            <option value="">{t("اختر الوجبة...", "Select a shift...")}</option>
             {shifts.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
+              <option key={s.id} value={s.id}>{shiftLabels[s.name] ?? s.name}</option>
             ))}
           </select>
           <select value={nurseId} onChange={(e) => setNurseId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
-            <option value="">اختر الممرض...</option>
+            <option value="">{t("اختر الممرض...", "Select a nurse...")}</option>
             {nurses.map((n) => (
               <option key={n.id} value={n.id}>{n.fullName}</option>
             ))}
@@ -372,7 +401,7 @@ function AssignmentManager({
           ))}
         </div>
         <button type="submit" disabled={busy} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
-          حفظ التوزيع
+          {t("حفظ التوزيع", "Save assignment")}
         </button>
       </form>
 
@@ -380,7 +409,7 @@ function AssignmentManager({
         {assignments.map((a) => (
           <div key={a.id} className="rounded-md border border-slate-100 p-2 text-sm">
             <span className="font-medium text-slate-700">{a.nurse.fullName}</span>{" "}
-            <span className="text-slate-500">({a.shift.name}): {a.patients.map((p) => p.patient.fullName).join("، ") || "بدون مرضى"}</span>
+            <span className="text-slate-500">({shiftLabels[a.shift.name] ?? a.shift.name}): {a.patients.map((p) => p.patient.fullName).join(t("، ", ", ")) || t("بدون مرضى", "No patients")}</span>
           </div>
         ))}
       </div>

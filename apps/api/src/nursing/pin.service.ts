@@ -30,7 +30,7 @@ export class PinService {
   // device session, not replayed elsewhere.
   async verify(deviceActorId: string, username: string, pin: string) {
     const key = PIN_RATE_LIMIT_PREFIX + username;
-    const retryAfter = this.rateLimiter.getRetryAfterSeconds(key);
+    const retryAfter = await this.rateLimiter.getRetryAfterSeconds(key);
     if (retryAfter !== null) {
       throw new UnauthorizedException(`Too many PIN attempts - try again in ${retryAfter}s`);
     }
@@ -40,11 +40,11 @@ export class PinService {
     // whether or not a PIN has ever been set - never reveal which part
     // failed (same reasoning as password login).
     if (!user || !user.isActive || !user.pinHash || !(await argon2.verify(user.pinHash, pin))) {
-      this.rateLimiter.recordFailure(key);
+      await this.rateLimiter.recordFailure(key);
       throw new UnauthorizedException("Invalid username or PIN");
     }
 
-    this.rateLimiter.recordSuccess(key);
+    await this.rateLimiter.recordSuccess(key);
     const proofToken = await this.pinProofService.issue(user.id, deviceActorId);
     return { id: user.id, username: user.username, fullName: user.fullName, proofToken };
   }

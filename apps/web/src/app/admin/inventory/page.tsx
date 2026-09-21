@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
 import {
@@ -15,30 +16,36 @@ import {
   StockTransferStatus,
 } from "@/lib/types";
 
-const TABS = [
-  { key: "items", label: "المستلزمات" },
-  { key: "batches", label: "الدُفعات" },
-  { key: "transfers", label: "التحويلات" },
-  { key: "alerts", label: "التنبيهات" },
-] as const;
-type TabKey = (typeof TABS)[number]["key"];
+type TabKey = ReturnType<typeof getLabels>["TABS"][number]["key"];
 
-const locationLabel: Record<StockLocationType, string> = {
-  MAIN_WAREHOUSE: "المخزن الرئيسي",
-  PHARMACY: "الصيدلية",
-  LABORATORY_STOCK: "مخزون المختبر",
-  WARD_STOCK: "مخزون الردهة",
-};
+function getLabels(t: (arabic: string, english: string) => string) {
+  const TABS = [
+    { key: "items", label: t("المستلزمات", "Supplies") },
+    { key: "batches", label: t("الدُفعات", "Batches") },
+    { key: "transfers", label: t("التحويلات", "Transfers") },
+    { key: "alerts", label: t("التنبيهات", "Alerts") },
+  ] as const;
 
-const transferStatusLabel: Record<StockTransferStatus, string> = {
-  REQUESTED: "مطلوب",
-  APPROVED: "معتمَد",
-  ISSUED: "تم الصرف",
-  RECEIVED: "مستلَم",
-  REJECTED: "مرفوض",
-};
+  const locationLabel: Record<StockLocationType, string> = {
+    MAIN_WAREHOUSE: t("المخزن الرئيسي", "Main warehouse"),
+    PHARMACY: t("الصيدلية", "Pharmacy"),
+    LABORATORY_STOCK: t("مخزون المختبر", "Laboratory stock"),
+    WARD_STOCK: t("مخزون الردهة", "Ward stock"),
+  };
+
+  const transferStatusLabel: Record<StockTransferStatus, string> = {
+    REQUESTED: t("مطلوب", "Requested"),
+    APPROVED: t("معتمَد", "Approved"),
+    ISSUED: t("تم الصرف", "Issued"),
+    RECEIVED: t("مستلَم", "Received"),
+    REJECTED: t("مرفوض", "Rejected"),
+  };
+  return { TABS, locationLabel, transferStatusLabel };
+}
 
 export default function InventoryPage() {
+  const { t } = useI18n();
+  const { TABS } = getLabels(t);
   const user = useCurrentUser();
   const [tab, setTab] = useState<TabKey>("items");
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -48,7 +55,7 @@ export default function InventoryPage() {
   function refreshItems() {
     apiFetch("/inventory/items")
       .then(setItems)
-      .catch((err) => setError(err instanceof Error ? err.message : "تعذر تحميل المخزون"));
+      .catch((err) => setError(err instanceof Error ? err.message : t("تعذر تحميل المخزون", "Unable to load inventory")));
   }
 
   useEffect(() => {
@@ -59,22 +66,22 @@ export default function InventoryPage() {
   }, [user]);
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">المخزون</h1>
+      <h1 className="text-xl font-semibold text-slate-800">{t("المخزون", "Inventory")}</h1>
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
       <nav className="mt-4 flex gap-1 border-b border-slate-200 text-sm">
-        {TABS.map((t) => (
+        {TABS.map((entry) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3 py-2 ${tab === t.key ? "border-b-2 border-slate-800 font-medium text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
+            key={entry.key}
+            onClick={() => setTab(entry.key)}
+            className={`px-3 py-2 ${tab === entry.key ? "border-b-2 border-slate-800 font-medium text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
           >
-            {t.label}
+            {entry.label}
           </button>
         ))}
       </nav>
@@ -98,6 +105,7 @@ function ItemsTab({
   items: InventoryItem[];
   onChanged: () => void;
 }) {
+  const { t, formatNumber } = useI18n();
   const [showAddForm, setShowAddForm] = useState(false);
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [adjustQty, setAdjustQty] = useState("");
@@ -123,13 +131,13 @@ function ItemsTab({
       setShowAddForm(false);
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر إضافة المادة");
+      setError(err instanceof Error ? err.message : t("تعذر إضافة المادة", "Unable to add the item"));
     }
   }
 
   async function handleAdjust(itemId: string, direction: "INCREASE" | "DECREASE") {
     if (!adjustQty || !adjustReason.trim()) {
-      setError("أدخل الكمية والسبب");
+      setError(t("أدخل الكمية والسبب", "Enter a quantity and reason"));
       return;
     }
     setError(null);
@@ -143,20 +151,20 @@ function ItemsTab({
       setAdjustReason("");
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تعديل المخزون");
+      setError(err instanceof Error ? err.message : t("تعذر تعديل المخزون", "Unable to adjust stock"));
     }
   }
 
   return (
     <>
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-500">كتالوج المستلزمات (رصيد المخزن الرئيسي)</h2>
+        <h2 className="text-sm font-semibold text-slate-500">{t("كتالوج المستلزمات (رصيد المخزن الرئيسي)", "Supply catalog (main warehouse stock)")}</h2>
         {user.permissions.includes("inventory.manage") && (
           <button
             onClick={() => setShowAddForm((v) => !v)}
             className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
           >
-            + إضافة مادة
+            {t("+ إضافة مادة", "+ Add item")}
           </button>
         )}
       </div>
@@ -165,32 +173,32 @@ function ItemsTab({
 
       {showAddForm && (
         <form onSubmit={handleCreate} className="mt-4 max-w-lg space-y-2 rounded-lg border border-slate-200 bg-white p-4">
-          <input name="name" required placeholder="اسم المادة" className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <input name="category" required placeholder="التصنيف (مثال: Dialyzer)" className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <input name="unit" required placeholder="الوحدة (مثال: piece, set)" className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <input name="cost" type="number" step="0.01" placeholder="التكلفة" className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <input name="minimumStock" type="number" step="0.01" placeholder="الحد الأدنى للمخزون" className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+          <input name="name" required placeholder={t("اسم المادة", "Item name")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+          <input name="category" required placeholder={t("التصنيف (مثال: Dialyzer)", "Category (e.g. Dialyzer)")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+          <input name="unit" required placeholder={t("الوحدة (مثال: piece, set)", "Unit (e.g. piece, set)")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+          <input name="cost" type="number" step="0.01" placeholder={t("التكلفة", "Cost")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
+          <input name="minimumStock" type="number" step="0.01" placeholder={t("الحد الأدنى للمخزون", "Minimum stock")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
           <label className="flex items-center gap-2 text-sm text-slate-600">
             <input name="requiresBatchTracking" type="checkbox" />
-            تتطلب تتبع دفعات/تاريخ صلاحية
+            {t("تتطلب تتبع دفعات/تاريخ صلاحية", "Requires batch and expiry tracking")}
           </label>
           <button type="submit" className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700">
-            حفظ
+            {t("حفظ", "Save")}
           </button>
         </form>
       )}
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-right text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">الاسم</th>
-              <th className="px-4 py-2 font-medium">التصنيف</th>
-              <th className="px-4 py-2 font-medium">الوحدة</th>
-              <th className="px-4 py-2 font-medium">الرصيد</th>
-              <th className="px-4 py-2 font-medium">التكلفة</th>
-              <th className="px-4 py-2 font-medium">دفعات؟</th>
-              {user.permissions.includes("inventory.manage") && <th className="px-4 py-2 font-medium">تعديل المخزون</th>}
+              <th className="px-4 py-2 font-medium">{t("الاسم", "Name")}</th>
+              <th className="px-4 py-2 font-medium">{t("التصنيف", "Category")}</th>
+              <th className="px-4 py-2 font-medium">{t("الوحدة", "Unit")}</th>
+              <th className="px-4 py-2 font-medium">{t("الرصيد", "Stock")}</th>
+              <th className="px-4 py-2 font-medium">{t("التكلفة", "Cost")}</th>
+              <th className="px-4 py-2 font-medium">{t("دفعات؟", "Batch tracking")}</th>
+              {user.permissions.includes("inventory.manage") && <th className="px-4 py-2 font-medium">{t("تعديل المخزون", "Adjust stock")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -200,10 +208,10 @@ function ItemsTab({
                 <td className="px-4 py-2 text-slate-500">{item.category}</td>
                 <td className="px-4 py-2 text-slate-500">{item.unit}</td>
                 <td className={`px-4 py-2 font-medium ${Number(item.quantityInStock) <= Number(item.minimumStock) ? "text-red-600" : "text-slate-700"}`}>
-                  {item.quantityInStock}
+                  {formatNumber(Number(item.quantityInStock))}
                 </td>
-                <td className="px-4 py-2 text-slate-500">{item.cost}</td>
-                <td className="px-4 py-2 text-slate-400">{item.requiresBatchTracking ? "نعم" : "-"}</td>
+                <td className="px-4 py-2 text-slate-500">{formatNumber(Number(item.cost))}</td>
+                <td className="px-4 py-2 text-slate-400">{item.requiresBatchTracking ? t("نعم", "Yes") : "-"}</td>
                 {user.permissions.includes("inventory.manage") && (
                   <td className="px-4 py-2">
                     {adjustingId === item.id ? (
@@ -213,22 +221,22 @@ function ItemsTab({
                           step="0.01"
                           value={adjustQty}
                           onChange={(e) => setAdjustQty(e.target.value)}
-                          placeholder="الكمية"
+                          placeholder={t("الكمية", "Quantity")}
                           className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs"
                         />
                         <input
                           value={adjustReason}
                           onChange={(e) => setAdjustReason(e.target.value)}
-                          placeholder="السبب"
+                          placeholder={t("السبب", "Reason")}
                           className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs"
                         />
                         <button onClick={() => handleAdjust(item.id, "INCREASE")} className="rounded bg-emerald-600 px-2 py-1 text-xs text-white">+</button>
                         <button onClick={() => handleAdjust(item.id, "DECREASE")} className="rounded bg-red-600 px-2 py-1 text-xs text-white">-</button>
-                        <button onClick={() => setAdjustingId(null)} className="text-xs text-slate-400">إلغاء</button>
+                        <button onClick={() => setAdjustingId(null)} className="text-xs text-slate-400">{t("إلغاء", "Cancel")}</button>
                       </div>
                     ) : (
                       <button onClick={() => setAdjustingId(item.id)} className="text-xs text-slate-600 hover:underline">
-                        تعديل
+                        {t("تعديل", "Edit")}
                       </button>
                     )}
                   </td>
@@ -237,7 +245,7 @@ function ItemsTab({
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">لا توجد مواد بعد</td>
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">{t("لا توجد مواد بعد", "No items yet")}</td>
               </tr>
             )}
           </tbody>
@@ -256,6 +264,8 @@ function BatchesTab({
   items: InventoryItem[];
   locations: StockLocation[];
 }) {
+  const { t, formatDate, formatNumber } = useI18n();
+  const { locationLabel } = getLabels(t);
   const batchItems = items.filter((i) => i.requiresBatchTracking);
   const [selectedItemId, setSelectedItemId] = useState("");
   const [batches, setBatches] = useState<InventoryBatch[]>([]);
@@ -289,7 +299,7 @@ function BatchesTab({
       (e.target as HTMLFormElement).reset();
       refreshBatches(selectedItemId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر استلام الدفعة");
+      setError(err instanceof Error ? err.message : t("تعذر استلام الدفعة", "Unable to receive the batch"));
     } finally {
       setBusy(false);
     }
@@ -298,7 +308,7 @@ function BatchesTab({
   return (
     <div>
       <div className="flex items-center gap-2">
-        <label className="text-sm text-slate-500">المادة:</label>
+        <label className="text-sm text-slate-500">{t("المادة:", "Item:")}</label>
         <select
           value={selectedItemId}
           onChange={(e) => {
@@ -307,7 +317,7 @@ function BatchesTab({
           }}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
         >
-          <option value="">اختر مادة تتطلب دفعات...</option>
+          <option value="">{t("اختر مادة تتطلب دفعات...", "Select an item with batch tracking...")}</option>
           {batchItems.map((i) => (
             <option key={i.id} value={i.id}>{i.name}</option>
           ))}
@@ -321,28 +331,28 @@ function BatchesTab({
           {user.permissions.includes("inventory.batch.manage") && (
             <form onSubmit={handleReceive} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-4">
               <select name="locationId" required className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
-                <option value="">الموقع...</option>
+                <option value="">{t("الموقع...", "Location...")}</option>
                 {locations.map((l) => (
                   <option key={l.id} value={l.id}>{locationLabel[l.type]}</option>
                 ))}
               </select>
-              <input name="batchNumber" required placeholder="رقم الدفعة" className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
-              <input name="quantity" type="number" step="0.01" required placeholder="الكمية" className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+              <input name="batchNumber" required placeholder={t("رقم الدفعة", "Batch number")} className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+              <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
               <input name="expiryDate" type="date" required className="rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
               <button type="submit" disabled={busy} className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
-                استلام دفعة
+                {t("استلام دفعة", "Receive batch")}
               </button>
             </form>
           )}
 
           <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-            <table className="w-full text-right text-sm">
+            <table className="w-full text-start text-sm">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">الموقع</th>
-                  <th className="px-4 py-2 font-medium">رقم الدفعة</th>
-                  <th className="px-4 py-2 font-medium">الكمية</th>
-                  <th className="px-4 py-2 font-medium">تاريخ الصلاحية</th>
+                  <th className="px-4 py-2 font-medium">{t("الموقع", "Location")}</th>
+                  <th className="px-4 py-2 font-medium">{t("رقم الدفعة", "Batch number")}</th>
+                  <th className="px-4 py-2 font-medium">{t("الكمية", "Quantity")}</th>
+                  <th className="px-4 py-2 font-medium">{t("تاريخ الصلاحية", "Expiry date")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -352,16 +362,16 @@ function BatchesTab({
                     <tr key={b.id} className="border-t border-slate-100">
                       <td className="px-4 py-2">{b.location ? locationLabel[b.location.type] : "-"}</td>
                       <td className="px-4 py-2 text-slate-500">{b.batchNumber}</td>
-                      <td className="px-4 py-2">{b.quantity}</td>
+                      <td className="px-4 py-2">{formatNumber(Number(b.quantity))}</td>
                       <td className={`px-4 py-2 ${expired ? "font-medium text-red-600" : "text-slate-500"}`}>
-                        {new Date(b.expiryDate).toLocaleDateString()}
+                        {formatDate(b.expiryDate)}
                       </td>
                     </tr>
                   );
                 })}
                 {batches.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">لا توجد دفعات لهذه المادة</td>
+                    <td colSpan={4} className="px-4 py-6 text-center text-slate-400">{t("لا توجد دفعات لهذه المادة", "No batches for this item")}</td>
                   </tr>
                 )}
               </tbody>
@@ -384,6 +394,8 @@ function TransfersTab({
   locations: StockLocation[];
   onChanged: () => void;
 }) {
+  const { t, formatNumber } = useI18n();
+  const { locationLabel, transferStatusLabel } = getLabels(t);
   const [transfers, setTransfers] = useState<StockTransfer[]>([]);
   const [statusFilter, setStatusFilter] = useState<StockTransferStatus | "">("");
   const [error, setError] = useState<string | null>(null);
@@ -421,7 +433,7 @@ function TransfersTab({
       refresh();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر إنشاء طلب التحويل");
+      setError(err instanceof Error ? err.message : t("تعذر إنشاء طلب التحويل", "Unable to create the transfer request"));
     } finally {
       setBusy(false);
     }
@@ -435,14 +447,14 @@ function TransfersTab({
       refresh();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تنفيذ الإجراء");
+      setError(err instanceof Error ? err.message : t("تعذر تنفيذ الإجراء", "Unable to complete the action"));
     } finally {
       setBusy(false);
     }
   }
 
   async function reject(id: string) {
-    const reason = window.prompt("سبب الرفض؟");
+    const reason = window.prompt(t("سبب الرفض؟", "Reason for rejection?"));
     if (!reason) return;
     setBusy(true);
     setError(null);
@@ -451,7 +463,7 @@ function TransfersTab({
       refresh();
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر رفض التحويل");
+      setError(err instanceof Error ? err.message : t("تعذر رفض التحويل", "Unable to reject the transfer"));
     } finally {
       setBusy(false);
     }
@@ -461,14 +473,14 @@ function TransfersTab({
     <div>
       <div className="flex items-center justify-between">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StockTransferStatus | "")} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
-          <option value="">كل الحالات</option>
+          <option value="">{t("كل الحالات", "All statuses")}</option>
           {Object.entries(transferStatusLabel).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
         {user.permissions.includes("inventory.transfer.request") && (
           <button onClick={() => setShowRequestForm((v) => !v)} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-            + طلب تحويل
+            {t("+ طلب تحويل", "+ Request transfer")}
           </button>
         )}
       </div>
@@ -478,71 +490,71 @@ function TransfersTab({
       {showRequestForm && (
         <form onSubmit={handleRequest} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-4">
           <select name="itemId" required className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
-            <option value="">المادة...</option>
+            <option value="">{t("المادة...", "Item...")}</option>
             {items.map((i) => (
               <option key={i.id} value={i.id}>{i.name}</option>
             ))}
           </select>
           <select name="fromLocationId" required className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
-            <option value="">من موقع...</option>
+            <option value="">{t("من موقع...", "From location...")}</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>{locationLabel[l.type]}</option>
             ))}
           </select>
           <select name="toLocationId" required className="rounded-md border border-slate-300 px-2 py-1.5 text-sm">
-            <option value="">إلى موقع...</option>
+            <option value="">{t("إلى موقع...", "To location...")}</option>
             {locations.map((l) => (
               <option key={l.id} value={l.id}>{locationLabel[l.type]}</option>
             ))}
           </select>
-          <input name="quantity" type="number" step="0.01" required placeholder="الكمية" className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
-          <input name="reason" placeholder="السبب (اختياري)" className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+          <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
+          <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-40 rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
           <button type="submit" disabled={busy} className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
-            إرسال الطلب
+            {t("إرسال الطلب", "Submit request")}
           </button>
         </form>
       )}
 
       <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-right text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">المادة</th>
-              <th className="px-4 py-2 font-medium">من</th>
-              <th className="px-4 py-2 font-medium">إلى</th>
-              <th className="px-4 py-2 font-medium">الكمية</th>
-              <th className="px-4 py-2 font-medium">الحالة</th>
+              <th className="px-4 py-2 font-medium">{t("المادة", "Item")}</th>
+              <th className="px-4 py-2 font-medium">{t("من", "From")}</th>
+              <th className="px-4 py-2 font-medium">{t("إلى", "To")}</th>
+              <th className="px-4 py-2 font-medium">{t("الكمية", "Quantity")}</th>
+              <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
-            {transfers.map((t) => (
-              <tr key={t.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{t.item?.name}</td>
-                <td className="px-4 py-2 text-slate-500">{t.fromLocation ? locationLabel[t.fromLocation.type] : "-"}</td>
-                <td className="px-4 py-2 text-slate-500">{t.toLocation ? locationLabel[t.toLocation.type] : "-"}</td>
-                <td className="px-4 py-2">{t.quantity}</td>
-                <td className="px-4 py-2 text-slate-500">{transferStatusLabel[t.status]}</td>
+            {transfers.map((entry) => (
+              <tr key={entry.id} className="border-t border-slate-100">
+                <td className="px-4 py-2">{entry.item?.name}</td>
+                <td className="px-4 py-2 text-slate-500">{entry.fromLocation ? locationLabel[entry.fromLocation.type] : "-"}</td>
+                <td className="px-4 py-2 text-slate-500">{entry.toLocation ? locationLabel[entry.toLocation.type] : "-"}</td>
+                <td className="px-4 py-2">{formatNumber(Number(entry.quantity))}</td>
+                <td className="px-4 py-2 text-slate-500">{transferStatusLabel[entry.status]}</td>
                 <td className="px-4 py-2">
                   <div className="flex gap-2">
-                    {t.status === "REQUESTED" && user.permissions.includes("inventory.transfer.approve") && (
+                    {entry.status === "REQUESTED" && user.permissions.includes("inventory.transfer.approve") && (
                       <>
-                        <button onClick={() => act(t.id, "approve")} disabled={busy} className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50">اعتماد</button>
-                        <button onClick={() => reject(t.id)} disabled={busy} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">رفض</button>
+                        <button onClick={() => act(entry.id, "approve")} disabled={busy} className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50">{t("اعتماد", "Approve")}</button>
+                        <button onClick={() => reject(entry.id)} disabled={busy} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{t("رفض", "Reject")}</button>
                       </>
                     )}
-                    {t.status === "APPROVED" && (
+                    {entry.status === "APPROVED" && (
                       <>
                         {user.permissions.includes("inventory.transfer.issue") && (
-                          <button onClick={() => act(t.id, "issue")} disabled={busy} className="text-xs font-medium text-slate-700 hover:underline disabled:opacity-50">صرف</button>
+                          <button onClick={() => act(entry.id, "issue")} disabled={busy} className="text-xs font-medium text-slate-700 hover:underline disabled:opacity-50">{t("صرف", "Issue")}</button>
                         )}
                         {user.permissions.includes("inventory.transfer.approve") && (
-                          <button onClick={() => reject(t.id)} disabled={busy} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">رفض</button>
+                          <button onClick={() => reject(entry.id)} disabled={busy} className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{t("رفض", "Reject")}</button>
                         )}
                       </>
                     )}
-                    {t.status === "ISSUED" && user.permissions.includes("inventory.transfer.receive") && (
-                      <button onClick={() => act(t.id, "receive")} disabled={busy} className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50">استلام</button>
+                    {entry.status === "ISSUED" && user.permissions.includes("inventory.transfer.receive") && (
+                      <button onClick={() => act(entry.id, "receive")} disabled={busy} className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50">{t("استلام", "Receive")}</button>
                     )}
                   </div>
                 </td>
@@ -550,7 +562,7 @@ function TransfersTab({
             ))}
             {transfers.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">لا توجد تحويلات</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">{t("لا توجد تحويلات", "No transfers")}</td>
               </tr>
             )}
           </tbody>
@@ -561,6 +573,8 @@ function TransfersTab({
 }
 
 function AlertsTab() {
+  const { t, formatDate, formatNumber } = useI18n();
+  const { locationLabel } = getLabels(t);
   const [lowStock, setLowStock] = useState<LowStockAlert[]>([]);
   const [expiry, setExpiry] = useState<ExpiryAlerts | null>(null);
 
@@ -572,30 +586,30 @@ function AlertsTab() {
   return (
     <div className="space-y-6">
       <section className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <h2 className="border-b border-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">مخزون منخفض / حرج</h2>
-        <table className="w-full text-right text-sm">
+        <h2 className="border-b border-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">{t("مخزون منخفض / حرج", "Low / critical stock")}</h2>
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">المادة</th>
-              <th className="px-4 py-2 font-medium">المتوفر</th>
-              <th className="px-4 py-2 font-medium">الحد الأدنى</th>
-              <th className="px-4 py-2 font-medium">المستوى</th>
+              <th className="px-4 py-2 font-medium">{t("المادة", "Item")}</th>
+              <th className="px-4 py-2 font-medium">{t("المتوفر", "Available")}</th>
+              <th className="px-4 py-2 font-medium">{t("الحد الأدنى", "Minimum")}</th>
+              <th className="px-4 py-2 font-medium">{t("المستوى", "Level")}</th>
             </tr>
           </thead>
           <tbody>
             {lowStock.map((a) => (
               <tr key={a.itemId} className="border-t border-slate-100">
                 <td className="px-4 py-2">{a.itemName}</td>
-                <td className="px-4 py-2">{a.available}</td>
-                <td className="px-4 py-2 text-slate-500">{a.minimumStock}</td>
+                <td className="px-4 py-2">{formatNumber(Number(a.available))}</td>
+                <td className="px-4 py-2 text-slate-500">{formatNumber(Number(a.minimumStock))}</td>
                 <td className={`px-4 py-2 font-medium ${a.level === "CRITICAL" ? "text-red-600" : "text-amber-600"}`}>
-                  {a.level === "CRITICAL" ? "حرج" : "منخفض"}
+                  {a.level === "CRITICAL" ? t("حرج", "Critical") : t("منخفض", "Low")}
                 </td>
               </tr>
             ))}
             {lowStock.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">لا توجد تنبيهات مخزون حالياً</td>
+                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">{t("لا توجد تنبيهات مخزون حالياً", "No stock alerts at the moment")}</td>
               </tr>
             )}
           </tbody>
@@ -604,17 +618,17 @@ function AlertsTab() {
 
       <section className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
         <h2 className="border-b border-slate-100 px-4 py-2 text-sm font-semibold text-slate-500">
-          دفعات منتهية / قريبة الانتهاء (خلال {expiry?.withinDays ?? 30} يوماً)
+          {t("دفعات منتهية / قريبة الانتهاء (خلال", "Expired / expiring batches (within")} {formatNumber(expiry?.withinDays ?? 30)} {t("يوماً)", "days)")}
         </h2>
-        <table className="w-full text-right text-sm">
+        <table className="w-full text-start text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">المادة</th>
-              <th className="px-4 py-2 font-medium">الموقع</th>
-              <th className="px-4 py-2 font-medium">رقم الدفعة</th>
-              <th className="px-4 py-2 font-medium">الكمية</th>
-              <th className="px-4 py-2 font-medium">تاريخ الصلاحية</th>
-              <th className="px-4 py-2 font-medium">الحالة</th>
+              <th className="px-4 py-2 font-medium">{t("المادة", "Item")}</th>
+              <th className="px-4 py-2 font-medium">{t("الموقع", "Location")}</th>
+              <th className="px-4 py-2 font-medium">{t("رقم الدفعة", "Batch number")}</th>
+              <th className="px-4 py-2 font-medium">{t("الكمية", "Quantity")}</th>
+              <th className="px-4 py-2 font-medium">{t("تاريخ الصلاحية", "Expiry date")}</th>
+              <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -625,17 +639,17 @@ function AlertsTab() {
                   <td className="px-4 py-2">{b.item?.name}</td>
                   <td className="px-4 py-2 text-slate-500">{b.location ? locationLabel[b.location.type] : "-"}</td>
                   <td className="px-4 py-2 text-slate-500">{b.batchNumber}</td>
-                  <td className="px-4 py-2">{b.quantity}</td>
-                  <td className="px-4 py-2 text-slate-500">{new Date(b.expiryDate).toLocaleDateString()}</td>
+                  <td className="px-4 py-2">{formatNumber(Number(b.quantity))}</td>
+                  <td className="px-4 py-2 text-slate-500">{formatDate(b.expiryDate)}</td>
                   <td className={`px-4 py-2 font-medium ${isExpired ? "text-red-600" : "text-amber-600"}`}>
-                    {isExpired ? "منتهية" : "قريبة الانتهاء"}
+                    {isExpired ? t("منتهية", "Expired") : t("قريبة الانتهاء", "Expiring soon")}
                   </td>
                 </tr>
               );
             })}
             {(expiry?.expired.length ?? 0) === 0 && (expiry?.expiringSoon.length ?? 0) === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">لا توجد دفعات منتهية أو قريبة الانتهاء</td>
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">{t("لا توجد دفعات منتهية أو قريبة الانتهاء", "No expired or expiring batches")}</td>
               </tr>
             )}
           </tbody>

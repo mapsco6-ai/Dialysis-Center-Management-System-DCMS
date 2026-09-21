@@ -25,44 +25,83 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
   }
 }
 
+// Tracks in-flight apiFetch/apiFetchBlob calls so a single global loading
+// indicator (GlobalLoader) can react without every page wiring its own
+// spinner state or a state-management library being pulled in.
+type PendingListener = () => void;
+let pendingRequestCount = 0;
+const pendingListeners = new Set<PendingListener>();
+
+export function subscribePendingRequests(listener: PendingListener) {
+  pendingListeners.add(listener);
+  return () => pendingListeners.delete(listener);
+}
+
+export function getPendingRequestCount() {
+  return pendingRequestCount;
+}
+
+function beginRequest() {
+  pendingRequestCount++;
+  pendingListeners.forEach((listener) => listener());
+}
+
+function endRequest() {
+  pendingRequestCount--;
+  pendingListeners.forEach((listener) => listener());
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
-  const token = getToken();
-  const headers = new Headers(options.headers);
-  // A FormData body (file upload) needs the browser to set its own
-  // multipart/form-data boundary - forcing application/json here would
-  // corrupt the request (Phase 12: fault-report attachments).
-  if (!(options.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
+  beginRequest();
+  try {
+    const token = getToken();
+    const headers = new Headers(options.headers);
+    // A FormData body (file upload) needs the browser to set its own
+    // multipart/form-data boundary - forcing application/json here would
+    // corrupt the request (Phase 12: fault-report attachments).
+    if (!(options.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
+    }
+    // The session lives in an HttpOnly cookie set by the API; a Bearer token
+    // is only used when one was stored by an older login.
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: "include" });
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({ message: response.statusText }));
+      throw new ApiError(body.message ?? "Request failed", response.status, body.code);
+    }
+
+    return response.json();
+  } finally {
+    endRequest();
   }
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: response.statusText }));
-    throw new ApiError(body.message ?? "Request failed", response.status);
-  }
-
-  return response.json();
 }
 
 // For a binary response (Phase 12: fault-report attachment image) - an
 // <img> tag can't attach an Authorization header itself, so the caller
 // fetches the blob here and points the tag at an object URL instead.
 export async function apiFetchBlob(path: string): Promise<Blob> {
-  const token = getToken();
-  const headers = new Headers();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  beginRequest();
+  try {
+    const token = getToken();
+    const headers = new Headers();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const response = await fetch(`${API_URL}${path}`, { headers });
-  if (!response.ok) {
-    throw new ApiError(response.statusText || "Request failed", response.status);
+    const response = await fetch(`${API_URL}${path}`, { headers, credentials: "include" });
+    if (!response.ok) {
+      throw new ApiError(response.statusText || "Request failed", response.status);
+    }
+    return response.blob();
+  } finally {
+    endRequest();
   }
-  return response.blob();
 }

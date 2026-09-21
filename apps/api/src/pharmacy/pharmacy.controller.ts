@@ -7,6 +7,7 @@ import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { PharmacyService } from "./pharmacy.service";
 import { TransferToPharmacyDto } from "./dto/transfer-to-pharmacy.dto";
 import { DispensePrescriptionDto } from "./dto/dispense-prescription.dto";
+import { RejectPrescriptionDto } from "./dto/reject-prescription.dto";
 import { ListPharmacyQueueQueryDto } from "./dto/list-pharmacy-queue-query.dto";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
@@ -33,6 +34,12 @@ export class PharmacyController {
   @RequirePermissions("pharmacy.dispense")
   startDispensing(@Param("id") id: string, @CurrentUser() actor: AuthenticatedUser) {
     return this.pharmacyService.startDispensing(id, actor);
+  }
+
+  @Post("prescriptions/:id/reject")
+  @RequirePermissions("pharmacy.dispense")
+  reject(@Param("id") id: string, @Body() dto: RejectPrescriptionDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.pharmacyService.reject(id, dto.reason, actor);
   }
 
   @Post("prescriptions/:id/dispense")

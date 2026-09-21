@@ -3,21 +3,34 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { StatusBadge } from "@/components/StatusBadge";
+import { toast } from "@/components/Toaster";
 import { DialysisScheduleEntry, Patient } from "@/lib/types";
 
 const STATION_STORAGE_KEY = "dcms_reception_station_id";
 
-const statusLabel: Record<string, string> = {
-  SCHEDULED: "متوقع",
-  ARRIVED: "حاضر",
-  LATE: "متأخر",
-  ABSENT: "غائب",
-  CANCELLED: "ملغى",
-};
-
 export default function ReceptionPage() {
+  const { t, formatNumber } = useI18n();
+  const scheduleTypeLabel = {
+    REGULAR: t("اعتيادية", "Regular"),
+    EXTRA: t("إضافية", "Extra"),
+    EMERGENCY: t("طارئة", "Emergency"),
+  };
+  const severityLabel = {
+    CRITICAL: t("حرج", "Critical"),
+    IMPORTANT: t("مهم", "Important"),
+    INFORMATION: t("معلومات", "Information"),
+  };
+  const shiftLabel: Record<string, string> = {
+    SHIFT_1: t("الشفت الأول", "Shift 1"),
+    SHIFT_2: t("الشفت الثاني", "Shift 2"),
+    SHIFT_3: t("الشفت الثالث", "Shift 3"),
+    SHIFT_4: t("الشفت الرابع", "Shift 4"),
+  };
+
   const user = useCurrentUser();
   const [barcode, setBarcode] = useState("");
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -65,7 +78,9 @@ export default function ReceptionPage() {
     try {
       await loadByBarcode(code);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "لم يتم العثور على المريض");
+      const message = err instanceof Error ? err.message : t("لم يتم العثور على المريض", "Patient not found");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
       setBarcode("");
@@ -75,7 +90,7 @@ export default function ReceptionPage() {
   async function handleCheckIn(scheduleId: string) {
     if (!patient) return;
     if (!stationId.trim()) {
-      setError("حدد اسم محطة الاستقبال أولاً");
+      setError(t("حدد اسم محطة الاستقبال أولاً", "Enter the reception station name first"));
       return;
     }
     setCheckingInId(scheduleId);
@@ -86,27 +101,30 @@ export default function ReceptionPage() {
         body: JSON.stringify({ stationId: stationId.trim() }),
       });
       await loadByBarcode(patient.barcode);
+      toast.success(t("تم تسجيل الحضور", "Checked in"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تسجيل الحضور");
+      const message = err instanceof Error ? err.message : t("تعذر تسجيل الحضور", "Unable to check in");
+      setError(message);
+      toast.error(message);
     } finally {
       setCheckingInId(null);
     }
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">الاستقبال — مسح الباركود</h1>
+      <h1 className="text-xl font-semibold text-slate-800">{t("الاستقبال — مسح الباركود", "Reception — Barcode check-in")}</h1>
 
       <div className="mt-4 max-w-md">
-        <label className="mb-1 block text-xs text-slate-500">محطة الاستقبال (تُحفظ بهذا الجهاز)</label>
+        <label className="mb-1 block text-xs text-slate-500">{t("محطة الاستقبال (تُحفظ بهذا الجهاز)", "Reception station (saved on this device)")}</label>
         <input
           value={stationId}
           onChange={(e) => handleStationChange(e.target.value)}
-          placeholder="مثال: استقبال-1"
+          placeholder={t("مثال: استقبال-1", "Example: Reception-1")}
           className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none"
         />
       </div>
@@ -116,7 +134,7 @@ export default function ReceptionPage() {
           autoFocus
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
-          placeholder="امسح أو أدخل الباركود..."
+          placeholder={t("امسح أو أدخل الباركود...", "Scan or enter barcode...")}
           className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
         />
         <button
@@ -124,7 +142,7 @@ export default function ReceptionPage() {
           disabled={loading}
           className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          بحث
+          {t("بحث", "Search")}
         </button>
       </form>
 
@@ -136,11 +154,11 @@ export default function ReceptionPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-800">{patient.fullName}</h2>
               <p className="text-sm text-slate-500">
-                {patient.patientCode} &middot; رقم الإضبارة: {patient.fileNumber ?? "-"}
+                {patient.patientCode} {t("· رقم الإضبارة:", "· File number:")} {patient.fileNumber ?? "-"}
               </p>
             </div>
             <Link href={`/admin/patients/${patient.id}`} className="text-xs text-slate-500 hover:underline">
-              فتح الملف
+              {t("فتح الملف", "Open record")}
             </Link>
           </div>
 
@@ -153,16 +171,16 @@ export default function ReceptionPage() {
                     key={a.id}
                     className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-800"
                   >
-                    [{a.severity}] {a.category}: {a.message}
+                    [{severityLabel[a.severity]}] {a.category}: {a.message}
                   </div>
                 ))}
             </div>
           )}
 
           <div className="mt-4">
-            <h3 className="text-sm font-semibold text-slate-500">جلسات اليوم</h3>
+            <h3 className="text-sm font-semibold text-slate-500">{t("جلسات اليوم", "Today’s sessions")}</h3>
             {schedules.length === 0 && (
-              <p className="mt-2 text-sm text-slate-400">لا توجد جلسة مجدولة اليوم لهذا المريض</p>
+              <p className="mt-2 text-sm text-slate-400">{t("لا توجد جلسة مجدولة اليوم لهذا المريض", "No sessions scheduled for this patient today")}</p>
             )}
             <div className="mt-2 space-y-2">
               {schedules.map((s) => (
@@ -172,24 +190,26 @@ export default function ReceptionPage() {
                 >
                   <div>
                     <p className="text-sm font-medium text-slate-700">
-                      {s.shift.name} <span className="text-slate-400">({s.type})</span>
+                      {shiftLabel[s.shift.name] ?? s.shift.name} <span className="text-slate-400">({scheduleTypeLabel[s.type]})</span>
                     </p>
-                    <p className="text-xs text-slate-500">
-                      {statusLabel[s.status] ?? s.status}
-                      {s.lateMinutes != null && s.lateMinutes > 0 ? ` — تأخر ${s.lateMinutes} دقيقة` : ""}
+                    <p className="flex items-center gap-2 text-xs text-slate-500">
+                      <StatusBadge group="schedule" value={s.status} />
+                      {s.lateMinutes != null && s.lateMinutes > 0
+                        ? t(` — تأخر ${formatNumber(s.lateMinutes)} دقيقة`, ` — ${formatNumber(s.lateMinutes)} min late`)
+                        : ""}
                     </p>
                   </div>
                   {s.status === "SCHEDULED" || s.status === "ABSENT" ? (
                     <button
                       onClick={() => handleCheckIn(s.id)}
                       disabled={checkingInId === s.id || !stationId.trim()}
-                      title={!stationId.trim() ? "حدد اسم محطة الاستقبال أولاً" : undefined}
+                      title={!stationId.trim() ? t("حدد اسم محطة الاستقبال أولاً", "Enter the reception station name first") : undefined}
                       className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
-                      تسجيل حضور
+                      {t("تسجيل حضور", "Check in")}
                     </button>
                   ) : (
-                    <span className="text-xs text-slate-400">تم</span>
+                    <span className="text-xs text-slate-400">{t("تم", "Done")}</span>
                   )}
                 </div>
               ))}

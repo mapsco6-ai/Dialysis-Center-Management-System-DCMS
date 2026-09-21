@@ -21,6 +21,11 @@ import { MaintenanceModule } from "./maintenance/maintenance.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
 import { ReportsModule } from "./reports/reports.module";
 import { QualityModule } from "./quality/quality.module";
+import { StaffEntriesModule } from "./staff-entries/staff-entries.module";
+import { SettingsModule } from "./settings/settings.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { OversightModule } from "./oversight/oversight.module";
+import { WorkQueueModule } from "./work-queue/work-queue.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -51,6 +56,11 @@ import { HealthController } from "./health/health.controller";
     DashboardModule,
     ReportsModule,
     QualityModule,
+    StaffEntriesModule,
+    SettingsModule,
+    NotificationsModule,
+    OversightModule,
+    WorkQueueModule,
   ],
   controllers: [HealthController],
 })

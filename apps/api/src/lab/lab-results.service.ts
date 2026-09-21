@@ -1,4 +1,6 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { emitNotification } from "../common/notify";
 import { LabOrderItemStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -14,7 +16,9 @@ import { AmendResultDto } from "./dto/amend-result.dto";
 // يُدخل النتيجة يجعلها Final مباشرة"), so they never appear on this table.
 const STATUS_TRANSITIONS: Partial<Record<LabOrderItemStatus, LabOrderItemStatus[]>> = {
   ORDERED: ["SAMPLE_COLLECTED"],
-  SAMPLE_COLLECTED: ["PROCESSING"],
+  SAMPLE_COLLECTED: ["PROCESSING", "SAMPLE_REJECTED"],
+  // Bad/insufficient sample: it goes back to be collected again.
+  SAMPLE_REJECTED: ["SAMPLE_COLLECTED"],
 };
 
 @Injectable()
@@ -24,6 +28,7 @@ export class LabResultsService {
     private readonly auditService: AuditService,
     private readonly labOrdersService: LabOrdersService,
     private readonly batchesService: InventoryBatchesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async updateStatus(itemId: string, dto: UpdateItemStatusDto, actor: AuthenticatedUser) {
@@ -31,6 +36,9 @@ export class LabResultsService {
     const allowed = STATUS_TRANSITIONS[item.status] ?? [];
     if (!allowed.includes(dto.status)) {
       throw new ConflictException(`Cannot go directly from ${item.status} to ${dto.status}`);
+    }
+    if (dto.status === "SAMPLE_REJECTED" && !dto.reason?.trim()) {
+      throw new BadRequestException("A reason is required when rejecting a sample");
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -65,9 +73,20 @@ export class LabResultsService {
           entityId: itemId,
           oldValue: { status: item.status },
           newValue: { status: dto.status },
+          reason: dto.reason,
         },
         tx,
       );
+
+      if (dto.status === "SAMPLE_REJECTED") {
+        emitNotification(this.eventEmitter, {
+          userIds: [item.labOrder.orderedByDoctorId],
+          type: "LAB_SAMPLE_REJECTED",
+          title: `Sample rejected: ${item.labTest.name}`,
+          body: dto.reason,
+          link: `/admin/patients/${item.labOrder.patientId}`,
+        });
+      }
 
       return tx.labOrderItem.findUniqueOrThrow({ where: { id: itemId }, include: { labTest: true } });
     });
@@ -127,7 +146,7 @@ export class LabResultsService {
       }
 
       const result = await tx.labResult.create({
-        data: { labOrderItemId: itemId, value: dto.value, enteredById: actor.id, isFinal: true },
+        data: { labOrderItemId: itemId, value: dto.value, enteredById: actor.id, isFinal: true, isCritical: dto.flagCritical === true },
       });
 
       await this.auditService.log(
@@ -156,6 +175,13 @@ export class LabResultsService {
       // never automatic (docs/PROJECT-PHASES-PLAN.md Phase 9 acceptance
       // criterion 6: "لو مفعَّلة").
       if (dto.flagCritical) {
+        emitNotification(this.eventEmitter, {
+          userIds: [item.labOrder.orderedByDoctorId],
+          type: "LAB_CRITICAL_RESULT",
+          title: `Critical result: ${item.labTest.name}`,
+          body: `${dto.value}`,
+          link: `/admin/patients/${item.labOrder.patientId}`,
+        });
         const alert = await tx.clinicalAlert.create({
           data: {
             patientId: item.labOrder.patientId,

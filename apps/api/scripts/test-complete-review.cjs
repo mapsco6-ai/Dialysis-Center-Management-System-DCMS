@@ -111,7 +111,7 @@ async function main(){
  for(const state of Object.values(LabOrderItemStatus))for(const action of ['SAMPLE_COLLECTED','PROCESSING','RESULT'])await test(9,'Lab state '+state+' -> '+action,async()=>{
    const o=await lab(),id=o.items[0].id;await db.labOrderItem.update({where:{id},data:{status:state}});
    const r=action==='RESULT'?await req('/lab/order-items/'+id+'/results',{value:'4.2'}):await req('/lab/order-items/'+id+'/status',{status:action});
-   const allowed=(state==='ORDERED'&&action==='SAMPLE_COLLECTED')||(state==='SAMPLE_COLLECTED'&&action==='PROCESSING')||(state==='PROCESSING'&&action==='RESULT');if(allowed)assert.ok(r.code<300,JSON.stringify(r));else reject(r);
+   const allowed=(state==='ORDERED'&&action==='SAMPLE_COLLECTED')||(state==='SAMPLE_COLLECTED'&&action==='PROCESSING')||(state==='PROCESSING'&&action==='RESULT')||(state==='SAMPLE_REJECTED'&&action==='SAMPLE_COLLECTED');if(allowed)assert.ok(r.code<300,JSON.stringify(r));else reject(r);
  });
  const lo=await lab(),li=lo.items[0].id;
  await ok('/lab/order-items/'+li+'/status',{status:'SAMPLE_COLLECTED'});await ok('/lab/order-items/'+li+'/status',{status:'PROCESSING'});

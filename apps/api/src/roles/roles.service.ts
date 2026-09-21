@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ROLES } from "@dcms/shared";
+import { CreateRoleDto } from "./dto/create-role.dto";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -32,6 +34,50 @@ export class RolesService {
 
   async findAllPermissions() {
     return this.prisma.permission.findMany({ orderBy: { key: "asc" } });
+  }
+
+  async findPermissionsGrouped() {
+    const permissions = await this.findAllPermissions();
+    const grouped: Record<string, typeof permissions> = {};
+    for (const permission of permissions) (grouped[permission.module] ??= []).push(permission);
+    return Object.entries(grouped).map(([module, items]) => ({ module, permissions: items }));
+  }
+
+  // Custom roles start with no permissions; the director grants them via
+  // PATCH /roles/:id/permissions (which enforces the recovery-holder rule).
+  async createRole(dto: CreateRoleDto, actor: AuthenticatedUser) {
+    if (await this.prisma.role.findUnique({ where: { name: dto.name } })) {
+      throw new ConflictException("Role name already exists");
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const role = await tx.role.create({ data: { name: dto.name, description: dto.description } });
+      await this.auditService.log(
+        { actorId: actor.id, actorRole: actor.roles[0] ?? "UNKNOWN", action: "ROLE_CREATED", entityType: "Role", entityId: role.id, newValue: role },
+        tx,
+      );
+      return role;
+    });
+  }
+
+  // Built-in roles are referenced by name in code (seed, templates, checks)
+  // and roles in use would silently strip access - both are refused.
+  async deleteRole(id: string, actor: AuthenticatedUser) {
+    const role = await this.prisma.role.findUnique({ where: { id }, include: { _count: { select: { users: true } } } });
+    if (!role) throw new NotFoundException("Role not found");
+    if ((ROLES as readonly string[]).includes(role.name)) {
+      throw new BadRequestException("Built-in roles cannot be deleted");
+    }
+    if (role._count.users > 0) {
+      throw new BadRequestException("Role is still assigned to users - reassign them first");
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.role.delete({ where: { id } });
+      await this.auditService.log(
+        { actorId: actor.id, actorRole: actor.roles[0] ?? "UNKNOWN", action: "ROLE_DELETED", entityType: "Role", entityId: id, oldValue: { name: role.name } },
+        tx,
+      );
+    });
+    return { success: true };
   }
 
   private async wouldLoseLastRecoveryHolder(roleId: string, newPermissionKeys: string[]) {

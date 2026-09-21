@@ -10,6 +10,9 @@ import { UpdatePatientDto } from "./dto/update-patient.dto";
 import { CreateAlertDto } from "./dto/create-alert.dto";
 import { ResolveAlertDto } from "./dto/resolve-alert.dto";
 import { ListPatientsQueryDto } from "./dto/list-patients-query.dto";
+import { LogAccess } from "../common/decorators/log-access.decorator";
+import { TimelineQueryDto } from "./dto/timeline-query.dto";
+import { CreateAccessRecordDto, SetRestrictedDto, UpdateAccessRecordDto } from "./dto/access-record.dto";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 @ApiTags("Patients")
@@ -28,7 +31,7 @@ export class PatientsController {
   @Get()
   @RequirePermissions("patient.view")
   findAll(@Query() query: ListPatientsQueryDto) {
-    return this.patientsService.findAll(query.page, query.limit);
+    return this.patientsService.findAll(query.page, query.limit, query.status);
   }
 
   // Must be declared before ':id' so "search" isn't captured as a patient id.
@@ -50,7 +53,9 @@ export class PatientsController {
 
   @Get(":id")
   @RequirePermissions("patient.view")
-  findOne(@Param("id") id: string) {
+  @LogAccess("PATIENT_VIEWED")
+  async findOne(@Param("id") id: string, @Query("reason") reason: string | undefined, @CurrentUser() actor: AuthenticatedUser) {
+    await this.patientsService.assertChartAccess(id, actor, reason);
     return this.patientsService.findOne(id);
   }
 
@@ -64,16 +69,64 @@ export class PatientsController {
     return this.patientsService.update(id, dto, actor);
   }
 
+  // One call for the chart header: profile, open alerts, latest session/lab,
+  // active meds and upcoming appointments.
+  @Get(":id/overview")
+  @RequirePermissions("patient.view")
+  @LogAccess("PATIENT_VIEWED")
+  async overview(@Param("id") id: string, @Query("reason") reason: string | undefined, @CurrentUser() actor: AuthenticatedUser) {
+    await this.patientsService.assertChartAccess(id, actor, reason);
+    return this.patientsService.overview(id);
+  }
+
+  // Without ?page it returns the full array exactly as before (existing
+  // clients); with ?page it returns { data, total } filtered by type/date.
   @Get(":id/timeline")
   @RequirePermissions("patient.view")
-  getTimeline(@Param("id") id: string) {
-    return this.patientsService.getTimeline(id);
+  @LogAccess("PATIENT_TIMELINE_VIEWED")
+  async getTimeline(@Param("id") id: string, @Query() query: TimelineQueryDto, @CurrentUser() actor: AuthenticatedUser) {
+    await this.patientsService.assertChartAccess(id, actor, query.reason);
+    return this.patientsService.getTimeline(id, query);
+  }
+
+  @Post(":id/restrict")
+  @RequirePermissions("patient.edit")
+  restrict(@Param("id") id: string, @Body() dto: SetRestrictedDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.patientsService.setRestricted(id, dto.restricted, dto.reason, actor);
+  }
+
+  @Get(":id/access-records")
+  @RequirePermissions("patient.view")
+  listAccessRecords(@Param("id") id: string) {
+    return this.patientsService.listAccessRecords(id);
+  }
+
+  @Post(":id/access-records")
+  @RequirePermissions("patient.edit")
+  createAccessRecord(@Param("id") id: string, @Body() dto: CreateAccessRecordDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.patientsService.createAccessRecord(id, dto, actor);
+  }
+
+  @Patch(":id/access-records/:recordId")
+  @RequirePermissions("patient.edit")
+  closeAccessRecord(@Param("id") id: string, @Param("recordId") recordId: string, @Body() dto: UpdateAccessRecordDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.patientsService.closeAccessRecord(id, recordId, dto, actor);
   }
 
   @Get(":id/alerts")
   @RequirePermissions("patient.view")
   listAlerts(@Param("id") id: string) {
     return this.patientsService.listAlerts(id);
+  }
+
+  @Patch(":id/alerts/:alertId/acknowledge")
+  @RequirePermissions("patient.view")
+  acknowledgeAlert(
+    @Param("id") id: string,
+    @Param("alertId") alertId: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ) {
+    return this.patientsService.acknowledgeAlert(id, alertId, actor);
   }
 
   @Post(":id/alerts")

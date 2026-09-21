@@ -3,14 +3,17 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { toast } from "@/components/Toaster";
 
 const inputClass =
   "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
 const labelClass = "mb-1 block text-sm font-medium text-slate-600";
 
 export default function NewPatientPage() {
+  const { t } = useI18n();
   const user = useCurrentUser();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -46,96 +49,99 @@ export default function NewPatientPage() {
 
     try {
       const patient = await apiFetch("/patients", { method: "POST", body: JSON.stringify(payload) });
+      toast.success(t("تم حفظ المريض بنجاح", "Patient saved successfully"));
       router.push(`/admin/patients/${patient.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر إنشاء المريض");
+      const message = err instanceof Error ? err.message : t("تعذر إنشاء المريض", "Unable to create patient");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">إضافة مريض جديد</h1>
+      <h1 className="text-xl font-semibold text-slate-800">{t("إضافة مريض جديد", "Add new patient")}</h1>
 
       <form onSubmit={handleSubmit} className="mt-6 max-w-2xl space-y-4 rounded-lg border border-slate-200 bg-white p-6">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>الاسم الكامل *</label>
-            <input name="fullName" required className={inputClass} />
+            <label htmlFor="fullName" className={labelClass}>{t("الاسم الكامل *", "Full name *")}</label>
+            <input id="fullName" name="fullName" required className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>الجنس *</label>
-            <select name="gender" required className={inputClass} defaultValue="">
+            <label htmlFor="gender" className={labelClass}>{t("الجنس *", "Sex *")}</label>
+            <select id="gender" name="gender" required className={inputClass} defaultValue="">
               <option value="" disabled>
-                اختر...
+                {t("اختر...", "Select...")}
               </option>
-              <option value="MALE">ذكر</option>
-              <option value="FEMALE">أنثى</option>
+              <option value="MALE">{t("ذكر", "Male")}</option>
+              <option value="FEMALE">{t("أنثى", "Female")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>تاريخ الميلاد *</label>
-            <input type="date" name="dateOfBirth" required className={inputClass} />
+            <label htmlFor="dateOfBirth" className={labelClass}>{t("تاريخ الميلاد *", "Date of birth *")}</label>
+            <input id="dateOfBirth" type="date" name="dateOfBirth" required className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>الهاتف</label>
-            <input name="phone" className={inputClass} />
+            <label htmlFor="phone" className={labelClass}>{t("الهاتف", "Phone")}</label>
+            <input id="phone" name="phone" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>العنوان</label>
-            <input name="address" className={inputClass} />
+            <label htmlFor="address" className={labelClass}>{t("العنوان", "Address")}</label>
+            <input id="address" name="address" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>رقم الإضبارة</label>
-            <input name="fileNumber" className={inputClass} />
+            <label htmlFor="fileNumber" className={labelClass}>{t("رقم الإضبارة", "File number")}</label>
+            <input id="fileNumber" name="fileNumber" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>تاريخ بدء الديلزة</label>
-            <input type="date" name="dialysisStartDate" className={inputClass} />
+            <label htmlFor="dialysisStartDate" className={labelClass}>{t("تاريخ بدء الديلزة", "Dialysis start date")}</label>
+            <input id="dialysisStartDate" type="date" name="dialysisStartDate" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>الوزن الجاف (Dry Weight)</label>
-            <input type="number" step="0.1" name="dryWeight" className={inputClass} />
+            <label htmlFor="dryWeight" className={labelClass}>{t("الوزن الجاف (Dry Weight)", "Dry weight")}</label>
+            <input id="dryWeight" type="number" step="0.1" name="dryWeight" className={inputClass} />
           </div>
           <div>
-            <label className={labelClass}>نوع الوصول الوعائي</label>
-            <select name="vascularAccessType" className={inputClass} defaultValue="">
-              <option value="">غير محدد</option>
-              <option value="FISTULA">Fistula</option>
-              <option value="CATHETER">Catheter</option>
-              <option value="GRAFT">Graft</option>
+            <label htmlFor="vascularAccessType" className={labelClass}>{t("نوع الوصول الوعائي", "Vascular access type")}</label>
+            <select id="vascularAccessType" name="vascularAccessType" className={inputClass} defaultValue="">
+              <option value="">{t("غير محدد", "Not specified")}</option>
+              <option value="FISTULA">{t("ناسور", "Fistula")}</option>
+              <option value="CATHETER">{t("قسطرة", "Catheter")}</option>
+              <option value="GRAFT">{t("وصلة وعائية", "Graft")}</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>موقع الوصول الوعائي</label>
-            <input name="vascularAccessLocation" className={inputClass} />
+            <label htmlFor="vascularAccessLocation" className={labelClass}>{t("موقع الوصول الوعائي", "Vascular access location")}</label>
+            <input id="vascularAccessLocation" name="vascularAccessLocation" className={inputClass} />
           </div>
         </div>
 
         <div>
-          <label className={labelClass}>التشخيصات</label>
-          <textarea name="diagnoses" className={inputClass} rows={2} />
+          <label htmlFor="diagnoses" className={labelClass}>{t("التشخيصات", "Diagnoses")}</label>
+          <textarea id="diagnoses" name="diagnoses" className={inputClass} rows={2} />
         </div>
         <div>
-          <label className={labelClass}>الأمراض المزمنة (افصل بفاصلة)</label>
-          <input name="chronicDiseases" placeholder="مثال: Diabetes, Hypertension" className={inputClass} />
+          <label htmlFor="chronicDiseases" className={labelClass}>{t("الأمراض المزمنة (افصل بفاصلة)", "Chronic conditions (comma-separated)")}</label>
+          <input id="chronicDiseases" name="chronicDiseases" placeholder={t("مثال: Diabetes, Hypertension", "Example: Diabetes, Hypertension")} className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>الحساسية</label>
-          <input name="allergies" className={inputClass} />
+          <label htmlFor="allergies" className={labelClass}>{t("الحساسية", "Allergies")}</label>
+          <input id="allergies" name="allergies" className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>ملاحظات طبية</label>
-          <textarea name="medicalNotes" className={inputClass} rows={2} />
+          <label htmlFor="medicalNotes" className={labelClass}>{t("ملاحظات طبية", "Medical notes")}</label>
+          <textarea id="medicalNotes" name="medicalNotes" className={inputClass} rows={2} />
         </div>
         <div>
-          <label className={labelClass}>تعليمات خاصة</label>
-          <textarea name="specialInstructions" className={inputClass} rows={2} />
+          <label htmlFor="specialInstructions" className={labelClass}>{t("تعليمات خاصة", "Special instructions")}</label>
+          <textarea id="specialInstructions" name="specialInstructions" className={inputClass} rows={2} />
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -145,7 +151,7 @@ export default function NewPatientPage() {
           disabled={loading}
           className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {loading ? "جاري الحفظ..." : "حفظ المريض"}
+          {loading ? t("جاري الحفظ...", "Saving...") : t("حفظ المريض", "Save patient")}
         </button>
       </form>
     </AdminShell>

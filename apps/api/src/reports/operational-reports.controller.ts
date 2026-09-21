@@ -1,3 +1,4 @@
+import { LogAccess } from "../common/decorators/log-access.decorator";
 import { Controller, Get, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
@@ -24,6 +25,7 @@ function defaultRange(from?: string, to?: string, fallbackDays = 30): { from: st
 @ApiBearerAuth("bearer")
 @Controller("reports/operations")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@LogAccess("REPORT_EXPORTED")
 export class OperationalReportsController {
   constructor(
     private readonly operationalReportsService: OperationalReportsService,

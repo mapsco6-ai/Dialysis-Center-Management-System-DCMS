@@ -1,7 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { ArrayNotEmpty, IsArray, IsNotEmpty, IsString, MinLength } from "class-validator";
 
-export class CreateUserDto {
+import { StaffProfileFields } from "./staff-profile.fields";
+
+export class CreateUserDto extends StaffProfileFields {
   @ApiProperty({ type: String })
   @IsString()
   @IsNotEmpty()

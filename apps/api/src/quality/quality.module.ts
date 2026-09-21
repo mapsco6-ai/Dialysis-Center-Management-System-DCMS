@@ -13,5 +13,6 @@ import { ClinicalAuditController } from "./clinical-audit.controller";
   imports: [AuditModule, ReportsModule],
   controllers: [IncidentsController, ClinicalAuditController],
   providers: [IncidentsService, ClinicalAuditService],
+  exports: [IncidentsService],
 })
 export class QualityModule {}

@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrescriptionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { emitNotification } from "../common/notify";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { InventoryBatchesService } from "../inventory/inventory-batches.service";
@@ -21,6 +23,7 @@ export class PharmacyService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly batchesService: InventoryBatchesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async requireLocations() {
@@ -106,6 +109,56 @@ export class PharmacyService {
       include: QUEUE_INCLUDE,
       orderBy: { createdAt: "asc" },
     });
+  }
+
+  // The pharmacist refuses to dispense (interaction, shortage, unclear
+  // order). The prescribing doctor is told why and can issue a new one.
+  async reject(prescriptionId: string, reason: string, actor: AuthenticatedUser) {
+    const prescription = await this.requirePrescription(prescriptionId);
+    if (prescription.status !== "ACTIVE") {
+      throw new ConflictException(`Cannot reject a prescription that is ${prescription.status}`);
+    }
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.prescription.updateMany({
+        where: { id: prescriptionId, status: "ACTIVE" },
+        data: { status: "REJECTED_BY_PHARMACY" },
+      });
+      if (result.count === 0) {
+        throw new ConflictException("This prescription's status changed since it was read");
+      }
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "PRESCRIPTION_REJECTED_BY_PHARMACY",
+          entityType: "Prescription",
+          entityId: prescriptionId,
+          patientId: prescription.patientId,
+          oldValue: { status: "ACTIVE" },
+          newValue: { status: "REJECTED_BY_PHARMACY" },
+          reason,
+        },
+        tx,
+      );
+      await tx.patientTimelineEvent.create({
+        data: {
+          patientId: prescription.patientId,
+          type: "PRESCRIPTION_REJECTED_BY_PHARMACY",
+          payload: { prescriptionId, medicationName: prescription.medicationName, reason },
+          performedById: actor.id,
+          sourceModule: "pharmacy",
+        },
+      });
+      return tx.prescription.findUniqueOrThrow({ where: { id: prescriptionId }, include: QUEUE_INCLUDE });
+    });
+    emitNotification(this.eventEmitter, {
+      userIds: [prescription.doctorId],
+      type: "PRESCRIPTION_REJECTED",
+      title: `Pharmacy rejected: ${prescription.medicationName}`,
+      body: reason,
+      link: `/admin/patients/${prescription.patientId}`,
+    });
+    return updated;
   }
 
   async startDispensing(prescriptionId: string, actor: AuthenticatedUser) {

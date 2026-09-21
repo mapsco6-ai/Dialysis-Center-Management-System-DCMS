@@ -1,0 +1,11 @@
+# Local ports outside the ranges currently reserved by Windows.
+services:
+  api:
+    ports: !override
+      - "127.0.0.1:13001:3001"
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:13001/api/v1"
+    ports: !override
+      - "127.0.0.1:13000:3000"

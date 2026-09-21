@@ -4,12 +4,22 @@ export interface AuthenticatedUser {
   fullName: string;
   roles: string[];
   permissions: string[];
+  landingPath?: string;
+  mustChangePassword?: boolean;
 }
 
 export type Gender = "MALE" | "FEMALE";
-export type PatientStatus = "ACTIVE" | "INACTIVE" | "DECEASED" | "TRANSFERRED";
+export type PatientStatus = "ACTIVE" | "INACTIVE" | "DECEASED" | "TRANSFERRED" | "ON_HOLD" | "TRANSPLANTED";
 export type VascularAccessType = "FISTULA" | "CATHETER" | "GRAFT";
 export type AlertSeverity = "CRITICAL" | "IMPORTANT" | "INFORMATION";
+
+// Paged list contract (V1.1 of docs/COMPREHENSIVE-DEVELOPMENT-PLAN-V1.md
+// §2.2) - GET /patients returns this so any 1000+ row list paginates with a
+// real "من X إلى Y من N" footer instead of fetching an unbounded collection.
+export interface Paginated<T> {
+  data: T[];
+  total: number;
+}
 
 export interface Patient {
   id: string;

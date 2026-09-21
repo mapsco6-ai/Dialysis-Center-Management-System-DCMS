@@ -1,3 +1,4 @@
+import { LogAccess } from "../common/decorators/log-access.decorator";
 import { Controller, Get, Param, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
@@ -14,6 +15,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 @ApiBearerAuth("bearer")
 @Controller("reports/patients/:patientId")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+@LogAccess("REPORT_EXPORTED")
 @RequirePermissions("patient.view")
 export class PatientReportsController {
   constructor(

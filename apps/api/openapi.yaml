@@ -35,9 +35,37 @@ paths:
         - bearer: []
       tags:
         - Auth
+  /api/v1/auth/change-password:
+    post:
+      operationId: AuthController_changePassword
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Auth
   /api/v1/auth/me:
     get:
       operationId: AuthController_me
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Auth
+  /api/v1/auth/shift-report-status:
+    get:
+      operationId: AuthController_shiftReportStatus
       parameters: []
       responses:
         '200':
@@ -67,7 +95,36 @@ paths:
         - user.create
     get:
       operationId: UsersController_findAll
-      parameters: []
+      parameters:
+        - name: search
+          required: false
+          in: query
+          description: Matches name, username, employee no.
+          schema:
+            type: string
+        - name: role
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: isActive
+          required: false
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
       responses:
         '200':
           description: ''
@@ -77,6 +134,126 @@ paths:
         - Users
       x-required-permissions:
         - user.view
+  /api/v1/users/{id}:
+    get:
+      operationId: UsersController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.view
+    patch:
+      operationId: UsersController_update
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.edit
+  /api/v1/users/{id}/roles:
+    put:
+      operationId: UsersController_setRoles
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetRolesDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.edit
+        - role.manage
+  /api/v1/users/{id}/reset-password:
+    post:
+      operationId: UsersController_resetPassword
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.reset_password
+  /api/v1/users/{id}/reset-pin:
+    post:
+      operationId: UsersController_resetPin
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.reset_password
+  /api/v1/users/{id}/activate:
+    patch:
+      operationId: UsersController_activate
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Users
+      x-required-permissions:
+        - user.deactivate
   /api/v1/users/{id}/deactivate:
     patch:
       operationId: UsersController_deactivate
@@ -127,6 +304,341 @@ paths:
         - Audit
       x-required-permissions:
         - audit.view
+  /api/v1/audit-logs/search:
+    get:
+      operationId: OversightController_search
+      parameters:
+        - name: actorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: action
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: entityType
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-required-permissions:
+        - audit.view
+  /api/v1/audit-logs/export:
+    get:
+      operationId: OversightController_export
+      parameters:
+        - name: actorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: action
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: entityType
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-required-permissions:
+        - audit.export
+  /api/v1/audit-logs/verify:
+    get:
+      operationId: OversightController_verify
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-required-permissions:
+        - audit.view
+  /api/v1/audit-logs/retention:
+    get:
+      operationId: OversightController_retention
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-required-permissions:
+        - audit.view
+  /api/v1/audit-logs/patients/{patientId}:
+    get:
+      operationId: OversightController_patientHistory
+      parameters:
+        - name: patientId
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: actorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: action
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: entityType
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-any-permissions:
+        - audit.view
+        - quality.audit.view
+  /api/v1/users/{id}/activity:
+    get:
+      operationId: OversightController_userActivity
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: actorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: action
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: entityType
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
+      x-required-permissions:
+        - audit.view
+  /api/v1/me/activity:
+    get:
+      operationId: OversightController_myActivity
+      parameters:
+        - name: actorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: action
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: entityType
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: ISO date/time, inclusive
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Audit
   /api/v1/roles:
     get:
       operationId: RolesController_findAllRoles
@@ -140,10 +652,59 @@ paths:
         - Roles
       x-required-permissions:
         - role.manage
+    post:
+      operationId: RolesController_createRole
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Roles
+      x-required-permissions:
+        - role.manage
   /api/v1/permissions:
     get:
       operationId: RolesController_findAllPermissions
       parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Roles
+      x-required-permissions:
+        - role.manage
+  /api/v1/permissions/grouped:
+    get:
+      operationId: RolesController_findPermissionsGrouped
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Roles
+      x-required-permissions:
+        - role.manage
+  /api/v1/roles/{id}:
+    delete:
+      operationId: RolesController_deleteRole
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
       responses:
         '200':
           description: ''
@@ -216,6 +777,18 @@ paths:
             minimum: 1
             nullable: true
             type: integer
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - INACTIVE
+              - DECEASED
+              - TRANSFERRED
+              - ON_HOLD
+              - TRANSPLANTED
       responses:
         '200':
           description: ''
@@ -302,9 +875,9 @@ paths:
         - Patients
       x-required-permissions:
         - patient.edit
-  /api/v1/patients/{id}/timeline:
+  /api/v1/patients/{id}/overview:
     get:
-      operationId: PatientsController_getTimeline
+      operationId: PatientsController_overview
       parameters:
         - name: id
           required: true
@@ -320,6 +893,153 @@ paths:
         - Patients
       x-required-permissions:
         - patient.view
+  /api/v1/patients/{id}/timeline:
+    get:
+      operationId: PatientsController_getTimeline
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: Presence switches the response to { data, total }
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: reason
+          required: false
+          in: query
+          description: Break-the-glass reason for restricted charts
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+  /api/v1/patients/{id}/restrict:
+    post:
+      operationId: PatientsController_restrict
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetRestrictedDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.edit
+  /api/v1/patients/{id}/access-records:
+    get:
+      operationId: PatientsController_listAccessRecords
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
+    post:
+      operationId: PatientsController_createAccessRecord
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccessRecordDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.edit
+  /api/v1/patients/{id}/access-records/{recordId}:
+    patch:
+      operationId: PatientsController_closeAccessRecord
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccessRecordDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.edit
   /api/v1/patients/{id}/alerts:
     get:
       operationId: PatientsController_listAlerts
@@ -361,6 +1081,29 @@ paths:
         - Patients
       x-required-permissions:
         - patient.alert.manage
+  /api/v1/patients/{id}/alerts/{alertId}/acknowledge:
+    patch:
+      operationId: PatientsController_acknowledgeAlert
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: alertId
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Patients
+      x-required-permissions:
+        - patient.view
   /api/v1/patients/{id}/alerts/{alertId}/resolve:
     patch:
       operationId: PatientsController_resolveAlert
@@ -898,6 +1641,7 @@ paths:
               - ISSUED
               - RECEIVED
               - REJECTED
+              - CANCELLED
       responses:
         '200':
           description: ''
@@ -953,6 +1697,30 @@ paths:
         - Inventory - Stock Transfers
       x-required-permissions:
         - inventory.transfer.approve
+  /api/v1/inventory/transfers/{id}/cancel:
+    post:
+      operationId: StockTransfersController_cancel
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectStockTransferDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Inventory - Stock Transfers
+      x-required-permissions:
+        - inventory.transfer.request
   /api/v1/inventory/transfers/{id}/issue:
     post:
       operationId: StockTransfersController_issue
@@ -2078,6 +2846,7 @@ paths:
               - FINAL
               - AMENDED
               - CANCELLED
+              - SAMPLE_REJECTED
       responses:
         '200':
           description: ''
@@ -2225,6 +2994,7 @@ paths:
               - DISPENSED
               - MODIFIED
               - STOPPED
+              - REJECTED_BY_PHARMACY
       responses:
         '200':
           description: ''
@@ -2243,6 +3013,30 @@ paths:
           in: path
           schema:
             type: string
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Pharmacy
+      x-required-permissions:
+        - pharmacy.dispense
+  /api/v1/pharmacy/prescriptions/{id}/reject:
+    post:
+      operationId: PharmacyController_reject
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectPrescriptionDto'
       responses:
         '201':
           description: ''
@@ -3244,6 +4038,8 @@ paths:
             enum:
               - OPEN
               - UNDER_REVIEW
+              - ACTION_REQUIRED
+              - ACTION_DONE
               - CLOSED
         - name: patientId
           required: false
@@ -3351,6 +4147,427 @@ paths:
         - Quality & Safety - Clinical Audit
       x-required-permissions:
         - quality.audit.view
+  /api/v1/staff-entries:
+    post:
+      operationId: StaffEntriesController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStaffEntryDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+      x-required-permissions:
+        - entry.create
+    get:
+      operationId: StaffEntriesController_list
+      parameters:
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - ACTION_NOTE
+              - SHIFT_REPORT
+              - PROBLEM
+              - COMPLAINT
+              - SUGGESTION
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - SUBMITTED
+              - ACKNOWLEDGED
+              - IN_PROGRESS
+              - RESOLVED
+              - CLOSED
+              - REJECTED
+        - name: authorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: from
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+      x-required-permissions:
+        - entry.review
+  /api/v1/staff-entries/mine:
+    get:
+      operationId: StaffEntriesController_listMine
+      parameters:
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - ACTION_NOTE
+              - SHIFT_REPORT
+              - PROBLEM
+              - COMPLAINT
+              - SUGGESTION
+        - name: status
+          required: false
+          in: query
+          schema:
+            type: string
+            enum:
+              - SUBMITTED
+              - ACKNOWLEDGED
+              - IN_PROGRESS
+              - RESOLVED
+              - CLOSED
+              - REJECTED
+        - name: authorId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: patientId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+        - name: from
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+  /api/v1/staff-entries/{id}:
+    get:
+      operationId: StaffEntriesController_findOne
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+  /api/v1/staff-entries/{id}/status:
+    patch:
+      operationId: StaffEntriesController_updateStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStaffEntryStatusDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+      x-required-permissions:
+        - entry.review
+  /api/v1/staff-entries/{id}/assign:
+    patch:
+      operationId: StaffEntriesController_assign
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignStaffEntryDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+      x-required-permissions:
+        - entry.review
+  /api/v1/staff-entries/{id}/escalate:
+    post:
+      operationId: StaffEntriesController_escalate
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EscalateStaffEntryDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+      x-required-permissions:
+        - entry.review
+        - incident.report
+  /api/v1/me/shift-summary:
+    get:
+      operationId: StaffEntriesController_shiftSummary
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Staff entries
+  /api/v1/settings/public:
+    get:
+      operationId: SettingsController_publicSettings
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Settings
+  /api/v1/settings:
+    get:
+      operationId: SettingsController_getAll
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Settings
+      x-required-permissions:
+        - settings.manage
+  /api/v1/settings/{key}:
+    put:
+      operationId: SettingsController_set
+      parameters:
+        - name: key
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetSettingDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Settings
+      x-required-permissions:
+        - settings.manage
+  /api/v1/notifications:
+    get:
+      operationId: NotificationsController_list
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Notifications
+  /api/v1/notifications/read-all:
+    post:
+      operationId: NotificationsController_readAll
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Notifications
+  /api/v1/notifications/{id}/read:
+    patch:
+      operationId: NotificationsController_read
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Notifications
+  /api/v1/oversight/summary:
+    get:
+      operationId: OversightController_summary
+      parameters:
+        - name: from
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Oversight
+      x-required-permissions:
+        - oversight.view
+  /api/v1/oversight/timeline:
+    get:
+      operationId: OversightController_timeline
+      parameters:
+        - name: from
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: type
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: module
+          required: false
+          in: query
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Oversight
+      x-required-permissions:
+        - oversight.view
+  /api/v1/me/work-queue:
+    get:
+      operationId: WorkQueueController_workQueue
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Me
 info:
   title: DCMS API
   description: >-
@@ -3379,9 +4596,37 @@ components:
       required:
         - username
         - password
+    ChangePasswordDto:
+      type: object
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+      required:
+        - currentPassword
+        - newPassword
     CreateUserDto:
       type: object
       properties:
+        employeeNo:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        jobTitle:
+          type: string
+        specialty:
+          type: string
+        licenseNo:
+          type: string
+        department:
+          type: string
+        expiresAt:
+          type: string
+          description: Account stops working after this instant (external inspectors)
         username:
           type: string
         password:
@@ -3398,6 +4643,40 @@ components:
         - password
         - fullName
         - roleNames
+    UpdateUserDto:
+      type: object
+      properties:
+        employeeNo:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        jobTitle:
+          type: string
+        specialty:
+          type: string
+        licenseNo:
+          type: string
+        department:
+          type: string
+        expiresAt:
+          type: string
+          description: Account stops working after this instant (external inspectors)
+        fullName:
+          type: string
+    SetRolesDto:
+      type: object
+      properties:
+        roleNames:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+      required:
+        - roleNames
+        - reason
     DeactivateUserDto:
       type: object
       properties:
@@ -3405,6 +4684,16 @@ components:
           type: string
       required:
         - reason
+    CreateRoleDto:
+      type: object
+      properties:
+        name:
+          type: string
+          example: ICU_NURSE
+        description:
+          type: string
+      required:
+        - name
     UpdateRolePermissionsDto:
       type: object
       properties:
@@ -3502,6 +4791,8 @@ components:
             - INACTIVE
             - DECEASED
             - TRANSFERRED
+            - ON_HOLD
+            - TRANSPLANTED
         dialysisStartDate:
           type: string
           nullable: true
@@ -3540,6 +4831,51 @@ components:
         reason:
           type: string
           nullable: true
+    SetRestrictedDto:
+      type: object
+      properties:
+        restricted:
+          type: boolean
+        reason:
+          type: string
+      required:
+        - restricted
+        - reason
+    CreateAccessRecordDto:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - FISTULA
+            - CATHETER
+            - GRAFT
+        location:
+          type: string
+        placedAt:
+          type: string
+        notes:
+          type: string
+      required:
+        - type
+        - location
+        - placedAt
+    UpdateAccessRecordDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - REMOVED
+            - FAILED
+        removedAt:
+          type: string
+        reason:
+          type: string
+      required:
+        - status
+        - removedAt
+        - reason
     CreateAlertDto:
       type: object
       properties:
@@ -3839,6 +5175,7 @@ components:
             - WAITING_CLEANING
             - MAINTENANCE
             - OUT_OF_SERVICE
+            - RETIRED
         reason:
           type: string
       required:
@@ -4070,6 +5407,10 @@ components:
             - MEDICATION_GIVEN
             - PHYSICIAN_CALLED
             - SESSION_INTERRUPTED
+            - CRAMPS
+            - BLEEDING
+            - CHEST_PAIN
+            - CLOTTING
             - OTHER
         note:
           type: string
@@ -4253,6 +5594,10 @@ components:
           enum:
             - SAMPLE_COLLECTED
             - PROCESSING
+            - SAMPLE_REJECTED
+        reason:
+          type: string
+          description: Required when status is SAMPLE_REJECTED
       required:
         - status
     EnterResultDto:
@@ -4292,6 +5637,13 @@ components:
       required:
         - itemId
         - quantity
+    RejectPrescriptionDto:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
     DispensePrescriptionDto:
       type: object
       properties:
@@ -4393,9 +5745,113 @@ components:
           type: string
           enum:
             - UNDER_REVIEW
+            - ACTION_REQUIRED
+            - ACTION_DONE
             - CLOSED
         reason:
           type: string
           nullable: true
       required:
         - status
+    CreateStaffEntryDto:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - ACTION_NOTE
+            - SHIFT_REPORT
+            - PROBLEM
+            - COMPLAINT
+            - SUGGESTION
+        title:
+          type: string
+        body:
+          type: string
+        category:
+          type: string
+          description: equipment, patient, colleague, stock, environment...
+        severity:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+            - CRITICAL
+        shiftId:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        machineId:
+          type: string
+          format: uuid
+        complaintSource:
+          type: string
+          enum:
+            - STAFF
+            - PATIENT
+            - FAMILY
+          description: Only meaningful for COMPLAINT
+        isConfidential:
+          type: boolean
+          description: Hide from everyone except the author and reviewers
+      required:
+        - type
+        - title
+        - body
+    UpdateStaffEntryStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - SUBMITTED
+            - ACKNOWLEDGED
+            - IN_PROGRESS
+            - RESOLVED
+            - CLOSED
+            - REJECTED
+        reason:
+          type: string
+          description: Required when rejecting
+        response:
+          type: string
+          description: Management reply, visible to the author
+      required:
+        - status
+    AssignStaffEntryDto:
+      type: object
+      properties:
+        assignedToId:
+          type: string
+          format: uuid
+      required:
+        - assignedToId
+    EscalateStaffEntryDto:
+      type: object
+      properties:
+        incidentType:
+          type: string
+          enum:
+            - ADVERSE_EVENT
+            - INFECTION
+            - VASCULAR_ACCESS_EVENT
+            - HOSPITAL_TRANSFER
+            - EMERGENCY_EVENT
+            - REPEATED_HYPOTENSION
+            - MACHINE_INCIDENT
+      required:
+        - incidentType
+    SetSettingDto:
+      type: object
+      properties:
+        value:
+          type: object
+          description: boolean or integer, depending on the setting
+      required:
+        - value

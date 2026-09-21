@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../prisma/prisma.service";
+import { readCookie, TOKEN_COOKIE } from "../common/cookie";
 import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "./auth.utils";
 
 interface JwtPayload {
@@ -15,7 +16,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // JWT_SECRET is guaranteed present and non-default by env.validation.ts
     // at bootstrap - no fallback here on purpose (see docs review DCMS-002).
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Bearer header first (API clients, scripts), then the HttpOnly cookie.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (request: { headers: { cookie?: string } }) => readCookie(request.headers.cookie, TOKEN_COOKIE) ?? null,
+      ]),
       ignoreExpiration: false,
       secretOrKey: process.env.JWT_SECRET as string,
     });
@@ -31,7 +36,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       include: USER_WITH_ROLES_INCLUDE,
     });
 
-    if (!user || !user.isActive || user.tokenVersion !== payload.tokenVersion) {
+    if (!user || !user.isActive || (user.expiresAt && user.expiresAt < new Date()) || user.tokenVersion !== payload.tokenVersion) {
       throw new UnauthorizedException();
     }
 

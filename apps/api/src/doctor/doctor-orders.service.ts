@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { DoctorOrderType, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { emitNotification } from "../common/notify";
 import { AuditService } from "../audit/audit.service";
 import { LabOrdersService } from "../lab/lab-orders.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -45,6 +47,7 @@ export class DoctorOrdersService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly labOrdersService: LabOrdersService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async requireOrder(id: string) {
@@ -132,6 +135,12 @@ export class DoctorOrdersService {
             duration: (dto.payload.duration as string | undefined) ?? null,
             linkedSessionId: (dto.payload.linkedSessionId as string | undefined) ?? null,
           },
+        });
+        emitNotification(this.eventEmitter, {
+          permission: "pharmacy.dispense",
+          type: "NEW_PRESCRIPTION",
+          title: `New prescription: ${prescription.medicationName}`,
+          link: "/admin/pharmacy",
         });
         prescriptionId = prescription.id;
         payload = { ...dto.payload, action: "ADD", prescriptionId: prescription.id };

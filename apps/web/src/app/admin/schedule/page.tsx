@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { EmptyState } from "@/components/EmptyState";
+import { SkeletonTable } from "@/components/Skeleton";
+import { StatusBadge } from "@/components/StatusBadge";
+import { toast } from "@/components/Toaster";
 import { DialysisScheduleEntry } from "@/lib/types";
 
 // Local (not UTC) date parts - the backend anchors "today" to the center's
@@ -16,29 +21,31 @@ function toLocalDateInputValue(date: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-const statusLabel: Record<string, string> = {
-  SCHEDULED: "متوقع",
-  ARRIVED: "حضر",
-  LATE: "متأخر",
-  ABSENT: "غائب",
-  CANCELLED: "ملغى",
-  EXTRA: "إضافية",
-  EMERGENCY: "طارئة",
-};
-
 // Short-polling status board (docs/PROJECT-PHASES-PLAN.md Phase 3 acceptance
 // criterion: "Real-time أو Polling قصير"). Only polls when viewing today -
 // there's no reason to keep re-fetching a fixed historical/future date.
 const POLL_MS = 15000;
 
-const STATUS_ORDER: { key: string; label: string; className: string }[] = [
-  { key: "SCHEDULED", label: "متوقع", className: "bg-slate-100 text-slate-700" },
-  { key: "ARRIVED", label: "حضر", className: "bg-emerald-100 text-emerald-700" },
-  { key: "LATE", label: "متأخر", className: "bg-amber-100 text-amber-700" },
-  { key: "ABSENT", label: "غائب", className: "bg-red-100 text-red-700" },
-];
-
 export default function SchedulePage() {
+  const { t, formatNumber } = useI18n();
+  const scheduleTypeLabel = {
+    REGULAR: t("اعتيادية", "Regular"),
+    EXTRA: t("إضافية", "Extra"),
+    EMERGENCY: t("طارئة", "Emergency"),
+  };
+  const shiftLabel: Record<string, string> = {
+    SHIFT_1: t("الشفت الأول", "Shift 1"),
+    SHIFT_2: t("الشفت الثاني", "Shift 2"),
+    SHIFT_3: t("الشفت الثالث", "Shift 3"),
+    SHIFT_4: t("الشفت الرابع", "Shift 4"),
+  };
+  const STATUS_ORDER: { key: string; label: string; className: string }[] = [
+    { key: "SCHEDULED", label: t("متوقع", "Expected"), className: "bg-slate-100 text-slate-700" },
+    { key: "ARRIVED", label: t("حضر", "Arrived"), className: "bg-emerald-100 text-emerald-700" },
+    { key: "LATE", label: t("متأخر", "Late"), className: "bg-amber-100 text-amber-700" },
+    { key: "ABSENT", label: t("غائب", "Absent"), className: "bg-red-100 text-red-700" },
+  ];
+
   const user = useCurrentUser();
   const [date, setDate] = useState(() => toLocalDateInputValue(new Date()));
   const [entries, setEntries] = useState<DialysisScheduleEntry[]>([]);
@@ -58,8 +65,14 @@ export default function SchedulePage() {
         .then((data) => {
           if (!cancelled) setEntries(data);
         })
-        .catch(() => {
-          if (!cancelled) setEntries([]);
+        .catch((err) => {
+          if (cancelled) return;
+          setEntries([]);
+          // Only surface failures on the visible (spinner) load - a transient
+          // background poll failure every 15s would spam toasts otherwise.
+          if (showSpinner) {
+            toast.error(err instanceof Error ? err.message : t("تعذر تحميل الجدول", "Unable to load the schedule"));
+          }
         })
         .finally(() => {
           if (!cancelled && showSpinner) setLoading(false);
@@ -92,13 +105,16 @@ export default function SchedulePage() {
       if (result.approval) {
         setAssignError((prev) => ({
           ...prev,
-          [scheduleId]: `تم إنشاء طلب موافقة لجهاز ${result.machine?.machineCode ?? ""} - بانتظار القرار`,
+          [scheduleId]: t(
+            `تم إنشاء طلب موافقة لجهاز ${result.machine?.machineCode ?? ""} - بانتظار القرار`,
+            `Approval requested for machine ${result.machine?.machineCode ?? ""} — awaiting a decision`,
+          ),
         }));
       }
     } catch (err) {
       setAssignError((prev) => ({
         ...prev,
-        [scheduleId]: err instanceof Error ? err.message : "تعذر تعيين الجهاز",
+        [scheduleId]: err instanceof Error ? err.message : t("تعذر تعيين الجهاز", "Unable to assign machine"),
       }));
     } finally {
       setAssigning(null);
@@ -106,7 +122,7 @@ export default function SchedulePage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">جاري التحميل...</main>;
+    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const statusCounts = entries.reduce<Record<string, number>>((acc, entry) => {
@@ -122,16 +138,17 @@ export default function SchedulePage() {
   return (
     <AdminShell user={user}>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">الجدول اليومي</h1>
+        <h1 className="text-xl font-semibold text-slate-800">{t("الجدول اليومي", "Daily schedule")}</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setDate(toLocalDateInputValue(new Date()))}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
           >
-            اليوم
+            {t("اليوم", "Today")}
           </button>
           <input
             type="date"
+            aria-label={t("تاريخ الجدول", "Schedule date")}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
@@ -142,28 +159,31 @@ export default function SchedulePage() {
       <div className="mt-4 flex flex-wrap gap-3">
         {STATUS_ORDER.map((s) => (
           <div key={s.key} className={`rounded-lg px-4 py-2 text-sm font-medium ${s.className}`}>
-            {s.label}: {statusCounts[s.key] ?? 0}
+            {s.label}: {formatNumber(statusCounts[s.key] ?? 0)}
           </div>
         ))}
       </div>
 
-      {loading && <p className="mt-6 text-sm text-slate-400">جاري التحميل...</p>}
+      {loading && <div className="mt-6"><SkeletonTable rows={4} columns={4} /></div>}
       {!loading && entries.length === 0 && (
-        <p className="mt-6 text-sm text-slate-400">لا توجد جلسات مجدولة لهذا اليوم</p>
+        <div className="mt-6 rounded-lg border border-slate-200 bg-white">
+          <EmptyState icon="📅" title={t("لا توجد جلسات مجدولة لهذا اليوم", "No sessions scheduled for this day")}
+            description={t("اختر تاريخاً آخر، أو أنشئ موعداً من خطة المريض.", "Pick another date, or create an appointment from a patient's plan.")} />
+        </div>
       )}
 
       <div className="mt-6 space-y-6">
         {Object.entries(grouped).map(([shiftName, rows]) => (
           <section key={shiftName} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
             <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
-              {shiftName} <span className="font-normal text-slate-400">({rows.length} مريض)</span>
+              {shiftLabel[shiftName] ?? shiftName} <span className="font-normal text-slate-400">{t(`(${formatNumber(rows.length)} مريض)`, `(${formatNumber(rows.length)} patients)`)}</span>
             </div>
-            <table className="w-full text-right text-sm">
+            <table className="w-full text-start text-sm">
               <thead className="text-slate-400">
                 <tr>
-                  <th className="px-4 py-2 font-medium">المريض</th>
-                  <th className="px-4 py-2 font-medium">الحالة</th>
-                  <th className="px-4 py-2 font-medium">النوع / السبب</th>
+                  <th className="px-4 py-2 font-medium">{t("المريض", "Patient")}</th>
+                  <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
+                  <th className="px-4 py-2 font-medium">{t("النوع / السبب", "Type / reason")}</th>
                   <th className="px-4 py-2 font-medium"></th>
                 </tr>
               </thead>
@@ -176,11 +196,13 @@ export default function SchedulePage() {
                       </Link>
                     </td>
                     <td className="px-4 py-2">
-                      {statusLabel[row.status] ?? row.status}
-                      {row.lateMinutes != null && row.lateMinutes > 0 ? ` (${row.lateMinutes} د)` : ""}
+                      <StatusBadge group="schedule" value={row.status} />
+                      {row.lateMinutes != null && row.lateMinutes > 0
+                        ? t(` (${formatNumber(row.lateMinutes)} د)`, ` (${formatNumber(row.lateMinutes)} min)`)
+                        : ""}
                     </td>
                     <td className="px-4 py-2 text-slate-500">
-                      {row.type}
+                      {scheduleTypeLabel[row.type]}
                       {row.extraReason ? ` — ${row.extraReason}` : ""}
                       {row.emergencyReason ? ` — ${row.emergencyReason}` : ""}
                     </td>
@@ -192,7 +214,7 @@ export default function SchedulePage() {
                               href={`/admin/sessions/${row.id}`}
                               className="text-xs font-medium text-slate-600 hover:underline"
                             >
-                              جلسة الديلزة
+                              {t("جلسة الديلزة", "Dialysis session")}
                             </Link>
                           )}
                         {(row.status === "ARRIVED" || row.status === "LATE") && (
@@ -200,20 +222,20 @@ export default function SchedulePage() {
                             href={`/admin/sessions/${row.id}/supplies`}
                             className="text-xs font-medium text-slate-600 hover:underline"
                           >
-                            المستلزمات
+                            {t("المستلزمات", "Supplies")}
                           </Link>
                         )}
                         {user.permissions.includes("machine.assign") &&
                           (row.status === "ARRIVED" || row.status === "LATE") &&
                           (row.machineId ? (
-                            <span className="text-xs text-emerald-600">تم تعيين جهاز</span>
+                            <span className="text-xs text-emerald-600">{t("تم تعيين جهاز", "Machine assigned")}</span>
                           ) : (
                             <button
                               onClick={() => handleAssignMachine(row.id)}
                               disabled={assigning === row.id}
                               className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
                             >
-                              {assigning === row.id ? "جاري التعيين..." : "تعيين جهاز"}
+                              {assigning === row.id ? t("جاري التعيين...", "Assigning...") : t("تعيين جهاز", "Assign machine")}
                             </button>
                           ))}
                         {assignError[row.id] && (

@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { IncidentStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { emitNotification } from "../common/notify";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateIncidentDto } from "./dto/create-incident.dto";
@@ -23,8 +25,12 @@ const INCIDENT_INCLUDE = {
 // tickets' WAITING_PART) or into UNDER_REVIEW first; UNDER_REVIEW can only
 // move forward to CLOSED - nothing ever moves back to OPEN.
 const ALLOWED_INCIDENT_TRANSITIONS: Partial<Record<IncidentStatus, IncidentStatus[]>> = {
-  OPEN: ["UNDER_REVIEW", "CLOSED"],
-  UNDER_REVIEW: ["CLOSED"],
+  OPEN: ["UNDER_REVIEW", "ACTION_REQUIRED", "CLOSED"],
+  UNDER_REVIEW: ["ACTION_REQUIRED", "CLOSED"],
+  // A corrective action is named (reason), carried out, then the incident
+  // can close - closing without one stays possible for minor incidents.
+  ACTION_REQUIRED: ["ACTION_DONE"],
+  ACTION_DONE: ["CLOSED", "ACTION_REQUIRED"],
 };
 
 @Injectable()
@@ -32,6 +38,7 @@ export class IncidentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async requireIncident(id: string) {
@@ -84,7 +91,7 @@ export class IncidentsService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const incident = await tx.incidentReport.create({
         data: {
           patientId,
@@ -128,6 +135,18 @@ export class IncidentsService {
 
       return incident;
     });
+
+    if (dto.severity === "HIGH" || dto.severity === "CRITICAL") {
+      emitNotification(this.eventEmitter, {
+        permission: "incident.review",
+        excludeUserId: actor.id,
+        type: "INCIDENT_REPORTED",
+        title: `${dto.severity} incident: ${dto.type}`,
+        body: dto.description,
+        link: "/admin/quality",
+      });
+    }
+    return created;
   }
 
   async list(query: ListIncidentsQueryDto) {
@@ -168,6 +187,9 @@ export class IncidentsService {
     const allowed = ALLOWED_INCIDENT_TRANSITIONS[incident.status] ?? [];
     if (!allowed.includes(dto.status)) {
       throw new ConflictException(`Cannot move an incident from ${incident.status} to ${dto.status}`);
+    }
+    if (dto.status === "ACTION_REQUIRED" && !dto.reason?.trim()) {
+      throw new BadRequestException("Describe the corrective action (reason) when requiring one");
     }
 
     return this.prisma.$transaction(async (tx) => {

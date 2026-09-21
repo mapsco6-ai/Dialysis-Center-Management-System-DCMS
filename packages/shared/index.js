@@ -16,6 +16,7 @@ const ROLES = [
   "RECEPTION",
   "MAINTENANCE",
   "ACCOUNTANT",
+  "AUDITOR",
 ];
 
 // Phase 0 (Foundation) permission set. Later phases append their own
@@ -97,6 +98,35 @@ const PERMISSIONS = [
   { key: "incident.view", module: "quality", description: "View incident reports and the quality incident report" },
   { key: "incident.review", module: "quality", description: "Review and close incident reports" },
   { key: "quality.audit.view", module: "quality", description: "View the combined clinical audit trail (audit log + timeline) for a patient" },
+  { key: "user.reset_password", module: "users", description: "Reset another user's password or PIN" },
+  { key: "audit.export", module: "audit", description: "Export the audit trail (CSV) for oversight bodies" },
+  { key: "entry.create", module: "entries", description: "Write action notes, shift reports, problems, complaints" },
+  { key: "entry.review", module: "entries", description: "Review, assign, respond to and escalate staff entries" },
+  { key: "settings.manage", module: "settings", description: "Change system-wide settings (e.g. mandatory shift reports)" },
+  { key: "oversight.view", module: "oversight", description: "Read-only oversight dashboard and record timeline for inspection committees" },
 ];
 
-module.exports = { ROLES, PERMISSIONS };
+// Default permissions per role, applied by the seed ONLY to roles that hold
+// no permissions yet - so a director's later edits are never overwritten.
+// landingPath: where /auth/me sends the user right after login.
+const READ_ONLY_CLINICAL = ["patient.view", "dialysis.session.view", "machine.view", "inventory.view", "lab.queue.view", "incident.view", "quality.audit.view"];
+const ROLE_TEMPLATES = {
+  CENTER_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "user.view", "audit.view", "audit.export", "scheduling.manage", "shift.manage", "incident.review", "maintenance.manage", "machine.manage", "inventory.manage", "entry.create", "entry.review"] },
+  MEDICAL_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "lab.request", "incident.report", "incident.review", "audit.view", "entry.create", "entry.review"] },
+  DOCTOR: { landingPath: "/admin/doctor", permissions: ["patient.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "medication.administer", "lab.request", "lab.queue.view", "dialysis.session.view", "dialysis.emergency.create", "incident.report", "entry.create"] },
+  HEAD_NURSE: { landingPath: "/admin/nursing", permissions: ["patient.view", "nursing.assign", "nursing.ward.view", "nursing.ward.view.all", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.assign", "machine.fault.report", "incident.report", "inventory.view", "inventory.issue", "entry.create", "entry.review"] },
+  NURSE: { landingPath: "/admin/nursing", permissions: ["patient.view", "nursing.ward.view", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.fault.report", "incident.report", "entry.create"] },
+  PHARMACIST: { landingPath: "/admin/pharmacy", permissions: ["patient.view", "pharmacy.dispense", "inventory.view", "inventory.issue", "inventory.transfer.request", "inventory.transfer.receive", "entry.create"] },
+  WAREHOUSE: { landingPath: "/admin/inventory", permissions: ["inventory.view", "inventory.manage", "inventory.issue", "inventory.batch.manage", "inventory.transfer.request", "inventory.transfer.approve", "inventory.transfer.issue", "inventory.transfer.receive", "entry.create"] },
+  LAB_TECHNICIAN: { landingPath: "/admin/lab", permissions: ["patient.view", "lab.queue.view", "lab.result.create", "lab.catalog.manage", "inventory.view", "entry.create"] },
+  RECEPTION: { landingPath: "/admin/reception", permissions: ["patient.view", "patient.create", "attendance.checkin", "scheduling.manage", "entry.create"] },
+  MAINTENANCE: { landingPath: "/admin/maintenance", permissions: ["machine.view", "machine.manage", "machine.fault.report", "maintenance.manage", "entry.create"] },
+  ACCOUNTANT: { landingPath: "/admin/reports", permissions: ["inventory.view", "patient.view", "entry.create"] },
+  // Health-authority / committee account: sees only the aggregated dashboard
+  // (interactive charts) and the record timeline - no sections, no forms.
+  // Meant to be time-limited (User.expiresAt); can never change data.
+  AUDITOR: { landingPath: "/admin/oversight", permissions: ["oversight.view"] },
+  SUPER_ADMIN: { landingPath: "/admin", permissions: [] },
+};
+
+module.exports = { ROLES, PERMISSIONS, ROLE_TEMPLATES };

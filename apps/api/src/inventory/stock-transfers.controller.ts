@@ -42,6 +42,12 @@ export class StockTransfersController {
     return this.transfersService.reject(id, dto, actor);
   }
 
+  @Post(":id/cancel")
+  @RequirePermissions("inventory.transfer.request")
+  cancel(@Param("id") id: string, @Body() dto: RejectStockTransferDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.transfersService.cancel(id, dto, actor);
+  }
+
   @Post(":id/issue")
   @RequirePermissions("inventory.transfer.issue")
   issue(@Param("id") id: string, @CurrentUser() actor: AuthenticatedUser) {

@@ -8,6 +8,7 @@ import {
 } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
 import { PrismaService } from "../prisma/prisma.service";
+import { allowedOrigins, readCookie, TOKEN_COOKIE } from "../common/cookie";
 
 interface LoginJwtPayload {
   sub: string;
@@ -15,7 +16,7 @@ interface LoginJwtPayload {
 }
 
 export interface LiveUpdateEvent {
-  entity: "session" | "schedule" | "machine";
+  entity: "session" | "schedule" | "machine" | "patient";
 }
 
 // Deliberately broadcasts only a category tag ("a machine changed"), never
@@ -26,7 +27,7 @@ export interface LiveUpdateEvent {
 // This still requires a valid, live login JWT to connect at all - a
 // dropped/deactivated session's socket is disconnected immediately, same
 // guarantee as every REST request already gets from JwtStrategy.
-@WebSocketGateway({ cors: { origin: "*" } })
+@WebSocketGateway({ cors: { origin: allowedOrigins(), credentials: true } })
 export class DashboardGateway implements OnGatewayConnection {
   private readonly logger = new Logger(DashboardGateway.name);
   private readonly jwtService: JwtService;
@@ -44,7 +45,10 @@ export class DashboardGateway implements OnGatewayConnection {
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth?.token ?? client.handshake.query?.token;
+      const token =
+        client.handshake.auth?.token ??
+        client.handshake.query?.token ??
+        readCookie(client.handshake.headers.cookie, TOKEN_COOKIE);
       if (typeof token !== "string" || !token) {
         throw new Error("No token provided");
       }
@@ -53,9 +57,16 @@ export class DashboardGateway implements OnGatewayConnection {
       if (!user || !user.isActive || user.tokenVersion !== payload.tokenVersion) {
         throw new Error("Invalid or expired session");
       }
+      // Private room for pushed notifications (see NotificationsService).
+      await client.join(`user:${user.id}`);
     } catch {
       client.disconnect(true);
     }
+  }
+
+  @OnEvent("notification.created")
+  pushNotification(payload: { userId: string; notification: unknown }) {
+    this.server.to(`user:${payload.userId}`).emit("notification", payload.notification);
   }
 
   @OnEvent("live.update")
