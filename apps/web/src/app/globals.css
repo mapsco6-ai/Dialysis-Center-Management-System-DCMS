@@ -6,21 +6,23 @@
 
 :root, .light, [data-theme="light"] {
   color-scheme: light;
-  --background: oklch(1 0 0);
+  /* Nova: the page itself is a soft blue-grey field, cards are pure white -
+     depth comes from that contrast plus a shadow, not from hard borders. */
+  --background: oklch(0.973 0.005 256);
   --foreground: oklch(0.23 0.012 260);
   --surface: oklch(1 0 0);
   --surface-foreground: var(--foreground);
-  --surface-secondary: oklch(0.98 0.002 260);
-  --surface-tertiary: oklch(0.955 0.003 260);
-  --muted: oklch(0.51 0.012 260);
-  --border: oklch(0.925 0.004 260);
+  --surface-secondary: oklch(0.972 0.005 256);
+  --surface-tertiary: oklch(0.949 0.007 256);
+  --muted: oklch(0.545 0.018 258);
+  --border: oklch(0.932 0.006 256);
   --separator: var(--border);
   /* Nova reference blue (#2f80ed) - retinted from the workspace's original
      accent, same token everywhere else already reads from. */
   --accent: oklch(0.62 0.19 258);
   --accent-foreground: oklch(1 0 0);
-  --accent-soft: oklch(0.93 0.045 258);
-  --accent-soft-foreground: oklch(0.42 0.17 260);
+  --accent-soft: oklch(0.945 0.035 256);
+  --accent-soft-foreground: oklch(0.45 0.18 259);
   --focus: var(--accent);
   --default: var(--surface-secondary);
   --default-foreground: var(--foreground);
@@ -28,8 +30,11 @@
   --field-foreground: var(--foreground);
   --field-border: var(--border);
   --field-placeholder: var(--muted);
-  --radius: 0.5rem;
-  --workspace-sidebar: oklch(0.986 0.001 260);
+  --radius: 0.75rem;
+  --card-radius: 14px;
+  --shadow-card: 0 1px 2px oklch(0.5 0.05 258 / 6%), 0 4px 14px oklch(0.5 0.05 258 / 5%);
+  --shadow-raised: 0 2px 6px oklch(0.5 0.05 258 / 8%), 0 12px 30px oklch(0.5 0.05 258 / 9%);
+  --workspace-sidebar: oklch(1 0 0);
   --color-slate-50: oklch(0.98 0.002 260);
   --color-slate-100: oklch(0.96 0.003 260);
   --color-slate-200: var(--border);
@@ -44,20 +49,21 @@
 
 .dark, [data-theme="dark"] {
   color-scheme: dark;
-  --background: oklch(0.19 0.008 260);
+  /* Same Nova depth order inverted: the page recedes, cards sit above it. */
+  --background: oklch(0.168 0.009 260);
   --foreground: oklch(0.94 0.004 260);
-  --surface: var(--background);
+  --surface: oklch(0.213 0.009 260);
   --surface-foreground: var(--foreground);
-  --surface-secondary: oklch(0.225 0.008 260);
-  --surface-tertiary: oklch(0.26 0.008 260);
+  --surface-secondary: oklch(0.247 0.009 260);
+  --surface-tertiary: oklch(0.285 0.01 260);
   --muted: oklch(0.71 0.01 260);
-  --border: oklch(0.32 0.008 260);
+  --border: oklch(0.305 0.009 260);
   --separator: var(--border);
   /* Nova reference blue (#2f80ed), lifted for dark-mode contrast. */
   --accent: oklch(0.68 0.17 258);
   --accent-foreground: oklch(0.99 0 0);
-  --accent-soft: oklch(0.3 0.08 260);
-  --accent-soft-foreground: oklch(0.81 0.1 255);
+  --accent-soft: oklch(0.305 0.075 259);
+  --accent-soft-foreground: oklch(0.83 0.1 255);
   --focus: var(--accent);
   --default: var(--surface-secondary);
   --default-foreground: var(--foreground);
@@ -65,7 +71,9 @@
   --field-foreground: var(--foreground);
   --field-border: var(--border);
   --field-placeholder: var(--muted);
-  --workspace-sidebar: oklch(0.205 0.008 260);
+  --shadow-card: 0 1px 2px #0000004d, 0 4px 14px #00000038;
+  --shadow-raised: 0 2px 6px #00000059, 0 12px 30px #00000047;
+  --workspace-sidebar: oklch(0.198 0.009 260);
   --color-slate-50: var(--surface-secondary);
   --color-slate-100: var(--surface-tertiary);
   --color-slate-200: var(--border);
@@ -90,12 +98,15 @@ input, select, textarea { accent-color: var(--accent); }
 .skip-link:focus { inset-block-start: 10px; }
 
 .workspace { min-height: 100dvh; }
-.workspace-sidebar { position: fixed; inset-block: 0; inset-inline-start: 0; width: 224px; display: flex; flex-direction: column; background: var(--workspace-sidebar); border-inline-end: 1px solid var(--border); z-index: 30; }
-.workspace-brand { display: flex; align-items: center; gap: 9px; min-height: 69px; padding: 12px 20px; border-block-end: 1px solid var(--border); font-size: 18px; font-weight: 650; letter-spacing: -0.5px; }
-.center-mark { color: var(--accent); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.workspace-sidebar { position: fixed; inset-block: 0; inset-inline-start: 0; width: 236px; display: flex; flex-direction: column; background: var(--workspace-sidebar); border-inline-end: 1px solid var(--border); z-index: 30; }
+.workspace-brand { display: flex; align-items: center; gap: 10px; min-height: 72px; padding: 12px 18px; font-size: 18px; font-weight: 650; letter-spacing: -0.5px; }
+/* The mark's ECG stroke is hardcoded white, so the cross itself must stay the
+   accent colour - the tile behind it is accent-soft, never solid accent. */
+.center-mark { color: var(--accent); background: var(--accent-soft); width: 36px; height: 36px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.center-mark svg { width: 22px; height: 22px; }
 .brand-caption { display: block; font-size: 9px; letter-spacing: 0.2px; font-weight: 400; color: var(--muted); margin-block-start: 1px; }
 .sidebar-scroll { padding: 17px 12px; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
-.navigation-search { height: 32px; display: flex; align-items: center; gap: 7px; padding-inline: 9px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--muted); box-shadow: 0 2px 4px #00000003; }
+.navigation-search { height: 36px; display: flex; align-items: center; gap: 7px; padding-inline: 11px; border: 1px solid transparent; border-radius: 10px; background: var(--surface-secondary); color: var(--muted); }
 .navigation-search:focus-within { border-color: var(--accent); outline: 2px solid var(--accent-soft); }
 .navigation-search input { min-width: 0; width: 100%; font-size: 11px; background: transparent; outline: none; border: none; color: var(--foreground); }
 .navigation-search input::placeholder { color: var(--muted); }
@@ -103,11 +114,16 @@ input, select, textarea { accent-color: var(--accent); }
 .navigation-group { margin-block-start: 22px; }
 .navigation-heading { margin: 0 9px 9px; font-size: 9px; font-weight: 500; letter-spacing: 0.65px; text-transform: uppercase; color: var(--muted); }
 html[lang="ar"] .navigation-heading { letter-spacing: 0; font-size: 10px; }
-.navigation-link { display: flex; align-items: center; gap: 10px; min-height: 35px; padding: 7px 10px; margin-block: 3px; border: 1px solid transparent; border-radius: 5px; font-size: 12px; font-weight: 450; color: var(--foreground); transition: background 140ms, color 140ms; }
-.navigation-link svg { flex-shrink: 0; width: 15px; height: 15px; color: var(--muted); }
-.navigation-link:hover { background: var(--surface-tertiary); }
-.navigation-link.is-active { color: var(--accent-soft-foreground); background: var(--surface); border-color: var(--border); box-shadow: 0 1px 3px #00000004; }
+.navigation-link { position: relative; display: flex; align-items: center; gap: 11px; min-height: 38px; padding: 8px 11px; margin-block: 2px; border: 1px solid transparent; border-radius: 10px; font-size: 12.5px; font-weight: 500; color: var(--muted); transition: background 140ms, color 140ms; }
+.navigation-link svg { flex-shrink: 0; width: 16px; height: 16px; color: var(--muted); transition: color 140ms; }
+.navigation-link:hover { background: var(--surface-secondary); color: var(--foreground); }
+.navigation-link:hover svg { color: var(--foreground); }
+/* Nova's active item: a filled accent pill with a short bar on the leading
+   edge, instead of the old bordered white chip. */
+.navigation-link.is-active { color: var(--accent-soft-foreground); background: var(--accent-soft); font-weight: 600; }
 .navigation-link.is-active svg { color: var(--accent); }
+.navigation-link.is-active::before { content: ""; position: absolute; inset-inline-start: 0; inset-block: 9px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+[dir="rtl"] .navigation-link.is-active::before { border-radius: 3px 0 0 3px; }
 .navigation-empty { padding: 16px 8px; color: var(--muted); font-size: 12px; }
 .sidebar-footer { padding: 10px 12px 17px; border-block-start: 1px solid var(--border); }
 .sidebar-theme { margin-block-start: 8px; display: flex; align-items: center; justify-content: space-between; padding-inline: 10px 4px; font-size: 12px; }
@@ -116,37 +132,56 @@ html[lang="ar"] .navigation-heading { letter-spacing: 0; font-size: 10px; }
 .theme-switcher { display: flex; border: 1px solid var(--border); border-radius: 999px; padding: 2px; background: var(--surface); gap: 1px; }
 .theme-switcher .button { width: 26px; height: 25px; min-width: 0; min-height: 0; border-radius: 50%; padding: 0; }
 .theme-switcher [aria-pressed="true"] { background: var(--surface-tertiary); color: var(--accent-soft-foreground); }
-.workspace-body { margin-inline-start: 224px; min-width: 0; }
-.workspace-topbar { position: sticky; top: 0; z-index: 20; min-height: 69px; border-block-end: 1px solid var(--border); background: var(--surface); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 28px; }
+.workspace-body { margin-inline-start: 236px; min-width: 0; }
+.workspace-topbar { position: sticky; top: 0; z-index: 20; min-height: 72px; border-block-end: 1px solid var(--border); background: color-mix(in oklch, var(--surface) 82%, transparent); backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 30px; }
 .topbar-location, .topbar-actions { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.topbar-title { font-size: 12px; font-weight: 600; }
+.topbar-title { font-size: 15px; font-weight: 650; letter-spacing: -0.3px; }
 .topbar-actions { gap: 15px; }
 .language-button { font-size: 11px; gap: 7px; color: var(--muted); }
 .topbar-divider { width: 1px; height: 20px; background: var(--border); }
 .account-menu { position: relative; }
 .account-menu summary { display: flex; align-items: center; gap: 9px; cursor: pointer; list-style: none; }
 .account-menu summary::-webkit-details-marker { display: none; }
-.account-avatar { width: 29px; height: 29px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-soft-foreground); border: 1px solid var(--border); font-size: 10px; font-weight: 600; }
+.account-avatar { width: 33px; height: 33px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--accent-foreground); border: 0; font-size: 11px; font-weight: 650; box-shadow: 0 2px 8px oklch(0.62 0.19 258 / 28%); }
 .account-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; }
-.account-panel { position: absolute; inset-block-start: calc(100% + 16px); inset-inline-end: 0; width: 210px; border: 1px solid var(--border); padding: 8px; background: var(--surface); border-radius: 8px; box-shadow: 0 8px 28px #00000010; display: grid; gap: 3px; }
+.account-panel { position: absolute; inset-block-start: calc(100% + 16px); inset-inline-end: 0; width: 210px; border: 1px solid var(--border); padding: 8px; background: var(--surface); border-radius: var(--card-radius); box-shadow: var(--shadow-raised); display: grid; gap: 3px; }
 .account-username { padding: 8px; color: var(--muted); border-block-end: 1px solid var(--border); font-size: 11px; overflow-wrap: anywhere; }
 .account-panel > a, .account-panel .button { padding: 9px; font-size: 12px; justify-content: flex-start; border-radius: 5px; }
 .account-panel > a:hover { background: var(--surface-secondary); }
-.workspace-content { max-width: 1600px; margin-inline: auto; padding: 28px; min-width: 0; }
-.workspace-content h1 { font-size: 22px; letter-spacing: -0.45px; line-height: 1.5; }
-.workspace-content h2 { line-height: 1.5; }
-.workspace-content table { border-collapse: collapse; font-size: 12px; }
-.workspace-content th { font-size: 11px; font-weight: 500; white-space: nowrap; padding-block: 12px; }
+.workspace-content { max-width: 1600px; margin-inline: auto; padding: 30px; min-width: 0; }
+.workspace-content h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.7px; line-height: 1.35; }
+.workspace-content h2 { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; line-height: 1.5; }
+
+/* Nova card: white panel floating on the tinted page - depth is the shadow,
+   so the pages' inline `border border-slate-200` is dialled down to a hairline
+   rather than edited out of all 27 of them. */
+.workspace-content .bg-white { background: var(--surface); border-radius: var(--card-radius); border-color: color-mix(in oklch, var(--border) 60%, transparent); box-shadow: var(--shadow-card); }
+.workspace-content .rounded-lg { border-radius: var(--card-radius); }
+.workspace-content .rounded-md { border-radius: 9px; }
+.workspace-content .bg-white:is(table, thead, tbody, tr, td, th) { box-shadow: none; border-radius: 0; }
+
+.workspace-content table { border-collapse: collapse; font-size: 12.5px; }
+.workspace-content thead { background: var(--surface-secondary); }
+.workspace-content th { font-size: 10.5px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); white-space: nowrap; padding-block: 12px; }
+html[lang="ar"] .workspace-content th { letter-spacing: 0; text-transform: none; font-size: 11.5px; }
 .workspace-content td { padding-block: 14px; }
-.workspace-content td, .workspace-content th { padding-inline: 14px; }
-.workspace-content tbody tr:hover { background: var(--surface-secondary); }
-.workspace-content .bg-white { background: var(--surface); }
-.workspace-content .bg-slate-800, .workspace-content .bg-slate-900 { background: var(--accent); color: var(--accent-foreground); }
-.workspace-content .bg-slate-800:hover, .workspace-content .bg-slate-900:hover { filter: brightness(0.95); }
-.workspace-content .shadow-sm { box-shadow: 0 1px 2px #00000003; }
-.workspace-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not(.input) { border-color: var(--border); background: var(--field-background); color: var(--foreground); border-radius: 5px; min-height: 35px; }
-.workspace-content :is(input, select, textarea):focus { border-color: var(--accent); outline-color: var(--accent); }
-.workspace-content button:not(.button) { min-height: 31px; border-radius: 5px; }
+/* Row separators only where the page didn't already put a border on the row,
+   so the two don't stack into a double rule. */
+.workspace-content tbody tr:not([class*="border"]) td { border-block-start: 1px solid color-mix(in oklch, var(--border) 70%, transparent); }
+.workspace-content td, .workspace-content th { padding-inline: 16px; }
+.workspace-content tbody tr { transition: background 120ms; }
+.workspace-content tbody tr:hover { background: var(--accent-soft); }
+
+/* Primary action: the pages write it as bg-slate-800/900, which the workspace
+   has always remapped to the accent - now with Nova's lift. */
+.workspace-content :is(.bg-slate-800, .bg-slate-900) { background: var(--accent); color: var(--accent-foreground); box-shadow: 0 2px 8px oklch(0.62 0.19 258 / 26%); font-weight: 600; transition: filter 140ms, transform 140ms, box-shadow 140ms; }
+.workspace-content :is(.bg-slate-800, .bg-slate-900):hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 4px 14px oklch(0.62 0.19 258 / 32%); }
+.workspace-content :is(.bg-slate-800, .bg-slate-900):active:not(:disabled) { transform: translateY(0); }
+.workspace-content .shadow-sm { box-shadow: var(--shadow-card); }
+
+.workspace-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not(.input) { border-color: var(--border); background: var(--field-background); color: var(--foreground); border-radius: 9px; min-height: 38px; padding-inline: 11px; transition: border-color 140ms, box-shadow 140ms; }
+.workspace-content :is(input, select, textarea):focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.workspace-content button:not(.button) { min-height: 34px; border-radius: 9px; font-weight: 500; }
 .mobile-menu-button { display: none; }
 
 .settings-content { padding: 0; max-width: none; }
@@ -241,8 +276,8 @@ span.preference-value { display: inline-flex; align-items: center; padding: 5px 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 @media (min-width: 1600px) { .workspace-content:not(.settings-content) { padding: 36px 44px; } }
 @media (max-width: 1100px) {
-  .workspace-sidebar { width: 202px; }
-  .workspace-body { margin-inline-start: 202px; }
+  .workspace-sidebar { width: 210px; }
+  .workspace-body { margin-inline-start: 210px; }
   .workspace-content { padding: 24px 20px; }
   .settings-content { padding: 0; }
   .settings-tabbar { padding-inline: 20px; }
@@ -292,7 +327,9 @@ span.preference-value { display: inline-flex; align-items: center; padding: 5px 
 .skeleton-cell { flex: 1; }
 .skeleton-cell-header { min-height: 10px; }
 
-.status-badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 500; line-height: 1.6; white-space: nowrap; border: 1px solid transparent; }
+.status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 9999px; font-size: 11px; font-weight: 600; line-height: 1.6; white-space: nowrap; border: 1px solid transparent; }
+/* Nova pills carry a leading dot in their tone colour. */
+.status-badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 .status-badge.tone-neutral { background: var(--surface-tertiary); color: var(--foreground); border-color: var(--border); }
 .status-badge.tone-muted { background: transparent; color: var(--muted); border-color: var(--border); }
 .status-badge.tone-success { background: color-mix(in oklch, oklch(0.72 0.17 155) 16%, transparent); color: oklch(0.45 0.14 155); border-color: color-mix(in oklch, oklch(0.72 0.17 155) 32%, transparent); }
