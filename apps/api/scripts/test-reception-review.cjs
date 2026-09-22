@@ -124,7 +124,7 @@ async function main() {
 main().catch(e=>{console.error(e);process.exitCode=2;}).finally(async()=>{
   if(app)await app.close();await db.$disconnect();global.Date=RealDate;
   const output={suite:'Phase 3 Reception',database:'disposable PostgreSQL 16',passed:results.filter(r=>r.status==='PASS').length,failed:results.filter(r=>r.status==='FAIL').length,results};
-  fs.writeFileSync(path.resolve(__dirname,'../../../docs/RECEPTION-TEST-RESULTS.json'),JSON.stringify(output,null,2)+'\n');
+  fs.writeFileSync(path.resolve(__dirname,'../test-reports/RECEPTION-TEST-RESULTS.json'),JSON.stringify(output,null,2)+'\n');
   console.log(JSON.stringify({passed:output.passed,failed:output.failed}));
   if(output.failed&&!process.exitCode)process.exitCode=1;
 });

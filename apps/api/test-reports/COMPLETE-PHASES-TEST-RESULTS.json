@@ -1,9 +1,9 @@
 {
   "suite": "Completed phases review: additional coverage 0,1,7-10",
-  "date": "2026-09-11T08:28:25.082Z",
+  "date": "2026-09-22T11:28:32.078Z",
   "database": "disposable PostgreSQL 16",
   "completed": true,
-  "passed": 130,
+  "passed": 137,
   "failed": 0,
   "results": [
     {
@@ -414,6 +414,11 @@
     },
     {
       "phase": 9,
+      "name": "Amend lab result from SAMPLE_REJECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
       "name": "Lab state ORDERED -> SAMPLE_COLLECTED",
       "status": "PASS"
     },
@@ -519,6 +524,21 @@
     },
     {
       "phase": 9,
+      "name": "Lab state SAMPLE_REJECTED -> SAMPLE_COLLECTED",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state SAMPLE_REJECTED -> PROCESSING",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
+      "name": "Lab state SAMPLE_REJECTED -> RESULT",
+      "status": "PASS"
+    },
+    {
+      "phase": 9,
       "name": "Critical result creates patient alert and final result",
       "status": "PASS"
     },
@@ -585,6 +605,11 @@
     },
     {
       "phase": 10,
+      "name": "Start dispensing from REJECTED_BY_PHARMACY",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
       "name": "Dispense from ACTIVE",
       "status": "PASS"
     },
@@ -606,6 +631,11 @@
     {
       "phase": 10,
       "name": "Dispense from STOPPED",
+      "status": "PASS"
+    },
+    {
+      "phase": 10,
+      "name": "Dispense from REJECTED_BY_PHARMACY",
       "status": "PASS"
     },
     {
@@ -665,6 +695,11 @@
     {
       "phase": 8,
       "name": "Administer from STOPPED",
+      "status": "PASS"
+    },
+    {
+      "phase": 8,
+      "name": "Administer from REJECTED_BY_PHARMACY",
       "status": "PASS"
     },
     {

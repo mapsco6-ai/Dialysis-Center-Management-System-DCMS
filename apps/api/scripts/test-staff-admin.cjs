@@ -581,8 +581,8 @@ const login = async (username, password) => {
     const login2 = await call2("POST", "/auth/sessions", null, { username: u.username, password: pw });
     assert.equal(login2.status, 200, JSON.stringify(login2.body));
     assert.match(login2.headers.get("set-cookie"), /HttpOnly/i);
-    const T = login2.body.accessToken;
-    assert.equal((await call2("GET", "/me", T)).body.username, u.username);
+    const T = login2.body.data.accessToken;
+    assert.equal((await call2("GET", "/me", T)).body.data.username, u.username);
     assert.equal((await call2("GET", "/me/work-queue", T)).status, 200, "unchanged routes keep their path");
     assert.equal((await call2("DELETE", "/auth/sessions/current", T)).status, 200);
     assert.equal((await call2("GET", "/me", T)).status, 401, "session ended");
@@ -609,29 +609,30 @@ const login = async (username, password) => {
     const iso = (d) => d.toISOString().slice(0, 10);
     const moved = await call2("POST", `/appointments/${appt.id}/reschedule`, A, { scheduledDate: iso(new Date(day.getTime() + 86400000)), shiftId: shifts[1].id, reason: "v2 move" });
     assert.equal(moved.status, 201, JSON.stringify(moved.body));
+    const movedId = moved.body.data.to.id;
     // session sub-resource: nothing started yet -> the API's own answer, proving the route reached the session handler
-    const s = await call2("GET", `/appointments/${moved.body.to.id}/session`, A);
+    const s = await call2("GET", `/appointments/${movedId}/session`, A);
     assert.ok([200, 404].includes(s.status), String(s.status));
-    assert.equal((await call2("POST", `/appointments/${moved.body.to.id}/session/start`, A, {})).status === 404, false, "start route exists in v2");
-    assert.equal((await call2("GET", `/sessions/${moved.body.to.id}`, A)).status, 404, "old /sessions/{id} is gone from v2");
+    assert.equal((await call2("POST", `/appointments/${movedId}/session/start`, A, {})).status === 404, false, "start route exists in v2");
+    assert.equal((await call2("GET", `/sessions/${movedId}`, A)).status, 404, "old /sessions/{id} is gone from v2");
   });
   await ok("v2: PATCH for status changes, PUT for restriction, audit-logs is the search", async () => {
     const ward = (await call("POST", "/wards", A, { name: `Ward v2 ${run}` })).body;
     const m = (await call("POST", "/machines", A, { machineCode: `V2${run}`, wardId: ward.id })).body;
     const r = await call2("PATCH", `/machines/${m.id}/status`, A, { status: "MAINTENANCE", reason: "v2" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.status, "MAINTENANCE");
+    assert.equal(r.body.data.status, "MAINTENANCE");
     assert.equal((await call2("POST", `/machines/${m.id}/status`, A, { status: "AVAILABLE", reason: "x" })).status, 404, "POST spelling is v1 only");
     const patient = (await call("POST", "/patients", A, { fullName: `V2r ${run}`, gender: "MALE", dateOfBirth: "1990-01-01" })).body;
     assert.equal((await call2("PUT", `/patients/${patient.id}/restriction`, A, { restricted: true, reason: "VIP" })).status, 200);
     assert.equal((await call2("PUT", `/patients/${patient.id}/restriction`, A, { restricted: false, reason: "done" })).status, 200);
     const search = await call2("GET", `/audit-logs?limit=2&actorId=${(await call("GET", "/auth/me", A)).body.id}`, A);
     assert.equal(search.status, 200);
-    assert.ok(typeof search.body.total === "number" && search.body.data.length <= 2);
-    assert.ok("nextCursor" in (await call2("GET", "/audit-logs/feed?limit=1", A)).body);
+    assert.ok(typeof search.body.meta.total === "number" && search.body.data.length <= 2);
+    assert.ok("nextCursor" in (await call2("GET", "/audit-logs/feed?limit=1", A)).body.meta);
     const trail = await call2("GET", `/patients/${patient.id}/audit-log?action=PATIENT_RESTRICTED`, A);
     assert.equal(trail.status, 200);
-    assert.ok(trail.body.total >= 1);
+    assert.ok(trail.body.meta.total >= 1);
   });
   await ok("v2 OpenAPI document is served and consistent with the route table", async () => {
     const doc = await (await fetch(`${API2}/docs-json`)).json();

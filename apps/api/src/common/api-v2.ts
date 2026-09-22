@@ -22,11 +22,17 @@ export const V2_PREFIX = "/api/v2";
 
 // Only successful JSON responses are enveloped. Errors and binary/streamed
 // downloads retain their existing contracts; v1 is never changed.
+//
+// Any v1 body already shaped { data: [...], ...rest } - offset-paginated
+// ({ data, total }), cursor-paginated ({ data, nextCursor }), or with extra
+// aggregates alongside the rows - unwraps to the same v2 contract: rows in
+// data, everything else (total, page, nextCursor, unread, ...) in meta. A
+// body that isn't already in that shape (a single resource, a plain array,
+// a primitive) is simply placed under data with no meta.
 export function v2Envelope(body: unknown) {
-  if (body && typeof body === "object" && "data" in body &&
-      Array.isArray(body.data) && "total" in body && typeof body.total === "number") {
-    const { data, ...meta } = body;
-    return { data, meta };
+  if (body && typeof body === "object" && "data" in body && Array.isArray((body as { data: unknown }).data)) {
+    const { data, ...rest } = body as { data: unknown[] } & Record<string, unknown>;
+    return Object.keys(rest).length ? { data, meta: rest } : { data };
   }
   return { data: body };
 }

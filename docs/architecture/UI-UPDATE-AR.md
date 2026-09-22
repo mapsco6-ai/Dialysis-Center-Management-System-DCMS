@@ -42,16 +42,16 @@ npm run test:ui --workspace=@dcms/web
 
 يشغّل إعداد Playwright خادم بيانات تجريبي على `127.0.0.1:3101` وواجهة على `127.0.0.1:3100`. يعتمد على Edge في Windows، أو Chromium المثبت لـ Playwright في الأنظمة الأخرى. يمكن اختيار متصفح مثبت عبر `PLAYWRIGHT_CHANNEL`. في بيئة جديدة يمكن تثبيت Chromium بواسطة `npx playwright install chromium`.
 
-للمعاينة اليدوية، شغّل `node scripts/ui-preview-api.mjs` ثم شغّل الويب على المنفذ 3100 مع `NEXT_PUBLIC_API_URL=http://127.0.0.1:3101/api/v1`. اسم المستخدم وكلمة المرور التجريبيان هما `fixture`؛ هذا الحساب خاص بالخادم التجريبي فقط. تستعمل التشغيلات الاعتيادية إعداد API الحالي للمشروع.
+للمعاينة اليدوية، شغّل `node scripts/ui-preview-api.mjs` ثم شغّل الويب على المنفذ 3100 مع `NEXT_PUBLIC_API_URL=http://127.0.0.1:3101/api/v2`. اسم المستخدم وكلمة المرور التجريبيان هما `fixture`؛ هذا الحساب خاص بالخادم التجريبي فقط. تستعمل التشغيلات الاعتيادية إعداد API الحالي للمشروع.
 
 نتائج الاختبارات التفصيلية في `apps/web/test-results/results.json` بعد التنفيذ.
 
-![الإعدادات بالإنكليزية](ui-preview/settings-en.png)
+![الإعدادات بالإنكليزية](../assets/ui-preview/settings-en.png)
 
-![الإعدادات بالعربية](ui-preview/settings-ar.png)
+![الإعدادات بالعربية](../assets/ui-preview/settings-ar.png)
 
-![لوحة المركز](ui-preview/dashboard-en.png)
+![لوحة المركز](../assets/ui-preview/dashboard-en.png)
 
-![المظهر الداكن](ui-preview/settings-dark.png)
+![المظهر الداكن](../assets/ui-preview/settings-dark.png)
 
-![عرض الموبايل بالعربية](ui-preview/settings-mobile-ar.png)
+![عرض الموبايل بالعربية](../assets/ui-preview/settings-mobile-ar.png)

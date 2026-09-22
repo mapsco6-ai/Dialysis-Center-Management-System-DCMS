@@ -14,6 +14,7 @@ before(async () => {
     if (req.path.endsWith('/empty')) return res.status(204).end();
     if (req.path.endsWith('/list')) return res.json([{ id: 'one' }]);
     if (req.path.endsWith('/paged')) return res.json({ data: [{ id: 'one' }], total: 9, page: 2, limit: 1, unread: 4 });
+    if (req.path.endsWith('/cursor')) return res.json({ data: [{ id: 'one' }], nextCursor: 'abc' });
     if (req.path.endsWith('/docs-json')) return res.json({ openapi: '3.0.0' });
     res.cookie('session', 'fixture', { httpOnly: true });
     res.status(req.method === 'POST' ? 201 : 200).json({ method: req.method, path: req.path, query: req.query, body: req.body });
@@ -48,8 +49,12 @@ test('Arrays and paginated lists share data without losing metadata; v1 stays un
   const get = async path => (await fetch(base + path)).json();
   assert.deepEqual(await get('/api/v2/list'), { data: [{ id: 'one' }] });
   assert.deepEqual(await get('/api/v2/paged'), { data: [{ id: 'one' }], meta: { total: 9, page: 2, limit: 1, unread: 4 } });
+  // Cursor-paginated lists (e.g. the audit feed) get the same treatment -
+  // rows in data, nextCursor (not a `total`) in meta.
+  assert.deepEqual(await get('/api/v2/cursor'), { data: [{ id: 'one' }], meta: { nextCursor: 'abc' } });
   assert.deepEqual(await get('/api/v1/list'), [{ id: 'one' }]);
   assert.deepEqual(await get('/api/v1/paged'), { data: [{ id: 'one' }], total: 9, page: 2, limit: 1, unread: 4 });
+  assert.deepEqual(await get('/api/v1/cursor'), { data: [{ id: 'one' }], nextCursor: 'abc' });
 });
 test('Errors, rejected aliases, empty responses, Swagger and downloads keep their contracts', async () => {
   const error = await fetch(base + '/api/v2/error');

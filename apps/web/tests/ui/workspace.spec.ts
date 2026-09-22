@@ -22,7 +22,7 @@ async function noHorizontalOverflow(page: Page) {
 }
 
 async function capture(page: Page, filename: string) {
-  await page.screenshot({ path: `../../docs/ui-preview/${filename}.png`, fullPage: true, style: "nextjs-portal { display: none; }" });
+  await page.screenshot({ path: `../../docs/assets/ui-preview/${filename}.png`, fullPage: true, style: "nextjs-portal { display: none; }" });
 }
 
 test("login language and error message switch without clearing credentials", async ({ page }) => {

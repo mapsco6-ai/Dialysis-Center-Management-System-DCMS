@@ -50,5 +50,5 @@ test('All documented paths use the running API prefix', () => {
   for(const route of Object.keys(spec.paths))assert.ok(route.startsWith('/api/v1/'),route);
 });
 const output={suite:'OpenAPI request contract',schemas:Object.keys(schemas).length,paths:Object.keys(spec.paths).length,passed:results.filter(r=>r.status==='PASS').length,failed:results.filter(r=>r.status==='FAIL').length,results};
-fs.writeFileSync(path.join(__dirname,'../../../docs/OPENAPI-TEST-RESULTS.json'),JSON.stringify(output,null,2)+'\n');
+fs.writeFileSync(path.join(__dirname,'../test-reports/OPENAPI-TEST-RESULTS.json'),JSON.stringify(output,null,2)+'\n');
 console.log(JSON.stringify(output,null,2)); if(output.failed)process.exitCode=1;

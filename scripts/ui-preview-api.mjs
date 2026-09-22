@@ -4,7 +4,8 @@
  * proxy, or persistent storage is accessed. Restarting resets the fixtures.
  *
  * Usage: node scripts/ui-preview-api.mjs
- * Web preview: NEXT_PUBLIC_API_URL=http://127.0.0.1:3101/api/v1, port 3100.
+ * Web preview: NEXT_PUBLIC_API_URL=http://127.0.0.1:3101/api/v2, port 3100.
+ * (Also answers under /api/v1 for anything that still calls the old prefix.)
  * Demo login: fixture / fixture. Optional port: UI_PREVIEW_API_PORT=3101.
  * These responses support visual checks; they do not verify real API behavior.
  */
@@ -265,7 +266,7 @@ const server = createServer(async (request, response) => {
 const sockets = new SocketServer(server, { cors: { origin: origins } });
 sockets.use((socket, next) => next(socket.handshake.auth.token === token ? undefined : new Error("Fixture authentication required")));
 server.listen(port, "127.0.0.1", () => {
-  console.log(`Synthetic UI fixture API: http://127.0.0.1:${port}/api/v1`);
+  console.log(`Synthetic UI fixture API: http://127.0.0.1:${port}/api/v2 (also answers under /api/v1)`);
   console.log("Demo login: fixture / fixture. In-memory invented data only.");
 });
 function shutdown() { sockets.close(); }
