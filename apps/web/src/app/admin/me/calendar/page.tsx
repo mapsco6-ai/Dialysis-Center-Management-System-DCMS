@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
-import { StatusBadge } from "@/components/StatusBadge";
+import { ErrorNote } from "@/components/ErrorNote";
 import { toast } from "@/components/Toaster";
-import { MyCalendar, Task, TaskStatus } from "@/lib/types";
+import { MyCalendar, Task, TaskPriority, TaskStatus } from "@/lib/types";
 
 function toLocalDateInputValue(date: Date) {
   const yyyy = date.getFullYear();
@@ -20,27 +20,51 @@ function toLocalDateInputValue(date: Date) {
 
 function startOfWeek(date: Date) {
   const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
   start.setDate(start.getDate() - start.getDay());
   return start;
 }
 
-function weekDates(start: Date) {
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 const NEXT_TASK_STATUS: Partial<Record<TaskStatus, TaskStatus>> = { OPEN: "IN_PROGRESS", IN_PROGRESS: "DONE" };
+const PRIORITY_TONE: Record<TaskPriority, string> = { URGENT: "tone-urgent", HIGH: "tone-high", NORMAL: "tone-task", LOW: "tone-low" };
+const VISIBLE_PER_DAY = 3;
+
+type CalendarEntry = {
+  key: string;
+  tone: string;
+  label: string;
+  time: string;
+  title: string;
+  href?: string;
+  onClick?: () => void;
+  done?: boolean;
+};
 
 export default function MyCalendarPage() {
   const { t, formatDate } = useI18n();
   const user = useCurrentUser();
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const days = weekDates(weekStart);
+  const [view, setView] = useState<"month" | "week">("month");
+  const [anchor, setAnchor] = useState(() => new Date());
+  const [status, setStatus] = useState<"ALL" | TaskStatus>("ALL");
+  const [priority, setPriority] = useState<"ALL" | TaskPriority>("ALL");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  // A month view shows whole weeks, so the range runs from the Sunday before
+  // the 1st to the Saturday after the last day - entries in the greyed-out
+  // leading and trailing cells are real and must be fetched too.
+  const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const gridStart = view === "month" ? startOfWeek(monthStart) : startOfWeek(anchor);
+  const dayCount = view === "month" ? 42 : 7;
+  const days = Array.from({ length: dayCount }, (_, i) => addDays(gridStart, i));
   const from = toLocalDateInputValue(days[0]);
-  const to = toLocalDateInputValue(days[6]);
+  const to = toLocalDateInputValue(days[days.length - 1]);
   const { data, loading, refresh } = useApi<MyCalendar>(user ? `/me/calendar?from=${from}&to=${to}` : null);
 
   async function advanceTask(task: Task) {
@@ -58,88 +82,251 @@ export default function MyCalendarPage() {
     return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
-  const dayKey = (d: Date) => toLocalDateInputValue(d);
-  const tasksWithoutDate = (data?.tasks ?? []).filter((task) => !task.dueAt);
+  const todayKey = toLocalDateInputValue(new Date());
+  const keepTask = (task: Task) =>
+    (status === "ALL" || task.status === status) && (priority === "ALL" || task.priority === priority);
+
+  function entriesFor(day: Date): CalendarEntry[] {
+    const key = toLocalDateInputValue(day);
+    const shifts = (data?.shifts ?? [])
+      .filter((s) => toLocalDateInputValue(new Date(s.date)) === key)
+      .map<CalendarEntry>((s) => ({
+        key: `shift-${s.id}`,
+        tone: "tone-shift",
+        label: s.ward.name,
+        time: s.shift.dialysisStart,
+        title: `${s.ward.name} · ${s.shift.dialysisStart}–${s.shift.dialysisEnd}`,
+      }));
+    const tasks = (data?.tasks ?? [])
+      .filter((task) => task.dueAt && toLocalDateInputValue(new Date(task.dueAt)) === key)
+      .filter(keepTask)
+      .map<CalendarEntry>((task) => ({
+        key: `task-${task.id}`,
+        tone: PRIORITY_TONE[task.priority],
+        label: task.title,
+        time: formatDate(task.dueAt as string, { hour: "2-digit", minute: "2-digit" }),
+        title: `${task.title}${task.patient ? ` · ${task.patient.fullName}` : ""}`,
+        done: task.status === "DONE" || task.status === "CANCELLED",
+        onClick: NEXT_TASK_STATUS[task.status] ? () => advanceTask(task) : undefined,
+      }));
+    const appointments = (data?.appointments ?? [])
+      .filter((a) => toLocalDateInputValue(new Date(a.date)) === key)
+      .map<CalendarEntry>((a, i) => ({
+        key: `appt-${key}-${i}`,
+        tone: "tone-appointment",
+        label: a.patient.fullName,
+        time: a.shift.dialysisStart,
+        title: `${a.patient.fullName} · ${a.patient.patientCode}`,
+        href: `/admin/care/patients/${a.patient.id}`,
+      }));
+    return [...shifts, ...tasks, ...appointments].sort((a, b) => a.time.localeCompare(b.time));
+  }
+
+  const undated = (data?.tasks ?? []).filter((task) => !task.dueAt).filter(keepTask);
+  const periodLabel = view === "month"
+    ? formatDate(monthStart, { month: "long", year: "numeric" })
+    : `${formatDate(days[0], { day: "numeric", month: "short" })} – ${formatDate(days[6], { day: "numeric", month: "short", year: "numeric" })}`;
+
+  function shift(direction: 1 | -1) {
+    setAnchor((prev) => (view === "month"
+      ? new Date(prev.getFullYear(), prev.getMonth() + direction, 1)
+      : addDays(prev, 7 * direction)));
+  }
 
   return (
     <AdminShell user={user}>
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">{t("تقويمي", "My calendar")}</h1>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setWeekStart(startOfWeek(new Date()))} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
-            {t("هذا الأسبوع", "This week")}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1>{t("تقويمي", "My calendar")}</h1>
+          <p className="mt-1 text-sm text-muted">
+            {t("مناوباتك ومهامك ومواعيد مرضاك في مكان واحد.", "Your shifts, tasks, and patient appointments in one place.")}
+          </p>
+        </div>
+        {user.permissions.includes("task.create") && (
+          <button onClick={() => setAdding((v) => !v)} className="bg-slate-900 px-4 text-sm text-white">
+            {adding ? t("إلغاء", "Cancel") : t("+ مهمة جديدة", "+ Add task")}
           </button>
-          <button onClick={() => setWeekStart((prev) => { const d = new Date(prev); d.setDate(d.getDate() - 7); return d; })} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100">‹</button>
-          <button onClick={() => setWeekStart((prev) => { const d = new Date(prev); d.setDate(d.getDate() + 7); return d; })} className="rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100">›</button>
+        )}
+      </div>
+
+      {adding && <AddTaskForm userId={user.id} onDone={() => { setAdding(false); refresh(); }} />}
+
+      <div className="mt-5 cal-toolbar">
+        <div className="cal-period">
+          <div className="cal-monthchip" aria-hidden="true">
+            <b>{formatDate(anchor, { month: "short" })}</b>
+            <span>{anchor.getDate()}</span>
+          </div>
+          <div>
+            <p className="cal-period-title">{periodLabel}</p>
+            <p className="cal-period-range">
+              {formatDate(days[0], { dateStyle: "medium" })} – {formatDate(days[days.length - 1], { dateStyle: "medium" })}
+            </p>
+          </div>
+        </div>
+
+        <div className="cal-tools">
+          <div className="cal-nav">
+            <button onClick={() => shift(-1)} aria-label={t("السابق", "Previous")}><Arrow dir="start" /></button>
+            <button onClick={() => setAnchor(new Date())}>{t("اليوم", "Today")}</button>
+            <button onClick={() => shift(1)} aria-label={t("التالي", "Next")}><Arrow dir="end" /></button>
+          </div>
+          <select value={view} onChange={(e) => setView(e.target.value as "month" | "week")} aria-label={t("طريقة العرض", "View")} className="border border-slate-200 text-sm">
+            <option value="month">{t("عرض شهري", "Month view")}</option>
+            <option value="week">{t("عرض أسبوعي", "Week view")}</option>
+          </select>
+          <select value={status} onChange={(e) => setStatus(e.target.value as "ALL" | TaskStatus)} aria-label={t("الحالة", "Status")} className="border border-slate-200 text-sm">
+            <option value="ALL">{t("كل الحالات", "All statuses")}</option>
+            <option value="OPEN">{t("مفتوحة", "Open")}</option>
+            <option value="IN_PROGRESS">{t("قيد التنفيذ", "In progress")}</option>
+            <option value="DONE">{t("منجزة", "Done")}</option>
+          </select>
+          <select value={priority} onChange={(e) => setPriority(e.target.value as "ALL" | TaskPriority)} aria-label={t("الأولوية", "Priority")} className="border border-slate-200 text-sm">
+            <option value="ALL">{t("كل الأولويات", "All priorities")}</option>
+            <option value="URGENT">{t("عاجلة", "Urgent")}</option>
+            <option value="HIGH">{t("عالية", "High")}</option>
+            <option value="NORMAL">{t("عادية", "Normal")}</option>
+            <option value="LOW">{t("منخفضة", "Low")}</option>
+          </select>
         </div>
       </div>
 
-      {tasksWithoutDate.length > 0 && (
-        <section className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{t("مهام بدون موعد محدد", "Tasks with no due date")}</h2>
-          <ul className="space-y-1">
-            {tasksWithoutDate.map((task) => <TaskRow key={task.id} task={task} onAdvance={advanceTask} />)}
-          </ul>
+      {loading && <p className="mt-4 text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>}
+
+      <div className="cal-sheet">
+        <div className="cal-grid">
+          {days.slice(0, 7).map((day) => (
+            <div key={`head-${day.getDay()}`} className="cal-head">{formatDate(day, { weekday: "short" })}</div>
+          ))}
+          {days.map((day) => {
+            const key = toLocalDateInputValue(day);
+            const entries = entriesFor(day);
+            const isOpen = expanded === key;
+            const shown = isOpen ? entries : entries.slice(0, VISIBLE_PER_DAY);
+            const outside = view === "month" && day.getMonth() !== anchor.getMonth();
+            return (
+              <div key={key} className={`cal-cell${outside ? " is-outside" : ""}`}>
+                <span className={`cal-daynum${key === todayKey ? " is-today" : ""}`}>{day.getDate()}</span>
+                {shown.map((entry) => <CalendarEvent key={entry.key} entry={entry} />)}
+                {entries.length > VISIBLE_PER_DAY && (
+                  <button className="cal-more" onClick={() => setExpanded(isOpen ? null : key)}>
+                    {isOpen ? t("عرض أقل", "Show less") : `+${entries.length - VISIBLE_PER_DAY} ${t("أخرى", "more")}`}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {undated.length > 0 && (
+        <section className="mt-5 rounded-lg border border-slate-200 bg-white p-4">
+          <h2>{t("مهام بدون موعد محدد", "Tasks with no due date")}</h2>
+          <div className="mt-3 grid gap-1">
+            {undated.map((task) => (
+              <CalendarEvent
+                key={task.id}
+                entry={{
+                  key: task.id,
+                  tone: PRIORITY_TONE[task.priority],
+                  label: task.title,
+                  time: "",
+                  title: task.title,
+                  done: task.status === "DONE" || task.status === "CANCELLED",
+                  onClick: NEXT_TASK_STATUS[task.status] ? () => advanceTask(task) : undefined,
+                }}
+              />
+            ))}
+          </div>
         </section>
       )}
-
-      {loading && <p className="mt-6 text-sm text-slate-400">{t("جاري التحميل...", "Loading...")}</p>}
-
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
-        {days.map((d) => {
-          const key = dayKey(d);
-          const shifts = (data?.shifts ?? []).filter((s) => toLocalDateInputValue(new Date(s.date)) === key);
-          const appointments = (data?.appointments ?? []).filter((a) => toLocalDateInputValue(new Date(a.date)) === key);
-          const tasks = (data?.tasks ?? []).filter((task) => task.dueAt && toLocalDateInputValue(new Date(task.dueAt)) === key);
-          const isToday = key === toLocalDateInputValue(new Date());
-          return (
-            <div key={key} className={`rounded-lg border bg-white p-2 ${isToday ? "border-slate-400" : "border-slate-200"}`}>
-              <p className="mb-2 text-xs font-semibold text-slate-600">{formatDate(d, { weekday: "short", day: "numeric", month: "short" })}</p>
-
-              {shifts.map((s) => (
-                <div key={s.id} className="mb-1 rounded bg-slate-50 px-2 py-1 text-[11px] text-slate-600">
-                  {s.ward.name} · {s.shift.dialysisStart}–{s.shift.dialysisEnd}
-                </div>
-              ))}
-
-              {tasks.map((task) => <TaskRow key={task.id} task={task} onAdvance={advanceTask} compact />)}
-
-              {appointments.map((a, i) => (
-                <Link key={i} href={`/admin/care/patients/${a.patient.id}`} className="mb-1 flex items-center justify-between rounded px-2 py-1 text-[11px] text-slate-700 hover:bg-slate-50">
-                  <span>{a.patient.fullName}</span>
-                  {a.status && <StatusBadge group="schedule" value={a.status} />}
-                </Link>
-              ))}
-
-              {shifts.length === 0 && tasks.length === 0 && appointments.length === 0 && (
-                <p className="text-[11px] text-slate-300">{t("لا شيء", "Nothing")}</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </AdminShell>
   );
 }
 
-function TaskRow({ task, onAdvance, compact }: { task: Task; onAdvance: (task: Task) => void; compact?: boolean }) {
-  const { t } = useI18n();
-  const next = NEXT_TASK_STATUS[task.status];
+function Arrow({ dir }: { dir: "start" | "end" }) {
   return (
-    <div className={`mb-1 rounded border border-slate-100 px-2 py-1 ${compact ? "text-[11px]" : "text-xs"}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-slate-700">{task.title}</span>
-        <StatusBadge group="task" value={task.status} />
-      </div>
-      <p className="text-slate-400">
-        {task.assignedTo ? t("مسندة إليك", "Assigned to you") : t(`لكل ${task.assignedToRole?.name}`, `Routed to ${task.assignedToRole?.name}`)}
-        {task.patient ? ` · ${task.patient.fullName}` : ""}
-      </p>
-      {next && (
-        <button onClick={() => onAdvance(task)} className="mt-1 text-[11px] font-medium text-slate-600 hover:underline">
-          {next === "IN_PROGRESS" ? t("بدء العمل", "Start") : t("إنهاء", "Mark done")}
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {dir === "start" ? <path d="M19 12H5M12 19l-7-7 7-7" /> : <path d="M5 12h14M12 5l7 7-7 7" />}
+    </svg>
+  );
+}
+
+function CalendarEvent({ entry }: { entry: CalendarEntry }) {
+  const className = `cal-event ${entry.tone}${entry.done ? " is-done" : ""}`;
+  const body = (
+    <>
+      <span className="cal-event-label">{entry.label}</span>
+      {entry.time && <span className="cal-event-time">{entry.time}</span>}
+    </>
+  );
+  if (entry.href) {
+    return <Link href={entry.href} className={className} title={entry.title}>{body}</Link>;
+  }
+  // Entries with nothing to do on click stay non-interactive rather than
+  // becoming a button that silently does nothing.
+  if (!entry.onClick) {
+    return <span className={className} title={entry.title} style={{ cursor: "default" }}>{body}</span>;
+  }
+  return <button type="button" className={className} title={entry.title} onClick={entry.onClick}>{body}</button>;
+}
+
+function AddTaskForm({ userId, onDone }: { userId: string; onDone: () => void }) {
+  const { t } = useI18n();
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSaving(true);
+    const form = new FormData(event.currentTarget);
+    const dueAt = String(form.get("dueAt") ?? "");
+    try {
+      await apiFetch("/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: form.get("title"),
+          assignedToId: userId,
+          priority: form.get("priority"),
+          // The API takes a full ISO timestamp; a date input only gives a day.
+          ...(dueAt ? { dueAt: new Date(`${dueAt}T09:00`).toISOString() } : {}),
+        }),
+      });
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("تعذر إنشاء المهمة", "Unable to create the task"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+      <h2>{t("مهمة جديدة لي", "New task for me")}</h2>
+      <div className="mt-3 flex flex-wrap items-end gap-3">
+        <label className="flex min-w-60 flex-1 flex-col gap-1 text-xs font-medium">
+          {t("العنوان", "Title")}
+          <input name="title" required autoFocus className="border border-slate-200" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium">
+          {t("التاريخ", "Due date")}
+          <input type="date" name="dueAt" className="border border-slate-200" />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium">
+          {t("الأولوية", "Priority")}
+          <select name="priority" defaultValue="NORMAL" className="border border-slate-200">
+            <option value="URGENT">{t("عاجلة", "Urgent")}</option>
+            <option value="HIGH">{t("عالية", "High")}</option>
+            <option value="NORMAL">{t("عادية", "Normal")}</option>
+            <option value="LOW">{t("منخفضة", "Low")}</option>
+          </select>
+        </label>
+        <button type="submit" disabled={saving} className="bg-slate-900 px-4 text-sm text-white">
+          {saving ? t("جاري الحفظ...", "Saving...") : t("حفظ", "Save")}
         </button>
-      )}
-    </div>
+      </div>
+      <ErrorNote message={error} />
+    </form>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -24,15 +25,32 @@ const severityStyles: Record<string, string> = {
   INFORMATION: "bg-slate-50 border-slate-300 text-slate-700",
 };
 
+const severityTone: Record<string, string> = {
+  CRITICAL: "pt-sev-critical",
+  IMPORTANT: "pt-sev-important",
+  INFORMATION: "pt-sev-information",
+};
+
 const WEEKDAYS: Weekday[] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-function InfoField({ label, value }: { label: string; value: React.ReactNode }) {
+type TabKey = "general" | "plan" | "supplies" | "timeline";
+
+function Detail({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div>
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-sm text-slate-800">{value ?? "-"}</p>
+    <div className="pt-detail">
+      <dt>{label}</dt>
+      <dd>{value || "—"}</dd>
     </div>
   );
+}
+
+function ageFrom(dateOfBirth: string) {
+  const birth = new Date(dateOfBirth);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDelta = now.getMonth() - birth.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birth.getDate())) age -= 1;
+  return age;
 }
 
 export default function PatientProfilePage() {
@@ -78,6 +96,7 @@ export default function PatientProfilePage() {
   const [timeline, setTimeline] = useState<PatientTimelineEvent[]>([]);
   const [showAlertForm, setShowAlertForm] = useState(false);
   const [alertError, setAlertError] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("general");
 
   const [plan, setPlan] = useState<DialysisPlanEntry[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -193,324 +212,309 @@ export default function PatientProfilePage() {
     return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
+  const canPlan = user.permissions.includes("scheduling.manage");
+  const canSupplies = user.permissions.includes("inventory.view") || user.permissions.includes("inventory.manage");
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: "general", label: t("البيانات العامة", "General") },
+    ...(canPlan ? [{ key: "plan" as TabKey, label: t("خطة الغسيل", "Dialysis plan") }] : []),
+    ...(canSupplies ? [{ key: "supplies" as TabKey, label: t("المستلزمات", "Supplies") }] : []),
+    { key: "timeline", label: t("السجل الزمني", "Timeline") },
+  ];
+  const activeTab = tabs.some((item) => item.key === tab) ? tab : "general";
+  const initials = patient.fullName.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0]).join("");
+  const openAlerts = (patient.alerts ?? []).filter((a) => !a.resolvedAt);
+
   return (
     <AdminShell user={user}>
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-800">{patient.fullName}</h1>
-          <p className="text-sm text-slate-500">
-            {patient.patientCode} &middot; {patient.barcode}
-          </p>
-        </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-          {patientStatusLabel[patient.status]}
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/admin/care/patients" className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+          <svg className="dir-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          {t("المرضى", "Patients")}
+        </Link>
+        {user.permissions.includes("patient.alert.manage") && (
+          <button onClick={() => setShowAlertForm((v) => !v)} className="bg-slate-900 px-4 text-sm text-white">
+            {showAlertForm ? t("إلغاء", "Cancel") : t("+ تنبيه سريري", "+ Clinical alert")}
+          </button>
+        )}
       </div>
 
-      {patient.alerts && patient.alerts.filter((a) => !a.resolvedAt).length > 0 && (
+      {openAlerts.length > 0 && (
         <div className="mt-4 space-y-2">
-          {patient.alerts
-            .filter((a) => !a.resolvedAt)
-            .map((alert) => (
-              <div
-                key={alert.id}
-                className={`rounded-md border px-4 py-2 text-sm ${severityStyles[alert.severity]}`}
-              >
-                <span className="font-semibold">[{severityLabel[alert.severity]}]</span> {alert.category}: {alert.message}
-              </div>
-            ))}
+          {openAlerts.map((alert) => (
+            <div key={alert.id} className={`rounded-md border px-4 py-2 text-sm ${severityStyles[alert.severity]}`}>
+              <span className="font-semibold">[{severityLabel[alert.severity]}]</span> {alert.category}: {alert.message}
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-        <section className="rounded-lg border border-slate-200 bg-white p-6 md:col-span-2">
-          <h2 className="mb-4 text-sm font-semibold text-slate-500">{t("البيانات الأساسية", "Basic information")}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <InfoField label={t("الجنس", "Sex")} value={patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")} />
-            <InfoField label={t("تاريخ الميلاد", "Date of birth")} value={formatDate(patient.dateOfBirth, { timeZone: "UTC" })} />
-            <InfoField label={t("الهاتف", "Phone")} value={patient.phone} />
-            <InfoField label={t("العنوان", "Address")} value={patient.address} />
-            <InfoField label={t("رقم الإضبارة", "File number")} value={patient.fileNumber} />
-            <InfoField label={t("تاريخ بدء الديلزة", "Dialysis start date")} value={patient.dialysisStartDate ? formatDate(patient.dialysisStartDate, { timeZone: "UTC" }) : null} />
-            <InfoField label={t("الوزن الجاف", "Dry weight")} value={patient.dryWeight != null ? formatNumber(Number(patient.dryWeight)) : null} />
-            <InfoField label={t("نوع الوصول الوعائي", "Vascular access type")} value={patient.vascularAccessType ? vascularAccessLabel[patient.vascularAccessType] : null} />
-            <InfoField label={t("الحساسية", "Allergies")} value={patient.allergies} />
-            <InfoField label={t("الأمراض المزمنة", "Chronic conditions")} value={patient.chronicDiseases?.join(", ")} />
-          </div>
-          {patient.medicalNotes && (
-            <div className="mt-4">
-              <InfoField label={t("ملاحظات طبية", "Medical notes")} value={patient.medicalNotes} />
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-500">{t("التنبيهات السريرية", "Clinical alerts")}</h2>
-            {user.permissions.includes("patient.alert.manage") && (
-              <button
-                onClick={() => setShowAlertForm((v) => !v)}
-                className="text-xs font-medium text-slate-600 hover:underline"
-              >
-                {t("+ تنبيه", "+ Add alert")}
-              </button>
-            )}
-          </div>
-
-          {showAlertForm && (
-            <form onSubmit={handleCreateAlert} className="mt-3 space-y-2 rounded-md border border-slate-200 p-3">
-              <select name="severity" required className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm">
+      {showAlertForm && (
+        <form onSubmit={handleCreateAlert} className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2>{t("تنبيه سريري جديد", "New clinical alert")}</h2>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              {t("الخطورة", "Severity")}
+              <select name="severity" required className="border border-slate-200">
                 <option value="CRITICAL">{severityLabel.CRITICAL}</option>
                 <option value="IMPORTANT">{severityLabel.IMPORTANT}</option>
                 <option value="INFORMATION">{severityLabel.INFORMATION}</option>
               </select>
-              <input
-                name="category"
-                required
-                placeholder={t("التصنيف (مثال: Drug Allergy)", "Category (e.g. Drug allergy)")}
-                className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-              />
-              <textarea
-                name="message"
-                required
-                placeholder={t("نص التنبيه", "Alert message")}
-                className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
-                rows={2}
-              />
-              <ErrorNote message={alertError} />
-              <button
-                type="submit"
-                className="w-full rounded-md bg-slate-800 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-              >
-                {t("حفظ التنبيه", "Save alert")}
-              </button>
-            </form>
-          )}
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium">
+              {t("التصنيف", "Category")}
+              <input name="category" required placeholder={t("مثال: حساسية دواء", "e.g. Drug allergy")} className="border border-slate-200" />
+            </label>
+            <label className="flex min-w-60 flex-1 flex-col gap-1 text-xs font-medium">
+              {t("نص التنبيه", "Message")}
+              <input name="message" required className="border border-slate-200" />
+            </label>
+            <button type="submit" className="bg-slate-900 px-4 text-sm text-white">{t("حفظ التنبيه", "Save alert")}</button>
+          </div>
+          <ErrorNote message={alertError} />
+        </form>
+      )}
 
-          <ul className="mt-3 space-y-2">
-            {(patient.alerts ?? []).map((alert) => (
-              <li key={alert.id} className="text-xs text-slate-600">
-                <span className="font-semibold">{severityLabel[alert.severity]}</span> - {alert.category}
-                {alert.resolvedAt && <span className="text-slate-400"> {t("(محلول)", "(Resolved)")}</span>}
-              </li>
+      <div className="mt-5 pt-layout">
+        <div className="grid gap-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 pt-identity">
+            <span className="pt-avatar" aria-hidden="true">{initials}</span>
+            <h1 className="pt-name">{patient.fullName}</h1>
+            <p className="pt-code">{patient.patientCode}</p>
+            <p className={`mt-2 status-badge ${patient.status === "ACTIVE" ? "tone-success" : "tone-muted"}`}>
+              {patientStatusLabel[patient.status]}
+            </p>
+            <dl className="pt-facts">
+              <div className="pt-fact"><dt>{t("الجنس", "Gender")}</dt><dd>{patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")}</dd></div>
+              <div className="pt-fact"><dt>{t("العمر", "Age")}</dt><dd>{formatNumber(ageFrom(patient.dateOfBirth))}</dd></div>
+              <div className="pt-fact"><dt>{t("الهاتف", "Phone")}</dt><dd>{patient.phone || "—"}</dd></div>
+              <div className="pt-fact"><dt>{t("رقم الإضبارة", "File no.")}</dt><dd>{patient.fileNumber || "—"}</dd></div>
+              <div className="pt-fact"><dt>{t("الوزن الجاف", "Dry weight")}</dt><dd>{patient.dryWeight != null ? formatNumber(Number(patient.dryWeight)) : "—"}</dd></div>
+              <div className="pt-fact"><dt>{t("الوصول الوعائي", "Access")}</dt><dd>{patient.vascularAccessType ? vascularAccessLabel[patient.vascularAccessType] : "—"}</dd></div>
+            </dl>
+            {(patient.chronicDiseases ?? []).length > 0 && (
+              <div className="pt-tags">
+                {(patient.chronicDiseases ?? []).map((condition) => <span key={condition} className="pt-tag">#{condition}</span>)}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2>{t("التنبيهات السريرية", "Clinical alerts")}</h2>
+            <div className="mt-3 pt-list">
+              {(patient.alerts ?? []).map((alert) => (
+                <div key={alert.id} className="pt-list-row">
+                  <b>{alert.category}</b>
+                  <span className={`pt-sev ${alert.resolvedAt ? "pt-sev-resolved" : severityTone[alert.severity]}`}>
+                    {alert.resolvedAt ? t("محلول", "Resolved") : severityLabel[alert.severity]}
+                  </span>
+                </div>
+              ))}
+              {(patient.alerts ?? []).length === 0 && <p className="text-xs text-muted">{t("لا توجد تنبيهات", "No alerts")}</p>}
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <h2>{t("الحساسية والملاحظات", "Allergies & notes")}</h2>
+            <div className="mt-3 pt-list">
+              <div><p className="text-xs text-muted">{t("الحساسية", "Allergies")}</p><p className="mt-1 text-xs font-semibold text-slate-700">{patient.allergies || t("لا توجد حساسية مسجّلة", "None recorded")}</p></div>
+              <div><p className="text-xs text-muted">{t("ملاحظات طبية", "Medical notes")}</p><p className="mt-1 text-xs font-semibold text-slate-700">{patient.medicalNotes || t("لا توجد ملاحظات", "No notes")}</p></div>
+            </div>
+          </section>
+        </div>
+
+        <div>
+          <div className="pt-tabs" role="tablist">
+            {tabs.map((item) => (
+              <button key={item.key} role="tab" aria-selected={activeTab === item.key} className="pt-tab" onClick={() => setTab(item.key)}>
+                {item.label}
+              </button>
             ))}
-            {(patient.alerts ?? []).length === 0 && (
-              <li className="text-xs text-slate-400">{t("لا توجد تنبيهات", "No alerts")}</li>
+          </div>
+
+          <div className="pt-pane" role="tabpanel">
+            {activeTab === "general" && (
+              <>
+                <p className="pt-section-label">{t("البيانات الشخصية", "Personal details")}</p>
+                <dl className="pt-details">
+                  <Detail label={t("الاسم الكامل", "Full name")} value={patient.fullName} />
+                  <Detail label={t("رمز المريض", "Patient code")} value={patient.patientCode} />
+                  <Detail label={t("الباركود", "Barcode")} value={patient.barcode} />
+                  <Detail label={t("تاريخ الميلاد", "Date of birth")} value={formatDate(patient.dateOfBirth, { timeZone: "UTC" })} />
+                  <Detail label={t("الجنس", "Gender")} value={patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")} />
+                  <Detail label={t("الهاتف", "Phone")} value={patient.phone} />
+                  <Detail label={t("العنوان", "Address")} value={patient.address} />
+                  <Detail label={t("رقم الإضبارة", "File number")} value={patient.fileNumber} />
+                </dl>
+
+                <p className="pt-section-label mt-8">{t("البيانات السريرية", "Clinical details")}</p>
+                <dl className="pt-details">
+                  <Detail label={t("تاريخ بدء الديلزة", "Dialysis start date")} value={patient.dialysisStartDate ? formatDate(patient.dialysisStartDate, { timeZone: "UTC" }) : null} />
+                  <Detail label={t("الوزن الجاف", "Dry weight")} value={patient.dryWeight != null ? formatNumber(Number(patient.dryWeight)) : null} />
+                  <Detail label={t("نوع الوصول الوعائي", "Vascular access type")} value={patient.vascularAccessType ? vascularAccessLabel[patient.vascularAccessType] : null} />
+                  <Detail label={t("الحساسية", "Allergies")} value={patient.allergies} />
+                  <Detail label={t("الأمراض المزمنة", "Chronic conditions")} value={patient.chronicDiseases?.join("، ")} />
+                  <Detail label={t("الحالة", "Status")} value={patientStatusLabel[patient.status]} />
+                </dl>
+
+                {patient.medicalNotes && (
+                  <>
+                    <p className="pt-section-label mt-8">{t("ملاحظات طبية", "Medical notes")}</p>
+                    <p className="text-sm text-slate-700">{patient.medicalNotes}</p>
+                  </>
+                )}
+              </>
             )}
-          </ul>
-        </section>
+
+            {activeTab === "plan" && canPlan && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="pt-section-label" style={{ marginBottom: 0 }}>{t("خطة الغسيل الأسبوعية", "Weekly dialysis plan")}</p>
+                  {!editingPlan && (
+                    <button onClick={startEditingPlan} className="text-xs font-semibold text-slate-600 hover:underline">
+                      {t("تعديل الخطة", "Edit plan")}
+                    </button>
+                  )}
+                </div>
+
+                {!editingPlan && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {plan.length === 0 && <p className="text-xs text-muted">{t("لا توجد خطة غسيل مسجّلة", "No dialysis plan recorded")}</p>}
+                    {plan.map((entry) => (
+                      <span key={entry.id} className="pt-tag">
+                        {WEEKDAY_LABELS[entry.weekday]} · {shiftLabel[entry.shift.name] ?? entry.shift.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {editingPlan && (
+                  <div className="mt-4 space-y-2">
+                    {planDraft.map((entry, index) => (
+                      <div key={index} className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={entry.weekday}
+                          onChange={(e) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, weekday: e.target.value as Weekday } : row)))}
+                          className="border border-slate-200 text-sm"
+                        >
+                          {WEEKDAYS.map((day) => <option key={day} value={day}>{WEEKDAY_LABELS[day]}</option>)}
+                        </select>
+                        <select
+                          value={entry.shiftId}
+                          onChange={(e) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, shiftId: e.target.value } : row)))}
+                          className="border border-slate-200 text-sm"
+                        >
+                          {shifts.map((shift) => (
+                            <option key={shift.id} value={shift.id}>
+                              {shiftLabel[shift.name] ?? shift.name} ({shift.dialysisStart}-{shift.dialysisEnd})
+                            </option>
+                          ))}
+                        </select>
+                        <button onClick={() => setPlanDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-red-600 hover:underline">
+                          {t("حذف", "Remove")}
+                        </button>
+                      </div>
+                    ))}
+
+                    {planDraft.length < 4 && (
+                      <button onClick={() => setPlanDraft((prev) => [...prev, { weekday: "SUN", shiftId: shifts[0]?.id ?? "" }])} className="text-xs font-semibold text-slate-600 hover:underline">
+                        {t("+ إضافة يوم", "+ Add day")}
+                      </button>
+                    )}
+
+                    <ErrorNote message={planError} />
+
+                    <div className="flex gap-2 pt-2">
+                      <button onClick={handleSavePlan} className="bg-slate-900 px-4 text-xs text-white">{t("حفظ الخطة", "Save plan")}</button>
+                      <button onClick={() => setEditingPlan(false)} className="rounded-md border border-slate-200 px-4 text-xs text-slate-600">{t("إلغاء", "Cancel")}</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === "supplies" && canSupplies && (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="pt-section-label" style={{ marginBottom: 0 }}>{t("مستلزمات الجلسة الافتراضية", "Default session supplies")}</p>
+                  {!editingSupplyProfile && user.permissions.includes("inventory.manage") && (
+                    <button onClick={startEditingSupplyProfile} className="text-xs font-semibold text-slate-600 hover:underline">
+                      {t("تعديل", "Edit")}
+                    </button>
+                  )}
+                </div>
+
+                {!editingSupplyProfile && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {supplyProfile.length === 0 && <p className="text-xs text-muted">{t("لا يوجد ملف مستلزمات مسجّل", "No supply profile recorded")}</p>}
+                    {supplyProfile.map((entry) => (
+                      <span key={entry.id} className="pt-tag">
+                        {entry.item.name} × {formatNumber(Number(entry.defaultQuantity))} {entry.item.unit}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {editingSupplyProfile && (
+                  <div className="mt-4 space-y-2">
+                    {supplyProfileDraft.map((entry, index) => (
+                      <div key={index} className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={entry.itemId}
+                          onChange={(e) => setSupplyProfileDraft((prev) => prev.map((row, i) => (i === index ? { ...row, itemId: e.target.value } : row)))}
+                          className="border border-slate-200 text-sm"
+                        >
+                          {inventoryItems.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>)}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={entry.defaultQuantity}
+                          onChange={(e) => setSupplyProfileDraft((prev) => prev.map((row, i) => (i === index ? { ...row, defaultQuantity: Number(e.target.value) } : row)))}
+                          className="w-24 border border-slate-200 text-sm"
+                        />
+                        <button onClick={() => setSupplyProfileDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-red-600 hover:underline">
+                          {t("حذف", "Remove")}
+                        </button>
+                      </div>
+                    ))}
+
+                    <button onClick={() => setSupplyProfileDraft((prev) => [...prev, { itemId: inventoryItems[0]?.id ?? "", defaultQuantity: 1 }])} className="text-xs font-semibold text-slate-600 hover:underline">
+                      {t("+ إضافة مادة", "+ Add item")}
+                    </button>
+
+                    <ErrorNote message={supplyProfileError} />
+
+                    <div className="flex gap-2 pt-2">
+                      <button onClick={handleSaveSupplyProfile} className="bg-slate-900 px-4 text-xs text-white">{t("حفظ", "Save")}</button>
+                      <button onClick={() => setEditingSupplyProfile(false)} className="rounded-md border border-slate-200 px-4 text-xs text-slate-600">{t("إلغاء", "Cancel")}</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === "timeline" && (
+              <>
+                <p className="pt-section-label">{t("السجل الزمني", "Patient timeline")}</p>
+                {timeline.length === 0 && <p className="text-sm text-muted">{t("لا توجد أحداث بعد", "No events yet")}</p>}
+                <ol className="space-y-3 border-s-2 border-slate-100 ps-4">
+                  {timeline.map((event) => (
+                    <li key={event.id} className="text-sm">
+                      <p className="font-semibold text-slate-700">{TIMELINE_LABELS[event.type] ? t(...TIMELINE_LABELS[event.type]) : event.type}</p>
+                      <p className="text-xs text-muted">
+                        {formatDate(event.performedAt, { dateStyle: "medium", timeStyle: "short" })} · {event.performedBy?.fullName ?? t("النظام", "System")}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+          </div>
+        </div>
       </div>
-
-      {user.permissions.includes("scheduling.manage") && (
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-500">{t("خطة الغسيل الأسبوعية", "Weekly dialysis plan")}</h2>
-            {!editingPlan && (
-              <button onClick={startEditingPlan} className="text-xs font-medium text-slate-600 hover:underline">
-                {t("تعديل الخطة", "Edit plan")}
-              </button>
-            )}
-          </div>
-
-          {!editingPlan && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {plan.length === 0 && <p className="text-xs text-slate-400">{t("لا توجد خطة غسيل مسجّلة", "No dialysis plan recorded")}</p>}
-              {plan.map((entry) => (
-                <span
-                  key={entry.id}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"
-                >
-                  {WEEKDAY_LABELS[entry.weekday]} - {shiftLabel[entry.shift.name] ?? entry.shift.name}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {editingPlan && (
-            <div className="mt-3 space-y-2">
-              {planDraft.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <select
-                    value={entry.weekday}
-                    onChange={(e) =>
-                      setPlanDraft((prev) =>
-                        prev.map((row, i) => (i === index ? { ...row, weekday: e.target.value as Weekday } : row)),
-                      )
-                    }
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-                  >
-                    {WEEKDAYS.map((day) => (
-                      <option key={day} value={day}>
-                        {WEEKDAY_LABELS[day]}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={entry.shiftId}
-                    onChange={(e) =>
-                      setPlanDraft((prev) =>
-                        prev.map((row, i) => (i === index ? { ...row, shiftId: e.target.value } : row)),
-                      )
-                    }
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-                  >
-                    {shifts.map((shift) => (
-                      <option key={shift.id} value={shift.id}>
-                        {shiftLabel[shift.name] ?? shift.name} ({shift.dialysisStart}-{shift.dialysisEnd})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setPlanDraft((prev) => prev.filter((_, i) => i !== index))}
-                    className="text-xs text-red-600 hover:underline"
-                  >
-                    {t("حذف", "Remove")}
-                  </button>
-                </div>
-              ))}
-
-              {planDraft.length < 4 && (
-                <button
-                  onClick={() =>
-                    setPlanDraft((prev) => [...prev, { weekday: "SUN", shiftId: shifts[0]?.id ?? "" }])
-                  }
-                  className="text-xs font-medium text-slate-600 hover:underline"
-                >
-                  {t("+ إضافة يوم", "+ Add day")}
-                </button>
-              )}
-
-              <ErrorNote message={planError} />
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={handleSavePlan}
-                  className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-                >
-                  {t("حفظ الخطة", "Save plan")}
-                </button>
-                <button
-                  onClick={() => setEditingPlan(false)}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
-                >
-                  {t("إلغاء", "Cancel")}
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {(user.permissions.includes("inventory.view") || user.permissions.includes("inventory.manage")) && (
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-500">{t("مستلزمات الجلسة الافتراضية", "Default session supplies")}</h2>
-            {!editingSupplyProfile && user.permissions.includes("inventory.manage") && (
-              <button
-                onClick={startEditingSupplyProfile}
-                className="text-xs font-medium text-slate-600 hover:underline"
-              >
-                {t("تعديل", "Edit")}
-              </button>
-            )}
-          </div>
-
-          {!editingSupplyProfile && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {supplyProfile.length === 0 && <p className="text-xs text-slate-400">{t("لا يوجد ملف مستلزمات مسجّل", "No supply profile recorded")}</p>}
-              {supplyProfile.map((entry) => (
-                <span key={entry.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-                  {entry.item.name} &times; {formatNumber(Number(entry.defaultQuantity))} {entry.item.unit}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {editingSupplyProfile && (
-            <div className="mt-3 space-y-2">
-              {supplyProfileDraft.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <select
-                    value={entry.itemId}
-                    onChange={(e) =>
-                      setSupplyProfileDraft((prev) =>
-                        prev.map((row, i) => (i === index ? { ...row, itemId: e.target.value } : row)),
-                      )
-                    }
-                    className="rounded-md border border-slate-300 px-2 py-1 text-sm"
-                  >
-                    {inventoryItems.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} ({item.unit})
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={entry.defaultQuantity}
-                    onChange={(e) =>
-                      setSupplyProfileDraft((prev) =>
-                        prev.map((row, i) => (i === index ? { ...row, defaultQuantity: Number(e.target.value) } : row)),
-                      )
-                    }
-                    className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm"
-                  />
-                  <button
-                    onClick={() => setSupplyProfileDraft((prev) => prev.filter((_, i) => i !== index))}
-                    className="text-xs text-red-600 hover:underline"
-                  >
-                    {t("حذف", "Remove")}
-                  </button>
-                </div>
-              ))}
-
-              <button
-                onClick={() =>
-                  setSupplyProfileDraft((prev) => [...prev, { itemId: inventoryItems[0]?.id ?? "", defaultQuantity: 1 }])
-                }
-                className="text-xs font-medium text-slate-600 hover:underline"
-              >
-                {t("+ إضافة مادة", "+ Add item")}
-              </button>
-
-              <ErrorNote message={supplyProfileError} />
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  onClick={handleSaveSupplyProfile}
-                  className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-                >
-                  {t("حفظ", "Save")}
-                </button>
-                <button
-                  onClick={() => setEditingSupplyProfile(false)}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
-                >
-                  {t("إلغاء", "Cancel")}
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-semibold text-slate-500">{t("السجل الزمني (Timeline)", "Patient timeline")}</h2>
-        {timeline.length === 0 && <p className="text-sm text-slate-400">{t("لا توجد أحداث بعد", "No events yet")}</p>}
-        <ol className="space-y-3 border-s-2 border-slate-100 ps-4">
-          {timeline.map((event) => (
-            <li key={event.id} className="text-sm">
-              <p className="font-medium text-slate-700">{TIMELINE_LABELS[event.type] ? t(...TIMELINE_LABELS[event.type]) : event.type}</p>
-              <p className="text-xs text-slate-400">
-                {formatDate(event.performedAt, { dateStyle: "medium", timeStyle: "short" })} &middot;{" "}
-                {event.performedBy?.fullName ?? t("النظام", "System")}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </section>
     </AdminShell>
   );
 }
