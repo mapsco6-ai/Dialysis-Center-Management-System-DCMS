@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Hosted deployments put the web app and the API on separate domains, which
+  // makes the SameSite=Lax session cookie cross-site - the browser would drop
+  // it and every request after login would be anonymous. Setting
+  // API_PROXY_TARGET (e.g. the API's private hostname) serves the API under
+  // the web app's own origin instead, so the cookie stays first-party.
+  // Unset - as in local docker compose, where NEXT_PUBLIC_API_URL is absolute -
+  // this adds nothing and the direct cross-origin calls are unchanged.
+  async rewrites() {
+    const target = process.env.API_PROXY_TARGET?.replace(/\/$/, "");
+    return target ? [{ source: "/api/:path*", destination: `${target}/api/:path*` }] : [];
+  },
   // The admin URLs were regrouped by domain (care / facility / governance /
   // people). Every old bookmark, notification link and printed QR keeps working.
   async redirects() {
