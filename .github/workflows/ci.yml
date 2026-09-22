@@ -33,6 +33,8 @@ jobs:
       - run: npx prisma generate --schema apps/api/prisma/schema.prisma
       - name: Type-check and build API
         run: npm run build:api
+      - name: API v2 compatibility and client contract
+        run: node apps/api/scripts/test-api-v2.cjs
       - name: Migrate and seed
         working-directory: apps/api
         run: |
@@ -49,7 +51,7 @@ jobs:
       - name: OpenAPI spec is current
         run: |
           npm run generate:openapi --workspace=@dcms/api
-          git diff --exit-code apps/api/openapi.yaml
+          git diff --exit-code apps/api/openapi.yaml apps/api/openapi.v2.yaml
 
   web:
     runs-on: ubuntu-latest

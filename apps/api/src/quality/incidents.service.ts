@@ -143,7 +143,7 @@ export class IncidentsService {
         type: "INCIDENT_REPORTED",
         title: `${dto.severity} incident: ${dto.type}`,
         body: dto.description,
-        link: "/admin/quality",
+        link: "/admin/governance/quality",
       });
     }
     return created;

@@ -1,5 +1,9 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Machine, MachineStatus, Prisma } from "@prisma/client";
+import { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { SettingsService } from "../settings/settings.service";
+import { emitNotification } from "../common/notify";
+import { SYSTEM_USERNAME } from "../common/system-user";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -35,12 +39,87 @@ const ALLOWED_GENERIC_TRANSITIONS: Partial<Record<MachineStatus, MachineStatus[]
 };
 
 @Injectable()
-export class MachinesService {
+export class MachinesService implements OnModuleInit, OnModuleDestroy {
+  private expiryTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly settings: SettingsService,
   ) {}
+
+  onModuleInit() {
+    // Tests call expireStaleApprovals() explicitly.
+    if (process.env.NODE_ENV === "test") return;
+    this.expiryTimer = setInterval(() => this.expireStaleApprovals().catch(() => undefined), 60_000);
+    this.expiryTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.expiryTimer) clearInterval(this.expiryTimer);
+  }
+
+  // A request nobody decided within the configured window expires: the
+  // machine it was holding goes back to the pool (unless another request is
+  // still pending on it) and the requester is told. The system account is
+  // the actor, exactly like the automatic absence marking.
+  async expireStaleApprovals() {
+    const minutes = await this.settings.get<number>("approvalExpiryMinutes");
+    const stale = await this.prisma.machineUsageApprovalRequest.findMany({
+      where: { decision: "PENDING", createdAt: { lt: new Date(Date.now() - minutes * 60_000) } },
+    });
+    if (stale.length === 0) return { expired: 0 };
+
+    const system = await this.prisma.user.findUniqueOrThrow({ where: { username: SYSTEM_USERNAME } });
+    const actor: AuthenticatedUser = { id: system.id, username: system.username, fullName: system.fullName, roles: [], permissions: [], landingPath: "/admin", mustChangePassword: false };
+
+    let expired = 0;
+    for (const approval of stale) {
+      const done = await this.prisma.$transaction(async (tx) => {
+        const result = await tx.machineUsageApprovalRequest.updateMany({
+          where: { id: approval.id, decision: "PENDING" },
+          data: { decision: "EXPIRED", decidedAt: new Date() },
+        });
+        if (result.count === 0) return false;
+
+        const machine = await tx.machine.findUniqueOrThrow({ where: { id: approval.machineId } });
+        const otherPending = await tx.machineUsageApprovalRequest.count({
+          where: { machineId: approval.machineId, decision: "PENDING", id: { not: approval.id } },
+        });
+        if (machine.status === "APPROVAL_REQUIRED" && otherPending === 0) {
+          await this.transitionStatus(tx, machine, "AVAILABLE", actor, `Approval request expired after ${minutes} min - machine released`);
+        }
+        await this.auditService.log(
+          {
+            actorId: actor.id,
+            actorRole: "SYSTEM",
+            action: "MACHINE_APPROVAL_EXPIRED",
+            entityType: "MachineUsageApprovalRequest",
+            entityId: approval.id,
+            patientId: approval.patientId,
+            newValue: { machineId: approval.machineId, scheduleId: approval.scheduleId, minutes },
+          },
+          tx,
+        );
+        await tx.patientTimelineEvent.create({
+          data: { patientId: approval.patientId, type: "MACHINE_APPROVAL_EXPIRED", payload: { machineId: approval.machineId, minutes }, performedById: actor.id, sourceModule: "machines" },
+        });
+        return true;
+      });
+      if (done) {
+        expired++;
+        emitNotification(this.eventEmitter, {
+          userIds: [approval.requestedById],
+          type: "APPROVAL_EXPIRED",
+          title: "Machine approval request expired",
+          body: "Nobody decided in time; the machine was released. Request again if still needed.",
+          link: "/admin/facility/machines",
+        });
+      }
+    }
+    return { expired };
+  }
 
   private async requireMachine(id: string) {
     const machine = await this.prisma.machine.findUnique({ where: { id } });
@@ -190,7 +269,7 @@ export class MachinesService {
     // cross-phase data-layer coupling (e.g. Pharmacy reading Prescription).
     if (machine.status === "OUT_OF_SERVICE" && dto.status !== "OUT_OF_SERVICE") {
       const openTicket = await this.prisma.maintenanceTicket.findFirst({
-        where: { machineId: id, status: { not: "CLOSED" } },
+        where: { machineId: id, status: { notIn: ["CLOSED", "CANCELLED"] } },
         select: { id: true },
       });
       if (openTicket) {
@@ -464,7 +543,7 @@ export class MachinesService {
     return this.createApprovalRequest(schedule, machine, dto.reason, actor);
   }
 
-  async listApprovals(decision?: "PENDING" | "APPROVED" | "REJECTED") {
+  async listApprovals(decision?: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED") {
     return this.prisma.machineUsageApprovalRequest.findMany({
       where: decision ? { decision } : undefined,
       include: {

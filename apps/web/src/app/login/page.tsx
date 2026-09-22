@@ -20,7 +20,7 @@ export default function LoginPage() {
     setHasError(false);
     setLoading(true);
     try {
-      const data = await apiFetch("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
+      const data = await apiFetch("/auth/sessions", { method: "POST", body: JSON.stringify({ username, password }) });
       // The API sets the HttpOnly session cookie itself.
       router.push(data.user?.landingPath ?? "/admin");
     } catch {

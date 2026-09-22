@@ -6,6 +6,6 @@ services:
   web:
     build:
       args:
-        NEXT_PUBLIC_API_URL: "http://localhost:13001/api/v1"
+        NEXT_PUBLIC_API_URL: "http://localhost:13001/api/v2"
     ports: !override
       - "127.0.0.1:13000:3000"

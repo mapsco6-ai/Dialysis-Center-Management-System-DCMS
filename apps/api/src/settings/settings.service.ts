@@ -16,6 +16,11 @@ const DEFINITIONS = {
     description: "Years the audit trail must be kept (records are archived by export, never deleted)",
     valid: (v: unknown) => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 50,
   },
+  approvalExpiryMinutes: {
+    default: 120,
+    description: "Minutes a machine-usage approval request may stay pending before it expires and the machine is released",
+    valid: (v: unknown) => Number.isInteger(v) && (v as number) >= 5 && (v as number) <= 1440,
+  },
 } as const;
 
 export type SettingKey = keyof typeof DEFINITIONS;

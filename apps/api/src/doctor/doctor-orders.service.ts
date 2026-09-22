@@ -140,7 +140,7 @@ export class DoctorOrdersService {
           permission: "pharmacy.dispense",
           type: "NEW_PRESCRIPTION",
           title: `New prescription: ${prescription.medicationName}`,
-          link: "/admin/pharmacy",
+          link: "/admin/care/pharmacy",
         });
         prescriptionId = prescription.id;
         payload = { ...dto.payload, action: "ADD", prescriptionId: prescription.id };

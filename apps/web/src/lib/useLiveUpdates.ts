@@ -8,10 +8,10 @@ export type LiveUpdateEntity = "session" | "schedule" | "machine";
 
 // The REST API and the Socket.IO gateway are the same NestJS process
 // (docs/PROJECT-PHASES-PLAN.md Phase 13) - derive the WS origin from
-// API_URL by stripping the "/api/v1" prefix rather than hardcoding a
+// API_URL by stripping the "/api/v2" prefix rather than hardcoding a
 // second env var for the same server.
 function wsOrigin(): string {
-  return API_URL.replace(/\/api\/v1\/?$/, "");
+  return API_URL.replace(/\/api\/v[12]\/?$/, "");
 }
 
 // Subscribes to the dashboard's live-update broadcast and calls onUpdate

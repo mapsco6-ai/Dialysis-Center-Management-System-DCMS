@@ -142,7 +142,7 @@ export class MaintenanceService {
           type: "MACHINE_FAULT",
           title: `Machine fault (${dto.severity}): ${machine.machineCode}`,
           body: dto.problem,
-          link: "/admin/maintenance",
+          link: "/admin/facility/maintenance",
         });
 
         return tx.maintenanceTicket.findUniqueOrThrow({ where: { id: ticket.id }, include: TICKET_INCLUDE });
@@ -288,6 +288,53 @@ export class MaintenanceService {
     });
   }
 
+  // A ticket raised by mistake (false alarm, duplicate) is withdrawn before
+  // any repair work started. The machine goes back to service exactly as it
+  // would on close, unless another open ticket still holds it.
+  async cancel(id: string, reason: string, actor: AuthenticatedUser) {
+    const ticket = await this.requireTicket(id);
+    if (ticket.status !== "OPEN" && ticket.status !== "ASSIGNED") {
+      throw new ConflictException(`Cannot cancel a ticket that is ${ticket.status} - repair work already started`);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.maintenanceTicket.updateMany({ where: { id, status: ticket.status }, data: { status: "CANCELLED" } });
+      if (result.count === 0) {
+        throw new ConflictException("This ticket's status changed since it was read");
+      }
+      await tx.maintenanceTicketStatusHistory.create({
+        data: { ticketId: id, fromStatus: ticket.status, toStatus: "CANCELLED", changedById: actor.id, reason },
+      });
+
+      const otherOpenTicket = await tx.maintenanceTicket.findFirst({
+        where: { machineId: ticket.machineId, status: { notIn: ["CLOSED", "CANCELLED"] }, id: { not: id } },
+        select: { id: true },
+      });
+      if (!otherOpenTicket) {
+        const machine = await tx.machine.findUniqueOrThrow({ where: { id: ticket.machineId } });
+        if (machine.status === "OUT_OF_SERVICE") {
+          const returnStatus: MachineStatus = ACTIVE_USE_STATUSES.includes(ticket.preFaultStatus) ? "WAITING_CLEANING" : "AVAILABLE";
+          await this.machinesService.transitionStatus(tx, machine, returnStatus, actor, `Ticket cancelled: ${reason}`);
+        }
+      }
+
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "MAINTENANCE_TICKET_CANCELLED",
+          entityType: "MaintenanceTicket",
+          entityId: id,
+          oldValue: { status: ticket.status },
+          newValue: { status: "CANCELLED", machineReturnedToService: !otherOpenTicket },
+          reason,
+        },
+        tx,
+      );
+      return tx.maintenanceTicket.findUniqueOrThrow({ where: { id }, include: TICKET_INCLUDE });
+    });
+  }
+
   // The only path that returns the machine to service (docs/MODULES-
   // SPEC.md: "CLOSED هو الوحيد المسموح أن يعيد الجهاز لـAVAILABLE/CLEANING").
   async close(id: string, dto: CloseTicketDto, actor: AuthenticatedUser) {
@@ -313,7 +360,7 @@ export class MaintenanceService {
       // genuinely isn't fixed yet - closing this ticket must not reactivate
       // it out from under the other one.
       const otherOpenTicket = await tx.maintenanceTicket.findFirst({
-        where: { machineId: ticket.machineId, status: { not: "CLOSED" }, id: { not: id } },
+        where: { machineId: ticket.machineId, status: { notIn: ["CLOSED", "CANCELLED"] }, id: { not: id } },
         select: { id: true },
       });
       if (!otherOpenTicket) {

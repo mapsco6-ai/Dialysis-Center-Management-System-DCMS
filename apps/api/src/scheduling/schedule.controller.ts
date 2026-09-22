@@ -1,4 +1,8 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { RequirePermissions } from "../common/decorators/require-permissions.decorator";
+import { CurrentUser } from "../common/decorators/current-user.decorator";
+import { AuthenticatedUser } from "../common/types/authenticated-user";
+import { RescheduleDto } from "./dto/reschedule.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequireAnyPermission } from "../common/decorators/require-any-permission.decorator";
@@ -31,6 +35,12 @@ export class ScheduleController {
   // a 500 from Prisma, and (more importantly) instead of quietly triggering
   // getScheduleForDate's side-effect writes (schedule generation, absence
   // marking) on garbage input (docs review DCMS-041).
+  @Post(":id/reschedule")
+  @RequirePermissions("scheduling.manage")
+  reschedule(@Param("id") id: string, @Body() dto: RescheduleDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.schedulingService.reschedule(id, dto, actor);
+  }
+
   @Get()
   @RequireAnyPermission(...VIEW_PERMISSIONS)
   getByDate(@Query() query: GetScheduleQueryDto) {

@@ -20,8 +20,8 @@ const notificationListeners = new Set<() => void>();
 function ensureSocket(): Socket | null {
   if (typeof window === "undefined") return socket;
   if (socket) return socket;
-  // The gateway hangs off the API's HTTP server root, not the /api/v1 prefix.
-  const origin = API_URL.replace(/\/api\/v1\/?$/, "");
+  // The gateway hangs off the API's HTTP server root, not the /api/v2 prefix.
+  const origin = API_URL.replace(/\/api\/v[12]\/?$/, "");
   // The HttpOnly session cookie rides along with the handshake.
   socket = io(origin, { withCredentials: true });
   socket.on("live:update", (payload: LiveEvent) => {

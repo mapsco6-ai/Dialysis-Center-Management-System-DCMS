@@ -11,6 +11,10 @@
 import { createServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
 import shared from "../packages/shared/index.js";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+require("ts-node").register({ transpileOnly: true, compilerOptions: { module: "CommonJS", moduleResolution: "Node" } });
+const { resolveV2, v2Envelope } = require("../apps/api/src/common/api-v2.ts");
 
 const port = Number(process.env.UI_PREVIEW_API_PORT ?? 3101);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) {
@@ -25,7 +29,7 @@ const user = {
   id: "fixture-user", username: "fixture", fullName: "Alex Morgan (Demo)",
   roles: ["SUPER_ADMIN"], permissions: shared.PERMISSIONS.map(({ key }) => key), landingPath: "/admin", mustChangePassword: false,
 };
-const committeeUser = { id: "fixture-committee", username: "committee", fullName: "Health Authority Committee (Demo)", roles: ["AUDITOR"], permissions: ["oversight.view"], landingPath: "/admin/oversight", mustChangePassword: false };
+const committeeUser = { id: "fixture-committee", username: "committee", fullName: "Health Authority Committee (Demo)", roles: ["AUDITOR"], permissions: ["oversight.view"], landingPath: "/admin/governance/oversight", mustChangePassword: false };
 const oversightSummary = () => {
   const day = (n) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
   const days = [6, 5, 4, 3, 2, 1, 0].map(day);
@@ -101,6 +105,7 @@ function machineSummary(rows) {
   return rows.reduce((result, { status }) => ({ ...result, [status]: (result[status] ?? 0) + 1 }), {});
 }
 function send(response, status, body) {
+  if (response.apiV2 && status >= 200 && status < 300) body = v2Envelope(body);
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-DCMS-Fixture": "synthetic-only" });
   response.end(JSON.stringify(body));
 }
@@ -129,7 +134,14 @@ const server = createServer(async (request, response) => {
   if (request.method === "OPTIONS") { response.writeHead(204); response.end(); return; }
 
   const url = new URL(request.url, `http://127.0.0.1:${port}`);
-  const path = url.pathname.replace(/^\/api\/v1(?=\/|$)/, "") || "/";
+  response.apiV2 = /^\/api\/v2(?:\/|$)/.test(url.pathname);
+  let path = url.pathname.replace(/^\/api\/v[12](?=\/|$)/, "") || "/";
+  if (response.apiV2) {
+    const resolved = resolveV2(request.method, path);
+    if (resolved.kind === "renamed") return send(response, 404, { message: resolved.use });
+    path = resolved.path;
+    request.method = resolved.method;
+  }
   const date = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get("date") ?? "") ? url.searchParams.get("date") : today();
   try {
     if (path === "/health" && request.method === "GET") return send(response, 200, { status: "ok", fixture: true });
@@ -160,17 +172,28 @@ const server = createServer(async (request, response) => {
       patients.unshift(patient);
       return send(response, 201, patient);
     }
+    if (path === "/notifications/read-all" || /^\/notifications\/[^/]+\/read$/.test(path)) return send(response, 200, { success: true });
+    if (path.startsWith("/settings/") && request.method === "PUT") return send(response, 200, { key: path.slice(10), value: (await readJson(request)).value });
+    if (/^\/schedule\/[^/]+\/reschedule$/.test(path) && request.method === "POST") return send(response, 201, { from: path.split("/")[2], to: { id: "fixture-schedule-new" } });
     if (request.method !== "GET") return send(response, 404, { message: "This action is not implemented by the UI fixture server" });
     if (path === "/auth/me") return send(response, 200, me);
-    if (path === "/notifications" && request.method === "GET") return send(response, 200, { total: 1, unread: 1, data: [{ id: "fixture-note-1", type: "COMPLAINT_FILED", title: "Long wait (Demo)", body: "Synthetic complaint", link: "/admin/entries", readAt: null, createdAt: timestamp }] });
-    if (path === "/notifications/read-all" || /^\/notifications\/[^/]+\/read$/.test(path)) return send(response, 200, { success: true });
-    if (path === "/me/work-queue") return send(response, 200, { items: [{ key: "prescriptionsToDispense", count: 3, link: "/admin/pharmacy" }, { key: "entriesToReview", count: 2, link: "/admin/entries" }] });
+    if (path === "/notifications" && request.method === "GET") return send(response, 200, { total: 1, unread: 1, data: [{ id: "fixture-note-1", type: "COMPLAINT_FILED", title: "Long wait (Demo)", body: "Synthetic complaint", link: "/admin/people/entries", readAt: null, createdAt: timestamp }] });
+    if (path === "/me/work-queue") return send(response, 200, { items: [{ key: "prescriptionsToDispense", count: 3, link: "/admin/care/pharmacy" }, { key: "entriesToReview", count: 2, link: "/admin/people/entries" }] });
     if (path === "/settings/public") return send(response, 200, { shiftReportRequired: false });
     if (path === "/settings" && request.method === "GET") return send(response, 200, [{ key: "shiftReportRequired", value: false, description: "x" }, { key: "auditRetentionYears", value: 10, description: "y" }]);
-    if (path.startsWith("/settings/") && request.method === "PUT") return send(response, 200, { key: path.slice(10), value: (await readJson(request)).value });
     if (path === "/audit-logs/verify") return send(response, 200, { ok: true, checked: 42 });
     if (path === "/audit-logs/retention") return send(response, 200, { retentionYears: 10, total: 42, olderThanCutoff: 0, oldestAt: timestamp });
     if (path === "/permissions/grouped") return send(response, 200, [{ module: "patients", permissions: [{ key: "patient.view", description: "View patients" }, { key: "patient.edit", description: "Edit patients" }] }]);
+    if (path === "/flow/today") {
+      const step = (current, attention = null) => ["arrival", "pre", "supplies", "machine", "dialysis", "discharge"].map((key, i, all) => ({ key, state: key === current ? "current" : i < all.indexOf(current) ? "done" : "todo" }));
+      const item = (n, patient, current, action, allowed, extra = {}) => ({ appointmentId: `fixture-schedule-${n}`, patient: { id: patient.id, patientCode: patient.patientCode, fullName: patient.fullName }, shift: { id: "fixture-shift-1", name: "SHIFT_1" }, type: "REGULAR", scheduleStatus: "ARRIVED", lateMinutes: null, sessionStatus: null, machineCode: null, steps: step(current), current, attention: null, nextAction: { key: action, permission: "x", allowed }, minutesInStep: 12 + n, ...extra });
+      const items = [
+        item(1, patients[0], "dialysis", "resume-dialysis", true, { attention: "INTERRUPTED", sessionStatus: "INTERRUPTED", machineCode: "DEMO-02", minutesInStep: 31 }),
+        item(2, patients[1], "supplies", "confirm-supplies", false, { sessionStatus: "PRE_DIALYSIS" }),
+        item(3, patients[2], "arrival", "check-in", true, { scheduleStatus: "SCHEDULED" }),
+      ];
+      return send(response, 200, { generatedAt: timestamp, total: 3, needsAttention: 1, byStep: { dialysis: 1, supplies: 1, arrival: 1 }, items });
+    }
     if (path === "/oversight/summary") return send(response, 200, oversightSummary());
     if (path === "/oversight/timeline") return send(response, 200, { total: 2, modules: [{ key: "dialysis", count: 1 }, { key: "lab", count: 1 }], data: [
       { id: "tl-1", performedAt: timestamp, type: "DIALYSIS_STARTED", sourceModule: "dialysis", patientCode: "P-000001", performedBy: "Sam Rivera (Demo)", payload: { machine: "M-01" } },

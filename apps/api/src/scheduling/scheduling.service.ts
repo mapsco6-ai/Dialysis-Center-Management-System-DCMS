@@ -8,6 +8,7 @@ import { SetDialysisPlanDto } from "./dto/set-dialysis-plan.dto";
 import { CreateExtraSessionDto } from "./dto/create-extra-session.dto";
 import { CreateEmergencySessionDto } from "./dto/create-emergency-session.dto";
 import { CheckInDto } from "./dto/check-in.dto";
+import { RescheduleDto } from "./dto/reschedule.dto";
 import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 import { combineLocalDateAndTime, toDateOnly, todayDateOnly, weekdayOf } from "./date.util";
 import { SYSTEM_USERNAME } from "../common/system-user";
@@ -390,6 +391,85 @@ export class SchedulingService {
   }
 
   // --- Extra / Emergency sessions -----------------------------------------
+
+  // Moves a not-yet-arrived appointment to another date/shift. The old
+  // entry is kept (status RESCHEDULED, pointing at the new one) so attendance
+  // statistics and the audit trail still show what happened.
+  async reschedule(scheduleId: string, dto: RescheduleDto, actor: AuthenticatedUser) {
+    const old = await this.prisma.dialysisSchedule.findUnique({ where: { id: scheduleId }, include: { session: true } });
+    if (!old) {
+      throw new NotFoundException("Schedule entry not found");
+    }
+    if (!["SCHEDULED", "LATE", "ABSENT"].includes(old.status)) {
+      throw new ConflictException(`Cannot reschedule an entry that is ${old.status}`);
+    }
+    if (old.session) {
+      throw new ConflictException("The session already started - it cannot be rescheduled");
+    }
+    if (old.machineId) {
+      throw new ConflictException("Release the machine assigned to this entry before rescheduling it");
+    }
+    await this.requireShift(dto.shiftId);
+    const scheduledDate = toDateOnly(dto.scheduledDate);
+    if (scheduledDate < todayDateOnly()) {
+      throw new BadRequestException("The new date cannot be in the past");
+    }
+    if (scheduledDate.getTime() === old.scheduledDate.getTime() && dto.shiftId === old.shiftId) {
+      throw new BadRequestException("Choose a different date or shift");
+    }
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const created = await tx.dialysisSchedule.create({
+          data: {
+            patientId: old.patientId,
+            scheduledDate,
+            shiftId: dto.shiftId,
+            type: old.type,
+            extraReason: old.extraReason,
+            requestedByDoctorId: old.requestedByDoctorId,
+          },
+          include: SCHEDULE_INCLUDE,
+        });
+        const moved = await tx.dialysisSchedule.updateMany({
+          where: { id: scheduleId, status: old.status },
+          data: { status: "RESCHEDULED", rescheduledToId: created.id },
+        });
+        if (moved.count === 0) {
+          throw new ConflictException("This entry changed since it was read");
+        }
+        await this.auditService.log(
+          {
+            actorId: actor.id,
+            actorRole: actor.roles[0] ?? "UNKNOWN",
+            action: "SCHEDULE_RESCHEDULED",
+            entityType: "DialysisSchedule",
+            entityId: scheduleId,
+            patientId: old.patientId,
+            oldValue: { scheduledDate: old.scheduledDate, shiftId: old.shiftId, status: old.status },
+            newValue: { newScheduleId: created.id, scheduledDate: dto.scheduledDate, shiftId: dto.shiftId },
+            reason: dto.reason,
+          },
+          tx,
+        );
+        await tx.patientTimelineEvent.create({
+          data: {
+            patientId: old.patientId,
+            type: "SCHEDULE_RESCHEDULED",
+            payload: { from: old.scheduledDate, to: dto.scheduledDate, shiftId: dto.shiftId, reason: dto.reason },
+            performedById: actor.id,
+            sourceModule: "scheduling",
+          },
+        });
+        return { from: scheduleId, to: created };
+      });
+    } catch (error) {
+      if (isUniqueConstraintOn(error, "patientId")) {
+        throw new ConflictException("This patient already has a schedule entry for that date/shift");
+      }
+      throw error;
+    }
+  }
 
   async createExtraSession(dto: CreateExtraSessionDto, actor: AuthenticatedUser) {
     await this.requirePatient(dto.patientId);

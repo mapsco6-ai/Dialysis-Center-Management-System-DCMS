@@ -25,8 +25,16 @@ export class ApprovalsController {
 
   @Get()
   @RequireAnyPermission("machine.assign", "approval.machine.decide")
-  list(@Query("decision") decision?: "PENDING" | "APPROVED" | "REJECTED") {
+  list(@Query("decision") decision?: "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED") {
     return this.machinesService.listApprovals(decision);
+  }
+
+  // Normally run by the built-in timer every minute; exposed so an operator
+  // (or a test) can trigger the sweep on demand.
+  @Post("expire-stale")
+  @RequirePermissions("approval.machine.decide")
+  expireStale() {
+    return this.machinesService.expireStaleApprovals();
   }
 
   @Post(":id/decision")

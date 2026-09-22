@@ -336,6 +336,7 @@ enum ScheduleStatus {
   CANCELLED
   EXTRA
   EMERGENCY
+  RESCHEDULED
 }
 
 enum ScheduleType {
@@ -445,6 +446,8 @@ model DialysisSchedule {
   // SchedulingService.ensureAbsencesMarked. Kept even if the patient later
   // shows up and checks in late, as a historical fact (append-or-amend).
   absentMarkedAt   DateTime?
+  // Set on the OLD entry when it was moved: points at the new schedule row.
+  rescheduledToId  String?   @unique
 
   // Phase 5 (Machines): set by MachinesService.assignMachine, never directly.
   machineId String?
@@ -729,6 +732,7 @@ enum ApprovalDecision {
   PENDING
   APPROVED
   REJECTED
+  EXPIRED
 }
 
 enum MaintenanceTicketStatus {
@@ -738,6 +742,7 @@ enum MaintenanceTicketStatus {
   WAITING_PART
   COMPLETED
   CLOSED
+  CANCELLED
 }
 
 // Not defined by docs/MODULES-SPEC.md beyond the field's existence - a plain

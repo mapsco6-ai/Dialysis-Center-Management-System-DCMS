@@ -1188,6 +1188,30 @@ paths:
       x-any-permissions:
         - scheduling.manage
         - attendance.checkin
+  /api/v1/schedule/{id}/reschedule:
+    post:
+      operationId: ScheduleController_reschedule
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescheduleDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Scheduling - Schedule
+      x-required-permissions:
+        - scheduling.manage
   /api/v1/schedule:
     get:
       operationId: ScheduleController_getByDate
@@ -1212,6 +1236,7 @@ paths:
               - CANCELLED
               - EXTRA
               - EMERGENCY
+              - RESCHEDULED
       responses:
         '200':
           description: ''
@@ -2048,6 +2073,19 @@ paths:
         - Machines - Approvals
       x-any-permissions:
         - machine.assign
+        - approval.machine.decide
+  /api/v1/approvals/expire-stale:
+    post:
+      operationId: ApprovalsController_expireStale
+      parameters: []
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Machines - Approvals
+      x-required-permissions:
         - approval.machine.decide
   /api/v1/approvals/{id}/decision:
     post:
@@ -3123,6 +3161,7 @@ paths:
               - WAITING_PART
               - COMPLETED
               - CLOSED
+              - CANCELLED
         - name: machineId
           required: false
           in: query
@@ -3229,6 +3268,30 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateTicketStatusDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Maintenance - Tickets
+      x-required-permissions:
+        - maintenance.manage
+  /api/v1/maintenance/tickets/{id}/cancel:
+    post:
+      operationId: MaintenanceTicketsController_cancel
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelTicketDto'
       responses:
         '201':
           description: ''
@@ -4568,6 +4631,28 @@ paths:
         - bearer: []
       tags:
         - Me
+  /api/v1/flow/today:
+    get:
+      operationId: FlowController_today
+      parameters:
+        - name: shiftId
+          required: false
+          in: query
+          schema:
+            format: uuid
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Flow
+      x-any-permissions:
+        - scheduling.manage
+        - attendance.checkin
+        - dialysis.session.view
+        - nursing.ward.view
 info:
   title: DCMS API
   description: >-
@@ -4928,6 +5013,21 @@ components:
             $ref: '#/components/schemas/DialysisPlanEntryDto'
       required:
         - entries
+    RescheduleDto:
+      type: object
+      properties:
+        scheduledDate:
+          type: string
+          example: '2026-10-05'
+        shiftId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+      required:
+        - scheduledDate
+        - shiftId
+        - reason
     CreateExtraSessionDto:
       type: object
       properties:
@@ -5697,6 +5797,13 @@ components:
           nullable: true
       required:
         - status
+    CancelTicketDto:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+        - reason
     CloseTicketDto:
       type: object
       properties:

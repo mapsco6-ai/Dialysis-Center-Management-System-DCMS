@@ -10,6 +10,7 @@ import { SwaggerModule } from "@nestjs/swagger";
 import helmet from "helmet";
 import { allowedOrigins } from "./common/cookie";
 import { ipRateLimit } from "./common/rate-limit.middleware";
+import { apiVersioning, buildV2Document } from "./common/api-v2";
 import { AppModule } from "./app.module";
 import { buildOpenApiConfig, GLOBAL_PREFIX } from "./openapi.config";
 
@@ -23,6 +24,8 @@ async function bootstrap() {
   // Explicit origins + credentials: required by the HttpOnly cookie login.
   app.enableCors({ origin: allowedOrigins(), credentials: true });
   app.use(ipRateLimit());
+  // v2 URLs are rewritten to their v1 handlers before routing (see common/api-v2.ts).
+  app.use(apiVersioning());
 
   app.setGlobalPrefix(GLOBAL_PREFIX);
   app.useGlobalPipes(
@@ -44,6 +47,7 @@ async function bootstrap() {
   // inherit the global prefix on its own, so it must be spelled out here or
   // the UI silently ends up served at "/docs" instead of "/api/v1/docs".
   SwaggerModule.setup(`${GLOBAL_PREFIX}/docs`, app, document);
+  SwaggerModule.setup("api/v2/docs", app, buildV2Document(document as never));
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3001;
   await app.listen(port);

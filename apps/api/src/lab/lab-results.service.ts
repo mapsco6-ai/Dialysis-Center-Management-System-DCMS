@@ -84,7 +84,7 @@ export class LabResultsService {
           type: "LAB_SAMPLE_REJECTED",
           title: `Sample rejected: ${item.labTest.name}`,
           body: dto.reason,
-          link: `/admin/patients/${item.labOrder.patientId}`,
+          link: `/admin/care/patients/${item.labOrder.patientId}`,
         });
       }
 
@@ -180,7 +180,7 @@ export class LabResultsService {
           type: "LAB_CRITICAL_RESULT",
           title: `Critical result: ${item.labTest.name}`,
           body: `${dto.value}`,
-          link: `/admin/patients/${item.labOrder.patientId}`,
+          link: `/admin/care/patients/${item.labOrder.patientId}`,
         });
         const alert = await tx.clinicalAlert.create({
           data: {

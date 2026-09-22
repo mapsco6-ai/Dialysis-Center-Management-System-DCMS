@@ -36,7 +36,7 @@ test('Optional fields, enums, bounds and inherited properties are described', ()
   assert.ok(!schemas.CreatePatientDto.required.includes('dryWeight'));
   assert.equal(schemas.CreatePatientDto.properties.dryWeight.minimum,1);
   assert.equal(schemas.CreatePatientDto.properties.dryWeight.maximum,300);
-  assert.deepEqual(schemas.UpdateItemStatusDto.properties.status.enum,['SAMPLE_COLLECTED','PROCESSING']);
+  assert.deepEqual(schemas.UpdateItemStatusDto.properties.status.enum,['SAMPLE_COLLECTED','PROCESSING','SAMPLE_REJECTED']);
   assert.ok(schemas.AmendReadingDto.properties.bp);
   assert.ok(schemas.AmendReadingDto.required.includes('reason'));
   assert.ok(!schemas.StartDialysisDto.required.includes('accessInfo'));

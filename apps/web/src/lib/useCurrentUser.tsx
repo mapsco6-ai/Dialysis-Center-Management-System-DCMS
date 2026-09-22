@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { AuthenticatedUser } from "@/lib/types";
 
-// One /auth/me request per page load, shared by every component that asks
+// One /me request per page load, shared by every component that asks
 // (the shell, the page, the bell...) instead of one request each. Cleared on
 // sign-out and on a 401 so a different user never sees a stale identity.
 let cached: AuthenticatedUser | null = null;
@@ -28,7 +28,7 @@ export function useCurrentUser() {
       setUser(cached);
       return;
     }
-    pending ??= apiFetch("/auth/me").then((me) => (cached = me));
+    pending ??= apiFetch("/me").then((me) => (cached = me));
     pending
       .then(setUser)
       .catch((err) => {

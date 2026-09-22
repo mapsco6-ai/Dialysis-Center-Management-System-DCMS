@@ -111,7 +111,7 @@ export class StaffEntriesService {
         type: dto.type === "COMPLAINT" ? "COMPLAINT_FILED" : "STAFF_ENTRY_URGENT",
         // Confidential text never leaves the entry itself.
         title: dto.isConfidential ? "Confidential entry submitted" : dto.title,
-        link: "/admin/entries",
+        link: "/admin/people/entries",
       });
     }
     return created;

@@ -65,8 +65,8 @@ const login = async (username, password) => {
   const reception = await mk("recep", ["RECEPTION"]);
   await ok("new user must change password", () => assert.equal(nurse.mustChangePassword, true));
   const N = (await login(nurse.username, pw));
-  await ok("nurse lands on /admin/nursing with template permissions", () => {
-    assert.equal(N.user.landingPath, "/admin/nursing");
+  await ok("nurse lands on /admin/care/nursing with template permissions", () => {
+    assert.equal(N.user.landingPath, "/admin/care/nursing");
     assert.ok(N.user.permissions.includes("entry.create"));
     assert.ok(!N.user.permissions.includes("user.create"));
   });
@@ -488,11 +488,234 @@ const login = async (username, password) => {
     assert.deepEqual(history.map((h) => `${h.fromStatus}>${h.toStatus}`), ["null>PRE_DIALYSIS", "PRE_DIALYSIS>SUPPLIES_READY", "SUPPLIES_READY>ASSIGNED"]);
   });
 
+  console.log("Round 3: reschedule, approval expiry, ticket cancel");
+  await ok("appointment can be rescheduled once, keeping the old row as RESCHEDULED", async () => {
+    const shifts = await prisma.shift.findMany({ orderBy: { name: "asc" } });
+    const day = (n) => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() + n); return d; };
+    const p2 = (await call("POST", "/patients", A, { fullName: `Resched ${run}`, gender: "FEMALE", dateOfBirth: "1980-02-02" })).body;
+    const old = await prisma.dialysisSchedule.create({ data: { patientId: p2.id, scheduledDate: day(2), shiftId: shifts[0].id, type: "REGULAR" } });
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const bad = await call("POST", `/schedule/${old.id}/reschedule`, A, { scheduledDate: iso(day(-3)), shiftId: shifts[1].id, reason: "x" });
+    assert.equal(bad.status, 400, "past date");
+    assert.equal((await call("POST", `/schedule/${old.id}/reschedule`, A, { scheduledDate: iso(day(2)), shiftId: shifts[0].id, reason: "same" })).status, 400, "same slot");
+    assert.equal((await call("POST", `/schedule/${old.id}/reschedule`, N.accessToken, { scheduledDate: iso(day(5)), shiftId: shifts[1].id, reason: "x" })).status, 403);
+    const ok1 = await call("POST", `/schedule/${old.id}/reschedule`, A, { scheduledDate: iso(day(5)), shiftId: shifts[1].id, reason: "Patient travelling" });
+    assert.equal(ok1.status, 201, JSON.stringify(ok1.body));
+    const after = await prisma.dialysisSchedule.findUnique({ where: { id: old.id } });
+    assert.equal(after.status, "RESCHEDULED");
+    assert.equal(after.rescheduledToId, ok1.body.to.id);
+    assert.equal(ok1.body.to.status, "SCHEDULED");
+    assert.equal((await call("POST", `/schedule/${old.id}/reschedule`, A, { scheduledDate: iso(day(6)), shiftId: shifts[1].id, reason: "again" })).status, 409, "already moved");
+    const clash = await prisma.dialysisSchedule.create({ data: { patientId: p2.id, scheduledDate: day(8), shiftId: shifts[0].id, type: "REGULAR" } });
+    assert.equal((await call("POST", `/schedule/${clash.id}/reschedule`, A, { scheduledDate: iso(day(5)), shiftId: shifts[1].id, reason: "clash" })).status, 409, "target slot taken");
+    const h = await call("GET", `/audit-logs/patients/${p2.id}?action=SCHEDULE_RESCHEDULED`, A);
+    assert.equal(h.body.total, 1);
+    assert.equal(h.body.data[0].reason, "Patient travelling");
+  });
+  await ok("stale approval requests expire, release the machine and notify the requester", async () => {
+    const ward2 = (await call("POST", "/wards", A, { name: `Ward exp ${run}` })).body;
+    const shift = await prisma.shift.findFirst();
+    const p3 = (await call("POST", "/patients", A, { fullName: `Expiry ${run}`, gender: "MALE", dateOfBirth: "1975-05-05" })).body;
+    const requester = await mk("req", ["HEAD_NURSE"]);
+    const R = (await login(requester.username, pw)).accessToken;
+    const mk2 = async (code, status) => {
+      const m = (await call("POST", "/machines", A, { machineCode: `${code}${run}`, wardId: ward2.id })).body;
+      await prisma.machine.update({ where: { id: m.id }, data: { status } });
+      return m;
+    };
+    const stale = await mk2("EXS", "APPROVAL_REQUIRED");
+    const fresh = await mk2("EXF", "APPROVAL_REQUIRED");
+    const day = new Date(); day.setUTCHours(0, 0, 0, 0);
+    const sched = async (n) => prisma.dialysisSchedule.create({ data: { patientId: p3.id, scheduledDate: new Date(day.getTime() + n * 86400000), shiftId: shift.id, type: "REGULAR" } });
+    const [s1, s2] = [await sched(20), await sched(21)];
+    const requesterId = requester.id;
+    const old = await prisma.machineUsageApprovalRequest.create({ data: { patientId: p3.id, machineId: stale.id, scheduleId: s1.id, reason: "test", requestedById: requesterId, createdAt: new Date(Date.now() - 3 * 3600_000) } });
+    const recent = await prisma.machineUsageApprovalRequest.create({ data: { patientId: p3.id, machineId: fresh.id, scheduleId: s2.id, reason: "test", requestedById: requesterId } });
+    assert.equal((await call("POST", "/approvals/expire-stale", N.accessToken)).status, 403);
+    const r = await call("POST", "/approvals/expire-stale", A);
+    assert.equal(r.status, 201, JSON.stringify(r.body));
+    assert.ok(r.body.expired >= 1);
+    assert.equal((await prisma.machineUsageApprovalRequest.findUnique({ where: { id: old.id } })).decision, "EXPIRED");
+    assert.equal((await prisma.machineUsageApprovalRequest.findUnique({ where: { id: recent.id } })).decision, "PENDING", "recent one untouched");
+    assert.equal((await prisma.machine.findUnique({ where: { id: stale.id } })).status, "AVAILABLE");
+    assert.equal((await prisma.machine.findUnique({ where: { id: fresh.id } })).status, "APPROVAL_REQUIRED");
+    assert.equal((await call("POST", `/approvals/${old.id}/decision`, A, { decision: "APPROVED" })).status, 409, "expired requests cannot be decided");
+    await new Promise((x) => setTimeout(x, 700));
+    assert.ok((await call("GET", "/notifications", R)).body.data.some((x) => x.type === "APPROVAL_EXPIRED"));
+    assert.equal((await call("POST", "/approvals/expire-stale", A)).body.expired >= 0, true, "idempotent");
+    assert.equal((await call("GET", "/approvals?decision=EXPIRED", A)).status, 200);
+  });
+  await ok("a mistaken maintenance ticket can be cancelled before work starts; machine returns to service", async () => {
+    const ward3 = (await call("POST", "/wards", A, { name: `Ward mt ${run}` })).body;
+    const m = (await call("POST", "/machines", A, { machineCode: `MT${run}`, wardId: ward3.id })).body;
+    const t = await call("POST", "/maintenance/tickets", A, { machineId: m.id, problem: "Alarm (false)", severity: "LOW" });
+    assert.equal(t.status, 201, JSON.stringify(t.body));
+    assert.equal((await prisma.machine.findUnique({ where: { id: m.id } })).status, "OUT_OF_SERVICE");
+    assert.equal((await call("POST", `/maintenance/tickets/${t.body.id}/cancel`, A, {})).status, 400, "reason required");
+    assert.equal((await call("POST", `/maintenance/tickets/${t.body.id}/cancel`, N.accessToken, { reason: "x" })).status, 403);
+    const c = await call("POST", `/maintenance/tickets/${t.body.id}/cancel`, A, { reason: "False alarm" });
+    assert.equal(c.status, 201, JSON.stringify(c.body));
+    assert.equal(c.body.status, "CANCELLED");
+    assert.equal((await prisma.machine.findUnique({ where: { id: m.id } })).status, "AVAILABLE");
+    assert.equal((await call("POST", `/maintenance/tickets/${t.body.id}/cancel`, A, { reason: "again" })).status, 409);
+    // a cancelled ticket no longer blocks the machine's manual status changes
+    assert.equal((await call("POST", `/machines/${m.id}/status`, A, { status: "MAINTENANCE", reason: "planned" })).status, 201);
+    // started work cannot be cancelled
+    const m2 = (await call("POST", "/machines", A, { machineCode: `MU${run}`, wardId: ward3.id })).body;
+    const t2 = await call("POST", "/maintenance/tickets", A, { machineId: m2.id, problem: "Pump noise", severity: "MEDIUM" });
+    await call("POST", `/maintenance/tickets/${t2.body.id}/assign`, A, { assignedToId: (await call("GET", "/auth/me", A)).body.id });
+    await call("POST", `/maintenance/tickets/${t2.body.id}/status`, A, { status: "IN_PROGRESS" });
+    assert.equal((await call("POST", `/maintenance/tickets/${t2.body.id}/cancel`, A, { reason: "too late" })).status, 409);
+  });
+
+  console.log("API v2 (route redesign)");
+  const API2 = API.replace("/api/v1", "/api/v2");
+  const call2 = async (method, url, token, body) => {
+    const res = await fetch(API2 + url, { method, headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const text = await res.text();
+    let json; try { json = JSON.parse(text); } catch { json = text; }
+    return { status: res.status, body: json, headers: res.headers };
+  };
+  await ok("v2: login/logout are an auth session; /me replaces /auth/me", async () => {
+    const u = await mk("v2", ["NURSE"]);
+    const login2 = await call2("POST", "/auth/sessions", null, { username: u.username, password: pw });
+    assert.equal(login2.status, 200, JSON.stringify(login2.body));
+    assert.match(login2.headers.get("set-cookie"), /HttpOnly/i);
+    const T = login2.body.accessToken;
+    assert.equal((await call2("GET", "/me", T)).body.username, u.username);
+    assert.equal((await call2("GET", "/me/work-queue", T)).status, 200, "unchanged routes keep their path");
+    assert.equal((await call2("DELETE", "/auth/sessions/current", T)).status, 200);
+    assert.equal((await call2("GET", "/me", T)).status, 401, "session ended");
+  });
+  await ok("v2 refuses the old spelling and names the replacement; v1 still works and points forward", async () => {
+    const old = await call2("GET", "/auth/me", A);
+    assert.equal(old.status, 404);
+    assert.match(old.body.message, /use GET \/api\/v2\/me/);
+    assert.equal((await call2("GET", "/schedule/today", A)).status, 404);
+    assert.equal((await call2("POST", "/sessions/extra", A, {})).status, 404);
+    const v1 = await fetch(`${API}/auth/me`, { headers: { authorization: `Bearer ${A}` } });
+    assert.equal(v1.status, 200);
+    assert.equal(v1.headers.get("x-successor-route"), "GET /api/v2/me");
+    assert.equal(v1.headers.get("deprecation"), "true");
+    assert.equal((await fetch(`${API}/patients`, { headers: { authorization: `Bearer ${A}` } })).headers.get("x-successor-route"), null, "unchanged routes are not deprecated");
+  });
+  await ok("v2: appointments (was schedule/sessions), session under the appointment", async () => {
+    assert.equal((await call2("GET", "/appointments/today", A)).status, 200);
+    assert.equal((await call2("GET", "/appointments?date=2026-09-22", A)).status, 200);
+    const shifts = await prisma.shift.findMany({ orderBy: { name: "asc" } });
+    const p = (await call("POST", "/patients", A, { fullName: `V2 ${run}`, gender: "MALE", dateOfBirth: "1990-01-01" })).body;
+    const day = new Date(); day.setUTCHours(0, 0, 0, 0); day.setUTCDate(day.getUTCDate() + 40);
+    const appt = await prisma.dialysisSchedule.create({ data: { patientId: p.id, scheduledDate: day, shiftId: shifts[0].id, type: "REGULAR" } });
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const moved = await call2("POST", `/appointments/${appt.id}/reschedule`, A, { scheduledDate: iso(new Date(day.getTime() + 86400000)), shiftId: shifts[1].id, reason: "v2 move" });
+    assert.equal(moved.status, 201, JSON.stringify(moved.body));
+    // session sub-resource: nothing started yet -> the API's own answer, proving the route reached the session handler
+    const s = await call2("GET", `/appointments/${moved.body.to.id}/session`, A);
+    assert.ok([200, 404].includes(s.status), String(s.status));
+    assert.equal((await call2("POST", `/appointments/${moved.body.to.id}/session/start`, A, {})).status === 404, false, "start route exists in v2");
+    assert.equal((await call2("GET", `/sessions/${moved.body.to.id}`, A)).status, 404, "old /sessions/{id} is gone from v2");
+  });
+  await ok("v2: PATCH for status changes, PUT for restriction, audit-logs is the search", async () => {
+    const ward = (await call("POST", "/wards", A, { name: `Ward v2 ${run}` })).body;
+    const m = (await call("POST", "/machines", A, { machineCode: `V2${run}`, wardId: ward.id })).body;
+    const r = await call2("PATCH", `/machines/${m.id}/status`, A, { status: "MAINTENANCE", reason: "v2" });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.status, "MAINTENANCE");
+    assert.equal((await call2("POST", `/machines/${m.id}/status`, A, { status: "AVAILABLE", reason: "x" })).status, 404, "POST spelling is v1 only");
+    const patient = (await call("POST", "/patients", A, { fullName: `V2r ${run}`, gender: "MALE", dateOfBirth: "1990-01-01" })).body;
+    assert.equal((await call2("PUT", `/patients/${patient.id}/restriction`, A, { restricted: true, reason: "VIP" })).status, 200);
+    assert.equal((await call2("PUT", `/patients/${patient.id}/restriction`, A, { restricted: false, reason: "done" })).status, 200);
+    const search = await call2("GET", `/audit-logs?limit=2&actorId=${(await call("GET", "/auth/me", A)).body.id}`, A);
+    assert.equal(search.status, 200);
+    assert.ok(typeof search.body.total === "number" && search.body.data.length <= 2);
+    assert.ok("nextCursor" in (await call2("GET", "/audit-logs/feed?limit=1", A)).body);
+    const trail = await call2("GET", `/patients/${patient.id}/audit-log?action=PATIENT_RESTRICTED`, A);
+    assert.equal(trail.status, 200);
+    assert.ok(trail.body.total >= 1);
+  });
+  await ok("v2 OpenAPI document is served and consistent with the route table", async () => {
+    const doc = await (await fetch(`${API2}/docs-json`)).json();
+    assert.equal(doc.info.version, "2.0");
+    const paths = Object.keys(doc.paths);
+    assert.ok(paths.includes("/api/v2/appointments/{id}/session/start"));
+    assert.ok(paths.includes("/api/v2/me"));
+    assert.ok(!paths.includes("/api/v2/schedule/today") && !paths.includes("/api/v2/auth/me"));
+    assert.ok(paths.every((x) => x.startsWith("/api/v2/")));
+    assert.equal(doc.paths["/api/v2/machines/{id}/status"].patch["x-v1-equivalent"], "POST /api/v1/machines/{id}/status");
+  });
+
+  console.log("Journey: patient flow board");
+  await ok("deriveFlow: every session state maps to one current step and one next action", () => {
+    const { deriveFlow } = require("../dist/flow/flow.module.js");
+    const d = (scheduleStatus, sessionStatus, hasMachine = false) => deriveFlow({ scheduleStatus, sessionStatus, hasMachine });
+    assert.deepEqual([d("SCHEDULED", null).current, d("SCHEDULED", null).action], ["arrival", "check-in"]);
+    assert.deepEqual([d("ABSENT", null).current, d("ABSENT", null).attention], ["arrival", "ABSENT"]);
+    assert.deepEqual([d("ARRIVED", null).current, d("ARRIVED", null).action], ["pre", "record-pre-dialysis"]);
+    assert.deepEqual([d("ARRIVED", "PRE_DIALYSIS").current, d("ARRIVED", "PRE_DIALYSIS").action], ["supplies", "confirm-supplies"]);
+    assert.deepEqual([d("ARRIVED", "SUPPLIES_READY").current, d("ARRIVED", "SUPPLIES_READY").action], ["machine", "assign-machine"]);
+    assert.equal(d("ARRIVED", "WAITING_MACHINE").attention, "WAITING_MACHINE");
+    assert.deepEqual([d("ARRIVED", "ASSIGNED", true).current, d("ARRIVED", "ASSIGNED", true).action], ["dialysis", "start-dialysis"]);
+    assert.deepEqual([d("ARRIVED", "IN_DIALYSIS", true).current, d("ARRIVED", "IN_DIALYSIS", true).action], ["dialysis", "record-readings"]);
+    assert.deepEqual([d("ARRIVED", "INTERRUPTED", true).action, d("ARRIVED", "INTERRUPTED", true).attention], ["resume-dialysis", "INTERRUPTED"]);
+    assert.deepEqual([d("ARRIVED", "COMPLETED", true).current, d("ARRIVED", "COMPLETED", true).action], ["discharge", "discharge"]);
+    assert.equal(d("ARRIVED", "DISCHARGED", true).current, null);
+    assert.equal(d("RESCHEDULED", null).current, null);
+    assert.equal(d("ARRIVED", "IN_DIALYSIS", true).steps.filter((s) => s.state === "done").length, 4);
+  });
+  await ok("/flow/today lists today's journeys with the next action, gated by the caller's permissions", async () => {
+    const shifts = await prisma.shift.findMany({ orderBy: { name: "asc" } });
+    const now = new Date();
+    const todayDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const wardF = (await call("POST", "/wards", A, { name: `Ward flow ${run}` })).body;
+    const machineF = (await call("POST", "/machines", A, { machineCode: `FL${run}`, wardId: wardF.id })).body;
+    const mkAppt = async (label, scheduleStatus, sessionStatus, withMachine = false) => {
+      const p = (await call("POST", "/patients", A, { fullName: `Flow ${label} ${run}`, gender: "MALE", dateOfBirth: "1970-01-01" })).body;
+      const schedule = await prisma.dialysisSchedule.create({ data: { patientId: p.id, scheduledDate: todayDate, shiftId: shifts[0].id, type: "REGULAR", status: scheduleStatus, checkInTime: scheduleStatus === "ARRIVED" ? new Date(Date.now() - 25 * 60000) : null } });
+      if (sessionStatus) await prisma.dialysisSession.create({ data: { scheduleId: schedule.id, patientId: p.id, status: sessionStatus, machineId: withMachine ? machineF.id : null } });
+      return schedule.id;
+    };
+    const ids = {
+      waiting: await mkAppt("a", "SCHEDULED", null),
+      supplies: await mkAppt("b", "ARRIVED", "PRE_DIALYSIS"),
+      noMachine: await mkAppt("c", "ARRIVED", "WAITING_MACHINE"),
+      running: await mkAppt("d", "ARRIVED", "IN_DIALYSIS", true),
+      interrupted: await mkAppt("e", "ARRIVED", "INTERRUPTED", true),
+      done: await mkAppt("f", "ARRIVED", "DISCHARGED", true),
+    };
+    const board = await call("GET", "/flow/today", A);
+    assert.equal(board.status, 200, JSON.stringify(board.body));
+    const by = (id) => board.body.items.find((i) => i.appointmentId === id);
+    assert.equal(by(ids.waiting).nextAction.key, "check-in");
+    assert.equal(by(ids.supplies).current, "supplies");
+    assert.equal(by(ids.noMachine).attention, "WAITING_MACHINE");
+    assert.equal(by(ids.running).nextAction.key, "record-readings");
+    assert.equal(by(ids.running).machineCode, `FL${run}`);
+    assert.equal(by(ids.interrupted).nextAction.key, "resume-dialysis");
+    assert.equal(by(ids.done).current, null);
+    assert.ok(by(ids.supplies).minutesInStep >= 0);
+    const order = board.body.items.map((i) => i.appointmentId);
+    assert.ok(order.indexOf(ids.interrupted) < order.indexOf(ids.noMachine), "interrupted first");
+    assert.ok(order.indexOf(ids.noMachine) < order.indexOf(ids.running), "waiting-for-machine before running");
+    assert.ok(order.indexOf(ids.running) < order.indexOf(ids.done), "finished last");
+    assert.ok(board.body.needsAttention >= 2 && board.body.byStep.arrival >= 1);
+    const filtered = await call("GET", `/flow/today?shiftId=${shifts[3].id}`, A);
+    assert.ok(!filtered.body.items.some((i) => i.appointmentId === ids.waiting), "shift filter");
+    // permissions decide which buttons are live
+    const R3 = (await login(reception.username, "NewPassw0rd!")).accessToken;
+    const rb = (await call("GET", "/flow/today", R3)).body;
+    assert.equal(rb.items.find((i) => i.appointmentId === ids.waiting).nextAction.allowed, true, "reception may check in");
+    assert.equal(rb.items.find((i) => i.appointmentId === ids.supplies).nextAction.allowed, false, "reception may not confirm supplies");
+    const nb = (await call("GET", "/flow/today", N.accessToken)).body;
+    assert.equal(nb.items.find((i) => i.appointmentId === ids.running).nextAction.allowed, true, "nurse records readings");
+    assert.equal((await call("GET", "/flow/today", (await login((await mk("flowaud", ["AUDITOR"])).username, pw)).accessToken)).status, 403);
+    assert.equal((await call2("GET", "/flow/today", A)).status, 200, "same path in v2");
+  });
+
   console.log("Platform: committee (oversight) account + work queue");
   await ok("AUDITOR sees only the oversight dashboard and timeline - no sections, no writes", async () => {
     const aud = await mk("aud", ["AUDITOR"], { expiresAt: new Date(Date.now() + 86400000).toISOString() });
     const T = await login(aud.username, pw);
-    assert.equal(T.user.landingPath, "/admin/oversight");
+    assert.equal(T.user.landingPath, "/admin/governance/oversight");
     assert.deepEqual(T.user.permissions, ["oversight.view"]);
     const s = await call("GET", "/oversight/summary", T.accessToken);
     assert.equal(s.status, 200, JSON.stringify(s.body));

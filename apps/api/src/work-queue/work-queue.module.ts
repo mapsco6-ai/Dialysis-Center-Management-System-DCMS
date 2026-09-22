@@ -29,14 +29,14 @@ export class WorkQueueController {
 
     const jobs: [string, string, boolean, () => Promise<number>][] = [
       ["unreadNotifications", "/admin", true, () => this.prisma.notification.count({ where: { userId: user.id, readAt: null } })],
-      ["myOpenEntries", "/admin/entries", can("entry.create"), () => this.prisma.staffEntry.count({ where: { authorId: user.id, status: { in: ["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS"] } } })],
-      ["entriesToReview", "/admin/entries", can("entry.review"), () => this.prisma.staffEntry.count({ where: { status: { in: ["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS"] } } })],
-      ["prescriptionsToDispense", "/admin/pharmacy", can("pharmacy.dispense"), () => this.prisma.prescription.count({ where: { status: { in: ["ACTIVE", "DISPENSING"] } } })],
-      ["labItemsPending", "/admin/lab", can("lab.queue.view"), () => this.prisma.labOrderItem.count({ where: { status: { in: ["ORDERED", "SAMPLE_COLLECTED", "PROCESSING"] } } })],
-      ["openMaintenanceTickets", "/admin/maintenance", can("maintenance.manage"), () => this.prisma.maintenanceTicket.count({ where: { status: { in: ["OPEN", "ASSIGNED", "IN_PROGRESS", "WAITING_PART"] } } })],
-      ["transfersAwaitingApproval", "/admin/inventory", can("inventory.transfer.approve"), () => this.prisma.stockTransfer.count({ where: { status: "REQUESTED" } })],
-      ["openIncidents", "/admin/quality", can("incident.review"), () => this.prisma.incidentReport.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW", "ACTION_REQUIRED"] } } })],
-      ["patientsToCheckIn", "/admin/reception", can("attendance.checkin"), () => this.prisma.dialysisSchedule.count({ where: { scheduledDate: { gte: today, lt: tomorrow }, status: { in: ["SCHEDULED", "LATE"] } } })],
+      ["myOpenEntries", "/admin/people/entries", can("entry.create"), () => this.prisma.staffEntry.count({ where: { authorId: user.id, status: { in: ["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS"] } } })],
+      ["entriesToReview", "/admin/people/entries", can("entry.review"), () => this.prisma.staffEntry.count({ where: { status: { in: ["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS"] } } })],
+      ["prescriptionsToDispense", "/admin/care/pharmacy", can("pharmacy.dispense"), () => this.prisma.prescription.count({ where: { status: { in: ["ACTIVE", "DISPENSING"] } } })],
+      ["labItemsPending", "/admin/care/lab", can("lab.queue.view"), () => this.prisma.labOrderItem.count({ where: { status: { in: ["ORDERED", "SAMPLE_COLLECTED", "PROCESSING"] } } })],
+      ["openMaintenanceTickets", "/admin/facility/maintenance", can("maintenance.manage"), () => this.prisma.maintenanceTicket.count({ where: { status: { in: ["OPEN", "ASSIGNED", "IN_PROGRESS", "WAITING_PART"] } } })],
+      ["transfersAwaitingApproval", "/admin/facility/inventory", can("inventory.transfer.approve"), () => this.prisma.stockTransfer.count({ where: { status: "REQUESTED" } })],
+      ["openIncidents", "/admin/governance/quality", can("incident.review"), () => this.prisma.incidentReport.count({ where: { status: { in: ["OPEN", "UNDER_REVIEW", "ACTION_REQUIRED"] } } })],
+      ["patientsToCheckIn", "/admin/care/reception", can("attendance.checkin"), () => this.prisma.dialysisSchedule.count({ where: { scheduledDate: { gte: today, lt: tomorrow }, status: { in: ["SCHEDULED", "LATE"] } } })],
     ];
 
     const items = await Promise.all(

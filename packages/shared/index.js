@@ -113,19 +113,19 @@ const READ_ONLY_CLINICAL = ["patient.view", "dialysis.session.view", "machine.vi
 const ROLE_TEMPLATES = {
   CENTER_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "user.view", "audit.view", "audit.export", "scheduling.manage", "shift.manage", "incident.review", "maintenance.manage", "machine.manage", "inventory.manage", "entry.create", "entry.review"] },
   MEDICAL_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "lab.request", "incident.report", "incident.review", "audit.view", "entry.create", "entry.review"] },
-  DOCTOR: { landingPath: "/admin/doctor", permissions: ["patient.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "medication.administer", "lab.request", "lab.queue.view", "dialysis.session.view", "dialysis.emergency.create", "incident.report", "entry.create"] },
-  HEAD_NURSE: { landingPath: "/admin/nursing", permissions: ["patient.view", "nursing.assign", "nursing.ward.view", "nursing.ward.view.all", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.assign", "machine.fault.report", "incident.report", "inventory.view", "inventory.issue", "entry.create", "entry.review"] },
-  NURSE: { landingPath: "/admin/nursing", permissions: ["patient.view", "nursing.ward.view", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.fault.report", "incident.report", "entry.create"] },
-  PHARMACIST: { landingPath: "/admin/pharmacy", permissions: ["patient.view", "pharmacy.dispense", "inventory.view", "inventory.issue", "inventory.transfer.request", "inventory.transfer.receive", "entry.create"] },
-  WAREHOUSE: { landingPath: "/admin/inventory", permissions: ["inventory.view", "inventory.manage", "inventory.issue", "inventory.batch.manage", "inventory.transfer.request", "inventory.transfer.approve", "inventory.transfer.issue", "inventory.transfer.receive", "entry.create"] },
-  LAB_TECHNICIAN: { landingPath: "/admin/lab", permissions: ["patient.view", "lab.queue.view", "lab.result.create", "lab.catalog.manage", "inventory.view", "entry.create"] },
-  RECEPTION: { landingPath: "/admin/reception", permissions: ["patient.view", "patient.create", "attendance.checkin", "scheduling.manage", "entry.create"] },
-  MAINTENANCE: { landingPath: "/admin/maintenance", permissions: ["machine.view", "machine.manage", "machine.fault.report", "maintenance.manage", "entry.create"] },
-  ACCOUNTANT: { landingPath: "/admin/reports", permissions: ["inventory.view", "patient.view", "entry.create"] },
+  DOCTOR: { landingPath: "/admin/care/doctor", permissions: ["patient.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "medication.administer", "lab.request", "lab.queue.view", "dialysis.session.view", "dialysis.emergency.create", "incident.report", "entry.create"] },
+  HEAD_NURSE: { landingPath: "/admin/care/nursing", permissions: ["patient.view", "nursing.assign", "nursing.ward.view", "nursing.ward.view.all", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.assign", "machine.fault.report", "incident.report", "inventory.view", "inventory.issue", "entry.create", "entry.review"] },
+  NURSE: { landingPath: "/admin/care/nursing", permissions: ["patient.view", "nursing.ward.view", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.fault.report", "incident.report", "entry.create"] },
+  PHARMACIST: { landingPath: "/admin/care/pharmacy", permissions: ["patient.view", "pharmacy.dispense", "inventory.view", "inventory.issue", "inventory.transfer.request", "inventory.transfer.receive", "entry.create"] },
+  WAREHOUSE: { landingPath: "/admin/facility/inventory", permissions: ["inventory.view", "inventory.manage", "inventory.issue", "inventory.batch.manage", "inventory.transfer.request", "inventory.transfer.approve", "inventory.transfer.issue", "inventory.transfer.receive", "entry.create"] },
+  LAB_TECHNICIAN: { landingPath: "/admin/care/lab", permissions: ["patient.view", "lab.queue.view", "lab.result.create", "lab.catalog.manage", "inventory.view", "entry.create"] },
+  RECEPTION: { landingPath: "/admin/care/reception", permissions: ["patient.view", "patient.create", "attendance.checkin", "scheduling.manage", "entry.create"] },
+  MAINTENANCE: { landingPath: "/admin/facility/maintenance", permissions: ["machine.view", "machine.manage", "machine.fault.report", "maintenance.manage", "entry.create"] },
+  ACCOUNTANT: { landingPath: "/admin/governance/reports", permissions: ["inventory.view", "patient.view", "entry.create"] },
   // Health-authority / committee account: sees only the aggregated dashboard
   // (interactive charts) and the record timeline - no sections, no forms.
   // Meant to be time-limited (User.expiresAt); can never change data.
-  AUDITOR: { landingPath: "/admin/oversight", permissions: ["oversight.view"] },
+  AUDITOR: { landingPath: "/admin/governance/oversight", permissions: ["oversight.view"] },
   SUPER_ADMIN: { landingPath: "/admin", permissions: [] },
 };
 

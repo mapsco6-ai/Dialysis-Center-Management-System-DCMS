@@ -12,25 +12,34 @@ import { useI18n } from "@/lib/i18n";
 import type { AuthenticatedUser } from "@/lib/types";
 import { CenterMark, WorkspaceIcon, type IconName } from "./WorkspaceIcon";
 
-type NavigationItem = { href: string; ar: string; en: string; icon: IconName; permissions?: string[]; group: "overview" | "operations" };
+type NavGroup = "overview" | "care" | "facility" | "governance" | "people";
+const GROUPS: { key: NavGroup; ar: string; en: string }[] = [
+  { key: "overview", ar: "نظرة عامة", en: "Overview" },
+  { key: "care", ar: "رعاية المرضى", en: "Patient care" },
+  { key: "facility", ar: "المنشأة والموارد", en: "Facility & supplies" },
+  { key: "governance", ar: "الجودة والرقابة", en: "Quality & oversight" },
+  { key: "people", ar: "الموظفون", en: "People" },
+];
+type NavigationItem = { href: string; ar: string; en: string; icon: IconName; permissions?: string[]; group: NavGroup };
 const navigation: NavigationItem[] = [
   { href: "/admin", ar: "لوحة المركز", en: "Dashboard", icon: "dashboard", group: "overview" },
-  { href: "/admin/schedule", ar: "الجدول اليومي", en: "Appointments", icon: "calendar", group: "overview", permissions: ["scheduling.manage", "attendance.checkin"] },
-  { href: "/admin/patients", ar: "المرضى", en: "Patients", icon: "patients", group: "overview", permissions: ["patient.view"] },
-  { href: "/admin/reception", ar: "الاستقبال", en: "Reception", icon: "reception", group: "overview", permissions: ["attendance.checkin"] },
-  { href: "/admin/nursing", ar: "التمريض", en: "Nursing", icon: "nursing", group: "overview", permissions: ["nursing.ward.view", "nursing.assign"] },
-  { href: "/admin/doctor", ar: "الطبيب", en: "Doctor", icon: "doctor", group: "overview", permissions: ["prescription.create", "prescription.modify", "medication.administer"] },
-  { href: "/admin/lab", ar: "المختبر", en: "Laboratory", icon: "lab", group: "overview", permissions: ["lab.queue.view", "lab.result.create", "lab.catalog.manage"] },
-  { href: "/admin/pharmacy", ar: "الصيدلية", en: "Pharmacy", icon: "pharmacy", group: "overview", permissions: ["pharmacy.dispense"] },
-  { href: "/admin/reports", ar: "التقارير", en: "Reports", icon: "reports", group: "operations", permissions: ["patient.view", "scheduling.manage", "dialysis.session.view", "machine.view", "maintenance.manage", "inventory.view", "pharmacy.dispense", "lab.queue.view"] },
-  { href: "/admin/inventory", ar: "المخزون", en: "Inventory", icon: "inventory", group: "operations", permissions: ["inventory.view", "inventory.manage"] },
-  { href: "/admin/machines", ar: "الأجهزة", en: "Machines", icon: "machines", group: "operations", permissions: ["machine.view", "machine.assign", "approval.machine.decide"] },
-  { href: "/admin/maintenance", ar: "الصيانة", en: "Maintenance", icon: "maintenance", group: "operations", permissions: ["machine.fault.report", "maintenance.manage", "machine.view"] },
-  { href: "/admin/oversight", ar: "لوحة الرقابة", en: "Oversight", icon: "dashboard", group: "overview", permissions: ["oversight.view"] },
-  { href: "/admin/entries", ar: "تقاريري وإجراءاتي", en: "Reports & actions", icon: "reports", group: "operations", permissions: ["entry.create", "entry.review"] },
-  { href: "/admin/staff", ar: "الموظفون", en: "Staff", icon: "patients", group: "operations", permissions: ["user.view"] },
-  { href: "/admin/audit", ar: "سجل التدقيق", en: "Audit trail", icon: "quality", group: "operations", permissions: ["audit.view"] },
-  { href: "/admin/quality", ar: "الجودة والسلامة", en: "Quality & safety", icon: "quality", group: "operations", permissions: ["incident.report", "incident.view", "incident.review", "quality.audit.view"] },
+  { href: "/admin/care/flow", ar: "رحلة المرضى اليوم", en: "Patient flow", icon: "nursing", group: "care", permissions: ["scheduling.manage", "attendance.checkin", "dialysis.session.view", "nursing.ward.view"] },
+  { href: "/admin/care/appointments", ar: "الجدول اليومي", en: "Appointments", icon: "calendar", group: "care", permissions: ["scheduling.manage", "attendance.checkin"] },
+  { href: "/admin/care/patients", ar: "المرضى", en: "Patients", icon: "patients", group: "care", permissions: ["patient.view"] },
+  { href: "/admin/care/reception", ar: "الاستقبال", en: "Reception", icon: "reception", group: "care", permissions: ["attendance.checkin"] },
+  { href: "/admin/care/nursing", ar: "التمريض", en: "Nursing", icon: "nursing", group: "care", permissions: ["nursing.ward.view", "nursing.assign"] },
+  { href: "/admin/care/doctor", ar: "الطبيب", en: "Doctor", icon: "doctor", group: "care", permissions: ["prescription.create", "prescription.modify", "medication.administer"] },
+  { href: "/admin/care/lab", ar: "المختبر", en: "Laboratory", icon: "lab", group: "care", permissions: ["lab.queue.view", "lab.result.create", "lab.catalog.manage"] },
+  { href: "/admin/care/pharmacy", ar: "الصيدلية", en: "Pharmacy", icon: "pharmacy", group: "care", permissions: ["pharmacy.dispense"] },
+  { href: "/admin/governance/reports", ar: "التقارير", en: "Reports", icon: "reports", group: "governance", permissions: ["patient.view", "scheduling.manage", "dialysis.session.view", "machine.view", "maintenance.manage", "inventory.view", "pharmacy.dispense", "lab.queue.view"] },
+  { href: "/admin/facility/inventory", ar: "المخزون", en: "Inventory", icon: "inventory", group: "facility", permissions: ["inventory.view", "inventory.manage"] },
+  { href: "/admin/facility/machines", ar: "الأجهزة", en: "Machines", icon: "machines", group: "facility", permissions: ["machine.view", "machine.assign", "approval.machine.decide"] },
+  { href: "/admin/facility/maintenance", ar: "الصيانة", en: "Maintenance", icon: "maintenance", group: "facility", permissions: ["machine.fault.report", "maintenance.manage", "machine.view"] },
+  { href: "/admin/governance/oversight", ar: "لوحة الرقابة", en: "Oversight", icon: "dashboard", group: "overview", permissions: ["oversight.view"] },
+  { href: "/admin/people/entries", ar: "تقاريري وإجراءاتي", en: "Reports & actions", icon: "reports", group: "people", permissions: ["entry.create", "entry.review"] },
+  { href: "/admin/people/staff", ar: "الموظفون", en: "Staff", icon: "patients", group: "people", permissions: ["user.view"] },
+  { href: "/admin/governance/audit", ar: "سجل التدقيق", en: "Audit trail", icon: "quality", group: "governance", permissions: ["audit.view"] },
+  { href: "/admin/governance/quality", ar: "الجودة والسلامة", en: "Quality & safety", icon: "quality", group: "governance", permissions: ["incident.report", "incident.view", "incident.review", "quality.audit.view"] },
 ];
 
 export function AdminShell({ user, children }: { user: AuthenticatedUser; children: React.ReactNode }) {
@@ -84,19 +93,23 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
   const requested = navigation.find((item) => item.href !== "/admin" && isActive(item.href));
   const forbidden = Boolean(requested && !allowed.includes(requested));
   const title = pathname.startsWith("/admin/settings") ? t("الإعدادات", "Settings")
-    : pathname.startsWith("/admin/sessions") ? t("جلسة الديلزة", "Dialysis session")
+    : pathname.startsWith("/admin/care/sessions") ? t("جلسة الديلزة", "Dialysis session")
     : active ? t(active.ar, active.en) : t("مساحة العمل", "Workspace");
+  // Browser tab / history / screen-reader title follows the section.
+  useEffect(() => {
+    document.title = `${title} — DCMS`;
+  }, [title]);
   const initials = user.fullName.trim().split(/\s+/).slice(0, 2).map((word) => Array.from(word)[0]).join("");
 
   async function logout() {
     try {
-      await apiFetch("/auth/logout", { method: "POST" });
+      await apiFetch("/auth/sessions/current", { method: "DELETE" });
     } catch (error) {
       // The super admin can make shift reports mandatory: the API refuses the
       // sign-out until one is filed, so send the user to write it.
       if (error instanceof ApiError && error.code === "SHIFT_REPORT_REQUIRED") {
         toast.error(t("يجب تقديم تقرير الدوام قبل تسجيل الخروج", "Submit your shift report before signing out"));
-        router.push("/admin/entries");
+        router.push("/admin/people/entries");
         return;
       }
     }
@@ -121,11 +134,11 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
             {!search && <kbd className="navigation-search-hint">{shortcutHint}</kbd>}
           </label>
           <nav aria-label={t("القائمة الرئيسية", "Main navigation")}>
-            {(["overview", "operations"] as const).map((group) => {
+            {GROUPS.map(({ key: group, ar, en }) => {
               const items = visible.filter((item) => item.group === group);
               if (!items.length) return null;
               return <div className="navigation-group" key={group}>
-                <p className="navigation-heading">{group === "overview" ? t("الرعاية الصحية", "Overview") : t("إدارة المركز", "Center management")}</p>
+                <p className="navigation-heading">{t(ar, en)}</p>
                 {items.map((item) => <Link key={item.href} href={item.href} className={`navigation-link ${isActive(item.href) ? "is-active" : ""}`}
                   aria-current={isActive(item.href) ? "page" : undefined} onClick={() => { setMenuOpen(false); setSearch(""); }}>
                   <WorkspaceIcon name={item.icon} /><span>{t(item.ar, item.en)}</span>
@@ -136,7 +149,7 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
               <div className="navigation-group">
                 <p className="navigation-heading">{t("المرضى", "Patients")}</p>
                 {patientResults.map((patient) => (
-                  <Link key={patient.id} href={`/admin/patients/${patient.id}`} className="navigation-link"
+                  <Link key={patient.id} href={`/admin/care/patients/${patient.id}`} className="navigation-link"
                     onClick={() => { setMenuOpen(false); setSearch(""); }}>
                     <WorkspaceIcon name="patients" /><span>{patient.fullName} — {patient.patientCode}</span>
                   </Link>

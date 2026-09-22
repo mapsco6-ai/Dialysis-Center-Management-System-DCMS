@@ -16,6 +16,7 @@ import { NestFactory } from "@nestjs/core";
 import { SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "../src/app.module";
 import { buildOpenApiConfig, GLOBAL_PREFIX } from "../src/openapi.config";
+import { buildV2Document } from "../src/common/api-v2";
 
 async function main() {
   const app = await NestFactory.create(AppModule, { logger: false });
@@ -27,6 +28,8 @@ async function main() {
 
     const outPath = path.join(__dirname, "..", "openapi.yaml");
     fs.writeFileSync(outPath, yaml.dump(document, { noRefs: true }));
+    // The v2 document is derived from v1 with the route table (src/common/api-v2.ts).
+    fs.writeFileSync(path.join(__dirname, "..", "openapi.v2.yaml"), yaml.dump(buildV2Document(document as never), { noRefs: true }));
     // eslint-disable-next-line no-console
     console.log(`OpenAPI spec written to ${outPath}`);
 

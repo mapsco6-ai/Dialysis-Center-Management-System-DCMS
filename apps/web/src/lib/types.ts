@@ -68,7 +68,7 @@ export interface PatientTimelineEvent {
 }
 
 export type Weekday = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
-export type ScheduleStatus = "SCHEDULED" | "ARRIVED" | "LATE" | "ABSENT" | "CANCELLED" | "EXTRA" | "EMERGENCY";
+export type ScheduleStatus = "SCHEDULED" | "ARRIVED" | "LATE" | "ABSENT" | "CANCELLED" | "EXTRA" | "EMERGENCY" | "RESCHEDULED";
 export type ScheduleType = "REGULAR" | "EXTRA" | "EMERGENCY";
 
 export interface Shift {
@@ -124,7 +124,7 @@ export type MachineStatus =
   | "MAINTENANCE"
   | "OUT_OF_SERVICE";
 
-export type ApprovalDecision = "PENDING" | "APPROVED" | "REJECTED";
+export type ApprovalDecision = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 
 export interface Ward {
   id: string;
@@ -574,7 +574,7 @@ export interface LabTrendPoint {
   value: string;
 }
 
-export type MaintenanceTicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "WAITING_PART" | "COMPLETED" | "CLOSED";
+export type MaintenanceTicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "WAITING_PART" | "COMPLETED" | "CLOSED" | "CANCELLED";
 export type MaintenanceSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface MaintenanceTicketStatusHistoryEntry {

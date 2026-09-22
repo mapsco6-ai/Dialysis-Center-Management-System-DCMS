@@ -156,7 +156,7 @@ export class PharmacyService {
       type: "PRESCRIPTION_REJECTED",
       title: `Pharmacy rejected: ${prescription.medicationName}`,
       body: reason,
-      link: `/admin/patients/${prescription.patientId}`,
+      link: `/admin/care/patients/${prescription.patientId}`,
     });
     return updated;
   }

@@ -1,4 +1,6 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v1";
+// Older deployment settings may still include v1. All web calls now use v2.
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api/v2")
+  .replace(/\/$/, "").replace(/\/api\/v1$/, "/api/v2");
 
 export const TOKEN_COOKIE = "dcms_token";
 
@@ -80,7 +82,11 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
       throw new ApiError(body.message ?? "Request failed", response.status, body.code);
     }
 
-    return response.json();
+    if (response.status === 204) return undefined;
+    const envelope = await response.json();
+    // Keep transport metadata out of components that consume a resource or an
+    // unpaged array. Paged views retain access to total and aggregate metadata.
+    return envelope.meta ? { data: envelope.data, ...envelope.meta } : envelope.data;
   } finally {
     endRequest();
   }

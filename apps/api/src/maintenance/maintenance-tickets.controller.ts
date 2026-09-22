@@ -24,6 +24,7 @@ import { AssignTicketDto } from "./dto/assign-ticket.dto";
 import { UpdateTicketStatusDto } from "./dto/update-ticket-status.dto";
 import { CloseTicketDto } from "./dto/close-ticket.dto";
 import { ListTicketsQueryDto } from "./dto/list-tickets-query.dto";
+import { CancelTicketDto } from "./dto/cancel-ticket.dto";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 
 @ApiTags("Maintenance - Tickets")
@@ -92,6 +93,12 @@ export class MaintenanceTicketsController {
   @RequirePermissions("maintenance.manage")
   updateStatus(@Param("id") id: string, @Body() dto: UpdateTicketStatusDto, @CurrentUser() actor: AuthenticatedUser) {
     return this.maintenanceService.updateStatus(id, dto, actor);
+  }
+
+  @Post("tickets/:id/cancel")
+  @RequirePermissions("maintenance.manage")
+  cancel(@Param("id") id: string, @Body() dto: CancelTicketDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.maintenanceService.cancel(id, dto.reason, actor);
   }
 
   @Post("tickets/:id/close")

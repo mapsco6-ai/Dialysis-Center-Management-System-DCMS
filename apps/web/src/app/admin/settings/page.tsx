@@ -46,7 +46,7 @@ function ChangePassword() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     try {
-      await apiFetch("/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword: current, newPassword: next }) });
+      await apiFetch("/me/password", { method: "PUT", body: JSON.stringify({ currentPassword: current, newPassword: next }) });
       // The API invalidates every session on a password change.
       clearToken();
       window.location.href = "/login";

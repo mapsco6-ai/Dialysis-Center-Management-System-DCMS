@@ -26,6 +26,7 @@ import { SettingsModule } from "./settings/settings.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { OversightModule } from "./oversight/oversight.module";
 import { WorkQueueModule } from "./work-queue/work-queue.module";
+import { FlowModule } from "./flow/flow.module";
 import { HealthController } from "./health/health.controller";
 
 @Module({
@@ -61,6 +62,7 @@ import { HealthController } from "./health/health.controller";
     NotificationsModule,
     OversightModule,
     WorkQueueModule,
+    FlowModule,
   ],
   controllers: [HealthController],
 })

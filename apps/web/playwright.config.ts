@@ -17,8 +17,8 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: [
-    { command: "node ../../scripts/ui-preview-api.mjs", url: "http://127.0.0.1:3101/api/v1/health", reuseExistingServer: !process.env.CI },
+    { command: "node ../../scripts/ui-preview-api.mjs", url: "http://127.0.0.1:3101/api/v2/health", reuseExistingServer: !process.env.CI },
     { command: "node ../../node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3100", url: "http://127.0.0.1:3100/login", timeout: 120_000,
-      env: { NEXT_PUBLIC_API_URL: "http://127.0.0.1:3101/api/v1" }, reuseExistingServer: !process.env.CI },
+      env: { NEXT_PUBLIC_API_URL: "http://127.0.0.1:3101/api/v2" }, reuseExistingServer: !process.env.CI },
   ],
 });

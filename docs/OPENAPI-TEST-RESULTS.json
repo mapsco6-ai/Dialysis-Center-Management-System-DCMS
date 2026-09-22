@@ -1,7 +1,7 @@
 {
   "suite": "OpenAPI request contract",
-  "schemas": 59,
-  "paths": 129,
+  "schemas": 74,
+  "paths": 172,
   "passed": 8,
   "failed": 0,
   "results": [

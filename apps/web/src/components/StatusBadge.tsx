@@ -34,6 +34,7 @@ const GROUPS = {
     CANCELLED: { ar: "ملغى", en: "Cancelled", tone: "muted" },
     EXTRA: { ar: "إضافي", en: "Extra", tone: "info" },
     EMERGENCY: { ar: "طارئ", en: "Emergency", tone: "danger" },
+    RESCHEDULED: { ar: "أُعيدت جدولته", en: "Rescheduled", tone: "muted" },
   },
   session: {
     PRE_DIALYSIS: { ar: "قبل الديلزة", en: "Pre-dialysis", tone: "info" },
@@ -96,6 +97,7 @@ const GROUPS = {
     WAITING_PART: { ar: "بانتظار قطعة", en: "Waiting part", tone: "warning" },
     COMPLETED: { ar: "مكتمل", en: "Completed", tone: "success" },
     CLOSED: { ar: "مغلق", en: "Closed", tone: "muted" },
+    CANCELLED: { ar: "ملغى", en: "Cancelled", tone: "muted" },
   },
   incident: {
     OPEN: { ar: "مفتوح", en: "Open", tone: "warning" },
@@ -108,6 +110,7 @@ const GROUPS = {
     PENDING: { ar: "بانتظار القرار", en: "Pending", tone: "warning" },
     APPROVED: { ar: "موافق عليه", en: "Approved", tone: "success" },
     REJECTED: { ar: "مرفوض", en: "Rejected", tone: "danger" },
+    EXPIRED: { ar: "انتهت المهلة", en: "Expired", tone: "muted" },
   },
   supplyIssue: {
     ISSUED: { ar: "مُصدر", en: "Issued", tone: "success" },

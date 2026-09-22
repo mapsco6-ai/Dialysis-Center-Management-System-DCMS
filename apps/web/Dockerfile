@@ -13,7 +13,7 @@ COPY apps/web apps/web
 
 WORKDIR /repo/apps/web
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v2
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
