@@ -67,6 +67,8 @@ export class DoctorOrdersService {
         previousOrder: { select: { id: true, payload: true, createdAt: true } },
       },
       orderBy: { createdAt: "desc" },
+      // ponytail: capped, newest-first - see LabOrdersService.listForPatient.
+      take: 500,
     });
   }
 

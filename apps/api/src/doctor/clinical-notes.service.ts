@@ -12,6 +12,8 @@ export class ClinicalNotesService {
       where: { patientId },
       include: { author: { select: { id: true, fullName: true } } },
       orderBy: { createdAt: "desc" },
+      // ponytail: capped, newest-first - see LabOrdersService.listForPatient.
+      take: 500,
     });
   }
 

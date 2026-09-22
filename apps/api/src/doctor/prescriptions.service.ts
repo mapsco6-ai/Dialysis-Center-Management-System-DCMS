@@ -28,6 +28,9 @@ export class PrescriptionsService {
         orders: { select: { id: true, status: true }, orderBy: { createdAt: "desc" } },
       },
       orderBy: { createdAt: "desc" },
+      // ponytail: capped at the 500 most recent, newest-first - see the
+      // matching note on LabOrdersService.listForPatient.
+      take: 500,
     });
   }
 

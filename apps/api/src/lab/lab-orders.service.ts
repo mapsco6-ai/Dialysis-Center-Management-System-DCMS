@@ -136,11 +136,16 @@ export class LabOrdersService {
     });
   }
 
+  // ponytail: capped at the 500 most recent orders (most-recent-first, so a
+  // long-standing patient's newest results are never the ones dropped) -
+  // add real page/limit query params if a patient's history ever exceeds
+  // this in practice.
   async listForPatient(patientId: string) {
     return this.prisma.labOrder.findMany({
       where: { patientId },
       include: ORDER_INCLUDE,
       orderBy: { orderedAt: "desc" },
+      take: 500,
     });
   }
 

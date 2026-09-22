@@ -336,6 +336,8 @@ export class PharmacyService {
         },
       },
       orderBy: { createdAt: "desc" },
+      // ponytail: capped, newest-first - see LabOrdersService.listForPatient.
+      take: 500,
     });
 
     return prescriptions.map((p) => ({
