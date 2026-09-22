@@ -94,9 +94,14 @@ export default function LoginPage() {
 
             {hasError && <p role="alert" className="login-error">{t("تعذر تسجيل الدخول. تحقق من بياناتك واتصالك ثم حاول مجدداً.", "Unable to sign in. Check your credentials and connection, then try again.")}</p>}
 
-            <Button type="submit" variant="primary" isDisabled={loading} className="w-full login-submit">
+            {/* A plain native button, not HeroUI's <Button> - that component
+                doesn't reliably trigger the form's native submit here (every
+                other real form-submit button in this app is plain HTML for
+                the same reason; HeroUI's Button is reserved for onPress
+                actions like the language toggle above). */}
+            <button type="submit" disabled={loading} className="login-submit-btn w-full">
               {loading ? t("جاري الدخول...", "Signing in...") : t("تسجيل الدخول", "Login")}
-            </Button>
+            </button>
           </form>
 
           <p className="login-help"><WorkspaceIcon name="shield" width={14} height={14} />{t("ليس لديك حساب؟ تواصل مع مسؤول النظام في مركزك لإنشائه.", "Don't have an account? Contact your center's system administrator.")}</p>
