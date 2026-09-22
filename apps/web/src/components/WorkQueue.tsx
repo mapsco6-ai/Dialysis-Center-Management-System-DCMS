@@ -15,6 +15,8 @@ const LABELS: Record<string, [string, string]> = {
   transfersAwaitingApproval: ["تحويلات بانتظار الموافقة", "Transfers awaiting approval"],
   openIncidents: ["حوادث مفتوحة", "Open incidents"],
   patientsToCheckIn: ["مرضى اليوم بانتظار الحضور", "Patients still to check in today"],
+  myOpenTasks: ["مهامي المفتوحة", "My open tasks"],
+  openTasksToManage: ["مهام مفتوحة (كل الموظفين)", "Open tasks (all staff)"],
 };
 
 // "What is waiting for me" - only the items this role can act on.

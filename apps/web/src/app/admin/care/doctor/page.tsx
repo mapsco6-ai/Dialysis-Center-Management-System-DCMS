@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
+import { LabTrendView } from "@/components/LabTrendView";
 import {
   ClinicalNote,
   DoctorOrder,
@@ -15,7 +16,7 @@ import {
   LabOrder,
   LabPanel,
   LabTest,
-  LabTrendPoint,
+  LabTrend,
   Patient,
   PatientTimelineEvent,
   Prescription,
@@ -379,7 +380,7 @@ function LabsTab({
   const [mode, setMode] = useState<"panel" | "tests">("panel");
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
   const [trendTestId, setTrendTestId] = useState("");
-  const [trend, setTrend] = useState<LabTrendPoint[] | null>(null);
+  const [trend, setTrend] = useState<LabTrend | null>(null);
 
   async function handleRequest(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -411,7 +412,7 @@ function LabsTab({
       const data = await apiFetch(`/lab/tests/${testId}/trend?patientId=${patientId}&limit=5`);
       setTrend(data);
     } catch {
-      setTrend([]);
+      setTrend(null);
     }
   }
 
@@ -494,14 +495,7 @@ function LabsTab({
             <option key={entry.id} value={entry.id}>{entry.name}</option>
           ))}
         </select>
-        {trend && (
-          <ul className="mt-2 space-y-1 text-xs text-slate-600">
-            {trend.map((p, i) => (
-              <li key={i}>{formatDate(p.date)} — {p.value} ({p.episodeCode})</li>
-            ))}
-            {trend.length === 0 && <li className="text-slate-400">{t("لا توجد نتائج نهائية لهذا التحليل بعد", "No final results for this test yet")}</li>}
-          </ul>
-        )}
+        {trend && <LabTrendView trend={trend} testName={labTests.find((tst) => tst.id === trendTestId)?.name ?? ""} />}
       </section>
     </div>
   );

@@ -74,6 +74,57 @@ function CreateStaff({ roleNames, onDone }: { roleNames: string[]; onDone: () =>
   );
 }
 
+// Shared by both targeting modes - a named employee (target.assignedToId) or
+// a whole role (target.assignedToRoleId) - so the manager's routing decision
+// is a prop, not two near-duplicate forms.
+function TaskForm({ target, targetLabel, onDone, onCancel }: { target: { assignedToId: string } | { assignedToRoleId: string }; targetLabel: string; onDone: () => void; onCancel: () => void }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState({ title: "", description: "", dueAt: "", priority: "NORMAL" });
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await apiFetch("/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          ...target,
+          title: form.title,
+          description: form.description || undefined,
+          dueAt: form.dueAt || undefined,
+          priority: form.priority,
+        }),
+      });
+      toast.success(t("تم إسناد المهمة", "Task assigned"));
+      onDone();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("تعذر إسناد المهمة", "Could not assign the task"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-2 grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+      <p className="text-xs font-medium text-slate-500 sm:col-span-2">{t("مهمة إلى: ", "Task to: ")}{targetLabel}</p>
+      <input required className={`${inputClass} sm:col-span-2`} placeholder={t("عنوان المهمة", "Task title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      <input className={`${inputClass} sm:col-span-2`} placeholder={t("تفاصيل (اختياري)", "Details (optional)")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      <input type="datetime-local" className={inputClass} value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} aria-label={t("الموعد النهائي", "Due date")} />
+      <select className={inputClass} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} aria-label={t("الأولوية", "Priority")}>
+        <option value="LOW">{t("منخفضة", "Low")}</option>
+        <option value="NORMAL">{t("عادية", "Normal")}</option>
+        <option value="HIGH">{t("عالية", "High")}</option>
+        <option value="URGENT">{t("عاجلة", "Urgent")}</option>
+      </select>
+      <div className="flex gap-2 sm:col-span-2">
+        <button type="submit" disabled={busy} className={primaryButton}>{t("إسناد", "Assign")}</button>
+        <button type="button" className={secondaryButton} onClick={onCancel}>{t("إلغاء", "Cancel")}</button>
+      </div>
+    </form>
+  );
+}
+
 function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member: StaffMember; roleNames: string[]; canEdit: boolean; onChanged: () => void; onClose: () => void }) {
   const { t } = useI18n();
   const detail = useApi<{ permissions: string[]; roles: string[] }>(`/users/${member.id}`);
@@ -163,6 +214,9 @@ export default function StaffPage() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<StaffMember | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [taskTargetMember, setTaskTargetMember] = useState<StaffMember | null>(null);
+  const [routingToRole, setRoutingToRole] = useState(false);
+  const [taskRoleId, setTaskRoleId] = useState("");
 
   useEffect(() => {
     const handle = setTimeout(() => setQuery(queryInput), 300);
@@ -176,6 +230,8 @@ export default function StaffPage() {
   const canManageRoles = Boolean(user?.permissions.includes("role.manage"));
   const roles = useApi<{ name: string }[]>(canManageRoles ? "/roles" : null);
   const roleNames = roles.data ? roles.data.map((r) => r.name).filter((n) => n !== "SUPER_ADMIN") : BUILT_IN_ROLES;
+  const canCreateTask = Boolean(user?.permissions.includes("task.create"));
+  const routableRoles = useApi<{ id: string; name: string }[]>(canCreateTask ? "/tasks/routable-roles" : null);
 
   if (!user) return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
 
@@ -185,7 +241,12 @@ export default function StaffPage() {
     { key: "jobTitle", header: t("المسمى", "Title"), render: (m) => m.jobTitle ?? "-" },
     { key: "lastLoginAt", header: t("آخر دخول", "Last sign-in"), render: (m) => (m.lastLoginAt ? formatDate(m.lastLoginAt) : "-") },
     { key: "isActive", header: t("الحالة", "Status"), render: (m) => (m.isActive ? t("نشط", "Active") : t("معطّل", "Deactivated")) },
-    { key: "actions", header: "", render: (m) => <button className={secondaryButton} onClick={() => setSelected(m)}>{t("إدارة", "Manage")}</button> },
+    { key: "actions", header: "", render: (m) => (
+      <div className="flex gap-2">
+        <button className={secondaryButton} onClick={() => setSelected(m)}>{t("إدارة", "Manage")}</button>
+        {canCreateTask && <button className={secondaryButton} onClick={() => setTaskTargetMember(m)}>{t("إسناد مهمة", "Assign task")}</button>}
+      </div>
+    ) },
   ];
 
   return (
@@ -194,11 +255,38 @@ export default function StaffPage() {
         <h1 className="text-xl font-semibold text-slate-800">{t("الموظفون", "Staff")}</h1>
         <div className="flex gap-2">
           {user.permissions.includes("role.manage") && <Link href="/admin/people/staff/roles" className={secondaryButton}>{t("مصفوفة الصلاحيات", "Permissions matrix")}</Link>}
+          {canCreateTask && <button className={secondaryButton} onClick={() => setRoutingToRole(!routingToRole)}>{t("+ توجيه مهمة لدور", "+ Route task to a role")}</button>}
           {user.permissions.includes("user.create") && <button className={primaryButton} onClick={() => setShowCreate(!showCreate)}>{t("+ إضافة موظف", "+ Add staff member")}</button>}
         </div>
       </div>
 
       {showCreate && <CreateStaff roleNames={roleNames} onDone={() => { setShowCreate(false); list.refresh(); }} />}
+
+      {routingToRole && (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+          <select className={inputClass} value={taskRoleId} onChange={(e) => setTaskRoleId(e.target.value)} aria-label={t("الدور المستهدف", "Target role")}>
+            <option value="">{t("اختر الدور…", "Choose role…")}</option>
+            {(routableRoles.data ?? []).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+          {taskRoleId && (
+            <TaskForm
+              target={{ assignedToRoleId: taskRoleId }}
+              targetLabel={routableRoles.data?.find((r) => r.id === taskRoleId)?.name ?? ""}
+              onDone={() => { setRoutingToRole(false); setTaskRoleId(""); }}
+              onCancel={() => setTaskRoleId("")}
+            />
+          )}
+        </div>
+      )}
+
+      {taskTargetMember && (
+        <TaskForm
+          target={{ assignedToId: taskTargetMember.id }}
+          targetLabel={taskTargetMember.fullName}
+          onDone={() => setTaskTargetMember(null)}
+          onCancel={() => setTaskTargetMember(null)}
+        />
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <input className={`${inputClass} w-full max-w-xs`} placeholder={t("ابحث بالاسم أو اسم المستخدم أو الرقم الوظيفي…", "Search name, username or employee no…")} value={queryInput} onChange={(e) => setQueryInput(e.target.value)} />

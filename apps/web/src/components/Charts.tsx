@@ -83,11 +83,13 @@ export type Series = { name: string; color: string; data: DayPoint[] };
 
 // Multi-series daily line chart with a crosshair + tooltip. All series share
 // one y axis (never dual-axis) and the same day list, missing days = 0.
-export function LineChart({ days, series, onSelectDay }: { days: string[]; series: Series[]; onSelectDay?: (day: string) => void }) {
+// `band` draws a translucent normal-range rectangle behind the grid (lab
+// trend's reference range) - values are on the same scale as `series`.
+export function LineChart({ days, series, onSelectDay, band }: { days: string[]; series: Series[]; onSelectDay?: (day: string) => void; band?: { low: number; high: number } }) {
   const { t, formatNumber, formatDate } = useI18n();
   const [hover, setHover] = useState<number | null>(null);
   const values = series.map((s) => days.map((d) => s.data.find((p) => p.day === d)?.count ?? 0));
-  const max = Math.max(1, ...values.flat());
+  const max = Math.max(1, band?.high ?? 0, ...values.flat());
   const x = (i: number) => PAD.l + (days.length <= 1 ? 0 : (i / (days.length - 1)) * (W - PAD.l - PAD.r));
   const y = (v: number) => PAD.t + (1 - v / max) * (H - PAD.t - PAD.b);
   const ticks = [0, Math.ceil(max / 2), max];
@@ -96,6 +98,9 @@ export function LineChart({ days, series, onSelectDay }: { days: string[]; serie
     <div className="relative">
       <div className="viz-legend mb-1">{series.map((s) => <span key={s.name}><span className="viz-swatch" style={{ background: s.color }} />{s.name}</span>)}</div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={series.map((s) => s.name).join(", ")} onMouseLeave={() => setHover(null)}>
+        {band && (
+          <rect x={PAD.l} y={y(band.high)} width={W - PAD.l - PAD.r} height={Math.max(0, y(band.low) - y(band.high))} fill="var(--viz-grid)" />
+        )}
         {ticks.map((tk) => (
           <g key={tk}>
             <line x1={PAD.l} x2={W - PAD.r} y1={y(tk)} y2={y(tk)} stroke="var(--viz-grid)" strokeWidth={1} />

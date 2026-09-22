@@ -10,8 +10,9 @@ import { ErrorNote } from "@/components/ErrorNote";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
+import { LabTrendView } from "@/components/LabTrendView";
 import { toast } from "@/components/Toaster";
-import { LabPanel, LabQueueItem, LabTest } from "@/lib/types";
+import { LabPanel, LabQueueItem, LabTest, LabTrend } from "@/lib/types";
 
 const getStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
   ORDERED: t("بانتظار سحب العينة", "Awaiting sample"),
@@ -40,6 +41,17 @@ export default function LabPage() {
   const [panels, setPanels] = useState<LabPanel[]>([]);
   const [busy, setBusy] = useState(false);
   const [resultFormId, setResultFormId] = useState<string | null>(null);
+  const [trends, setTrends] = useState<Record<string, LabTrend>>({});
+
+  function toggleResultForm(item: LabQueueItem) {
+    const opening = resultFormId !== item.id;
+    setResultFormId(opening ? item.id : null);
+    if (opening && !trends[item.id]) {
+      apiFetch(`/lab/tests/${item.labTestId}/trend?patientId=${item.labOrder.patientId}&limit=5`)
+        .then((data) => setTrends((prev) => ({ ...prev, [item.id]: data })))
+        .catch(() => undefined);
+    }
+  }
 
   function refreshQueue() {
     apiFetch("/lab/queue")
@@ -144,20 +156,28 @@ export default function LabPage() {
                   )}
                   {canProcess && item.status === "PROCESSING" && (
                     <button
-                      onClick={() => setResultFormId(resultFormId === item.id ? null : item.id)}
+                      onClick={() => toggleResultForm(item)}
                       className="ms-2 text-xs font-medium text-emerald-600 hover:underline"
                     >
                       {t("إدخال النتيجة", "Enter result")}
                     </button>
                   )}
                   {resultFormId === item.id && (
-                    <form onSubmit={(e) => submitResult(e, item.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
-                      <input name="value" required placeholder={`${t("القيمة", "Value")}${item.labTest.unit ? ` (${item.labTest.unit})` : ""}`} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                      <label className="flex items-center gap-1 text-xs text-red-600">
-                        <input type="checkbox" name="flagCritical" /> {t("نتيجة حرجة (تنبيه فوري)", "Critical result (immediate alert)")}
-                      </label>
-                      <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ (نهائي)", "Save final result")}</button>
-                    </form>
+                    <div className="mt-2 rounded-md bg-slate-50 p-2">
+                      <form onSubmit={(e) => submitResult(e, item.id)} className="flex flex-wrap items-center gap-2">
+                        <input name="value" required placeholder={`${t("القيمة", "Value")}${item.labTest.unit ? ` (${item.labTest.unit})` : ""}`} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs" />
+                        <label className="flex items-center gap-1 text-xs text-red-600">
+                          <input type="checkbox" name="flagCritical" /> {t("نتيجة حرجة (تنبيه فوري)", "Critical result (immediate alert)")}
+                        </label>
+                        <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ (نهائي)", "Save final result")}</button>
+                      </form>
+                      {trends[item.id] && (
+                        <div className="mt-2 border-t border-slate-200 pt-2">
+                          <p className="mb-1 text-xs font-semibold text-slate-500">{t("اتجاه القيمة عبر الزمن", "Result trend over time")}</p>
+                          <LabTrendView trend={trends[item.id]} testName={item.labTest.name} />
+                        </div>
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>

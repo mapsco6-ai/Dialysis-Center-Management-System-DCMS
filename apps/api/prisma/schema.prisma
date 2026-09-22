@@ -79,6 +79,10 @@ model User {
   staffEntries               StaffEntry[]                     @relation("StaffEntryAuthor")
   staffEntriesAssigned       StaffEntry[]                     @relation("StaffEntryAssignee")
   staffEntryStatusChanges    StaffEntryStatusHistory[]
+  tasksCreated               Task[]                           @relation("TaskCreatedBy")
+  tasksAssigned              Task[]                           @relation("TaskAssignee")
+  tasksClaimed               Task[]                           @relation("TaskClaimedBy")
+  taskStatusChanges          TaskStatusHistory[]
   alertsAcknowledged         ClinicalAlert[]                  @relation("AlertAcknowledgedBy")
   notifications              Notification[]
   accessRecordsCreated       AccessRecord[]
@@ -95,6 +99,7 @@ model Role {
 
   users       UserRole[]
   permissions RolePermission[]
+  tasksRoutedHere Task[]
 
   @@map("roles")
 }
@@ -253,6 +258,7 @@ model Patient {
   labOrders          LabOrder[]
   incidentReports    IncidentReport[]
   accessRecords      AccessRecord[]
+  tasks              Task[]
 
   @@index([fullName])
   @@index([fileNumber])
@@ -1777,6 +1783,81 @@ model StaffEntryStatusHistory {
 
   @@index([entryId, changedAt])
   @@map("staff_entry_status_history")
+}
+
+// ---------------------------------------------------------------------------
+// Manager-initiated work items - the counterpart of StaffEntry (which flows
+// staff -> up). A Task flows manager -> down, to a named employee or to
+// everyone holding a given role (first to act "claims" it).
+// ---------------------------------------------------------------------------
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id          String  @id @default(uuid())
+  title       String
+  description String?
+
+  createdById String
+  createdBy   User   @relation("TaskCreatedBy", fields: [createdById], references: [id])
+
+  // Exactly one of these two is set - enforced by the service, not the DB.
+  assignedToId String?
+  assignedTo   User?   @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  assignedToRoleId String?
+  assignedToRole   Role?   @relation(fields: [assignedToRoleId], references: [id])
+
+  // Set when a role-broadcast task is first acted on, so the rest of that
+  // role stops seeing it as unclaimed without duplicating the row per user.
+  claimedById String?
+  claimedBy   User?   @relation("TaskClaimedBy", fields: [claimedById], references: [id])
+
+  patientId String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+
+  priority TaskPriority @default(NORMAL)
+  status   TaskStatus   @default(OPEN)
+  dueAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  history TaskStatusHistory[]
+
+  @@index([assignedToId, status])
+  @@index([assignedToRoleId, status])
+  @@index([dueAt])
+  @@map("tasks")
+}
+
+// Append-only, same pattern as MaintenanceTicketStatusHistory.
+model TaskStatusHistory {
+  id String @id @default(uuid())
+
+  taskId String
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  fromStatus TaskStatus?
+  toStatus   TaskStatus
+
+  changedById String
+  changedBy   User     @relation(fields: [changedById], references: [id])
+  changedAt   DateTime @default(now())
+
+  @@index([taskId, changedAt])
+  @@map("task_status_history")
 }
 
 // ---------------------------------------------------------------------------

@@ -104,6 +104,10 @@ const PERMISSIONS = [
   { key: "entry.review", module: "entries", description: "Review, assign, respond to and escalate staff entries" },
   { key: "settings.manage", module: "settings", description: "Change system-wide settings (e.g. mandatory shift reports)" },
   { key: "oversight.view", module: "oversight", description: "Read-only oversight dashboard and record timeline for inspection committees" },
+
+  // Manager-initiated tasks (routed to a named employee or a whole role)
+  { key: "task.create", module: "tasks", description: "Create tasks and route them to a staff member or a role" },
+  { key: "task.manage", module: "tasks", description: "View and manage every task, regardless of who it is assigned to" },
 ];
 
 // Default permissions per role, applied by the seed ONLY to roles that hold
@@ -111,8 +115,8 @@ const PERMISSIONS = [
 // landingPath: where /auth/me sends the user right after login.
 const READ_ONLY_CLINICAL = ["patient.view", "dialysis.session.view", "machine.view", "inventory.view", "lab.queue.view", "incident.view", "quality.audit.view"];
 const ROLE_TEMPLATES = {
-  CENTER_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "user.view", "audit.view", "audit.export", "scheduling.manage", "shift.manage", "incident.review", "maintenance.manage", "machine.manage", "inventory.manage", "entry.create", "entry.review"] },
-  MEDICAL_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "lab.request", "incident.report", "incident.review", "audit.view", "entry.create", "entry.review"] },
+  CENTER_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "user.view", "audit.view", "audit.export", "scheduling.manage", "shift.manage", "incident.review", "maintenance.manage", "machine.manage", "inventory.manage", "entry.create", "entry.review", "task.create", "task.manage"] },
+  MEDICAL_DIRECTOR: { landingPath: "/admin", permissions: [...READ_ONLY_CLINICAL, "oversight.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "lab.request", "incident.report", "incident.review", "audit.view", "entry.create", "entry.review", "task.create"] },
   DOCTOR: { landingPath: "/admin/care/doctor", permissions: ["patient.view", "patient.edit", "patient.alert.manage", "prescription.create", "prescription.modify", "medication.administer", "lab.request", "lab.queue.view", "dialysis.session.view", "dialysis.emergency.create", "incident.report", "entry.create"] },
   HEAD_NURSE: { landingPath: "/admin/care/nursing", permissions: ["patient.view", "nursing.assign", "nursing.ward.view", "nursing.ward.view.all", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.assign", "machine.fault.report", "incident.report", "inventory.view", "inventory.issue", "entry.create", "entry.review"] },
   NURSE: { landingPath: "/admin/care/nursing", permissions: ["patient.view", "nursing.ward.view", "dialysis.session.view", "dialysis.pre.record", "dialysis.start", "dialysis.reading.create", "dialysis.event.create", "dialysis.end", "medication.administer", "machine.view", "machine.fault.report", "incident.report", "entry.create"] },

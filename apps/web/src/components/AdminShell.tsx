@@ -23,6 +23,7 @@ const GROUPS: { key: NavGroup; ar: string; en: string }[] = [
 type NavigationItem = { href: string; ar: string; en: string; icon: IconName; permissions?: string[]; group: NavGroup };
 const navigation: NavigationItem[] = [
   { href: "/admin", ar: "لوحة المركز", en: "Dashboard", icon: "dashboard", group: "overview" },
+  { href: "/admin/me/calendar", ar: "تقويمي", en: "My calendar", icon: "calendar", group: "overview" },
   { href: "/admin/care/flow", ar: "رحلة المرضى اليوم", en: "Patient flow", icon: "nursing", group: "care", permissions: ["scheduling.manage", "attendance.checkin", "dialysis.session.view", "nursing.ward.view"] },
   { href: "/admin/care/appointments", ar: "الجدول اليومي", en: "Appointments", icon: "calendar", group: "care", permissions: ["scheduling.manage", "attendance.checkin"] },
   { href: "/admin/care/patients", ar: "المرضى", en: "Patients", icon: "patients", group: "care", permissions: ["patient.view"] },
@@ -83,9 +84,11 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
       clearTimeout(timer);
     };
   }, [search, user.permissions]);
-  // The committee account (oversight only) has no use for the operational dashboard.
+  // The committee account (oversight only) has no use for the operational
+  // dashboard or a personal calendar - it holds no shifts, tasks or patients.
   const oversightOnly = user.permissions.length === 1 && user.permissions[0] === "oversight.view";
-  const allowed = navigation.filter((item) => (item.href !== "/admin" || !oversightOnly) && (!item.permissions || item.permissions.some((p) => user.permissions.includes(p))));
+  const NO_PERMISSION_NEEDED_BUT_OPERATIONAL = ["/admin", "/admin/me/calendar"];
+  const allowed = navigation.filter((item) => (!NO_PERMISSION_NEEDED_BUT_OPERATIONAL.includes(item.href) || !oversightOnly) && (!item.permissions || item.permissions.some((p) => user.permissions.includes(p))));
   const visible = allowed.filter((item) => `${item.ar} ${item.en}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   const isActive = (href: string) => href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
   const active = allowed.find((item) => isActive(item.href));

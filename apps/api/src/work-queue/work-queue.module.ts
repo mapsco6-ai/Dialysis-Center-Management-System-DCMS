@@ -4,6 +4,8 @@ import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { PrismaService } from "../prisma/prisma.service";
+import { TasksModule } from "../tasks/tasks.module";
+import { TasksService } from "../tasks/tasks.service";
 
 interface WorkItem {
   key: string;
@@ -18,7 +20,10 @@ interface WorkItem {
 @Controller("me")
 @UseGuards(JwtAuthGuard)
 export class WorkQueueController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tasksService: TasksService,
+  ) {}
 
   @Get("work-queue")
   async workQueue(@CurrentUser() user: AuthenticatedUser): Promise<{ items: WorkItem[] }> {
@@ -29,6 +34,8 @@ export class WorkQueueController {
 
     const jobs: [string, string, boolean, () => Promise<number>][] = [
       ["unreadNotifications", "/admin", true, () => this.prisma.notification.count({ where: { userId: user.id, readAt: null } })],
+      ["myOpenTasks", "/admin/me/calendar", true, async () => (await this.tasksService.listMine(user)).filter((task) => task.status === "OPEN" || task.status === "IN_PROGRESS").length],
+      ["openTasksToManage", "/admin/people/staff", can("task.manage"), () => this.prisma.task.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } })],
       ["myOpenEntries", "/admin/people/entries", can("entry.create"), () => this.prisma.staffEntry.count({ where: { authorId: user.id, status: { in: ["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS"] } } })],
       ["entriesToReview", "/admin/people/entries", can("entry.review"), () => this.prisma.staffEntry.count({ where: { status: { in: ["SUBMITTED", "ACKNOWLEDGED", "IN_PROGRESS"] } } })],
       ["prescriptionsToDispense", "/admin/care/pharmacy", can("pharmacy.dispense"), () => this.prisma.prescription.count({ where: { status: { in: ["ACTIVE", "DISPENSING"] } } })],
@@ -46,5 +53,5 @@ export class WorkQueueController {
   }
 }
 
-@Module({ controllers: [WorkQueueController] })
+@Module({ imports: [TasksModule], controllers: [WorkQueueController] })
 export class WorkQueueModule {}

@@ -291,13 +291,24 @@ export class LabResultsService {
       take: limit,
     });
 
-    return items
+    const points = items
       .filter((item) => item.results.length > 0)
       .map((item) => ({
         episodeCode: item.labOrder.episodeCode,
         date: item.labOrder.orderedAt,
         value: item.results[0].value,
+        isCritical: item.results[0].isCritical,
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    // The range/unit travel alongside the points so the chart (and its
+    // normal-range band + High/Low flag) can be drawn without a second
+    // round trip for the same LabTest already loaded above.
+    return {
+      unit: test.unit,
+      referenceRangeLow: test.referenceRangeLow,
+      referenceRangeHigh: test.referenceRangeHigh,
+      points,
+    };
   }
 }

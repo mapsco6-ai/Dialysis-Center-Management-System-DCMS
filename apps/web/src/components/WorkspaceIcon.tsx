@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-export type IconName = "dashboard" | "patients" | "calendar" | "reception" | "nursing" | "doctor" | "lab" | "pharmacy" | "inventory" | "machines" | "maintenance" | "reports" | "quality" | "settings" | "search" | "sun" | "moon" | "language" | "logout" | "menu" | "close" | "chevron";
+export type IconName = "dashboard" | "patients" | "calendar" | "reception" | "nursing" | "doctor" | "lab" | "pharmacy" | "inventory" | "machines" | "maintenance" | "reports" | "quality" | "settings" | "search" | "sun" | "moon" | "language" | "logout" | "menu" | "close" | "chevron" | "eye" | "eyeOff" | "shield";
 
 const paths: Record<IconName, React.ReactNode> = {
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
@@ -25,6 +25,9 @@ const paths: Record<IconName, React.ReactNode> = {
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   close: <path d="m6 6 12 12M6 18 18 6" />,
   chevron: <path d="m8 10 4 4 4-4" />,
+  eye: <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>,
+  eyeOff: <><path d="M3 3l18 18M10.6 5.2A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.4 17.4 0 0 1-3.4 4.3M6.6 6.6C4 8.3 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4-.8M9.5 9.5a3 3 0 0 0 4.2 4.2" /></>,
+  shield: <><path d="m12 3 8 3.5v5c0 5-3.6 8-8 9.5-4.4-1.5-8-4.5-8-9.5v-5L12 3Z" /><path d="m9 12 2 2 4-4" /></>,
 };
 
 export function WorkspaceIcon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconName }) {

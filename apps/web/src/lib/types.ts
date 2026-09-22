@@ -572,10 +572,58 @@ export interface LabTrendPoint {
   episodeCode: string;
   date: string;
   value: string;
+  isCritical: boolean;
+}
+
+export interface LabTrend {
+  unit: string | null;
+  referenceRangeLow: string | null;
+  referenceRangeHigh: string | null;
+  points: LabTrendPoint[];
 }
 
 export type MaintenanceTicketStatus = "OPEN" | "ASSIGNED" | "IN_PROGRESS" | "WAITING_PART" | "COMPLETED" | "CLOSED" | "CANCELLED";
 export type MaintenanceSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type TaskPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+export type TaskStatus = "OPEN" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  createdBy: { id: string; fullName: string };
+  assignedTo: { id: string; fullName: string } | null;
+  assignedToRole: { id: string; name: string } | null;
+  claimedBy: { id: string; fullName: string } | null;
+  patient: { id: string; fullName: string; patientCode: string } | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  dueAt: string | null;
+  createdAt: string;
+}
+
+export interface CalendarShift {
+  id: string;
+  date: string;
+  shift: Shift;
+  ward: { id: string; name: string };
+}
+
+export interface CalendarAppointment {
+  date: string;
+  patient: { id: string; fullName: string; patientCode: string };
+  shift: Shift;
+  status?: ScheduleStatus;
+}
+
+export interface MyCalendar {
+  from: string;
+  to: string;
+  shifts: CalendarShift[];
+  tasks: Task[];
+  appointments: CalendarAppointment[];
+}
 
 export interface MaintenanceTicketStatusHistoryEntry {
   id: string;

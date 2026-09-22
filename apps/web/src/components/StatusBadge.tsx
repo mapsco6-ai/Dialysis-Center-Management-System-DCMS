@@ -90,6 +90,12 @@ const GROUPS = {
     STOPPED: { ar: "موقوفة", en: "Stopped", tone: "muted" },
     EXECUTED: { ar: "منفَّذة", en: "Executed", tone: "success" },
   },
+  task: {
+    OPEN: { ar: "مفتوحة", en: "Open", tone: "info" },
+    IN_PROGRESS: { ar: "قيد التنفيذ", en: "In progress", tone: "warning" },
+    DONE: { ar: "منجزة", en: "Done", tone: "success" },
+    CANCELLED: { ar: "ملغاة", en: "Cancelled", tone: "muted" },
+  },
   maintenanceTicket: {
     OPEN: { ar: "مفتوح", en: "Open", tone: "info" },
     ASSIGNED: { ar: "مُسند", en: "Assigned", tone: "info" },

@@ -4631,6 +4631,100 @@ paths:
         - bearer: []
       tags:
         - Me
+  /api/v1/tasks:
+    post:
+      operationId: TasksController_create
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Tasks
+      x-required-permissions:
+        - task.create
+    get:
+      operationId: TasksController_list
+      parameters:
+        - name: status
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+            enum:
+              - OPEN
+              - IN_PROGRESS
+              - DONE
+              - CANCELLED
+        - name: assignedToId
+          required: false
+          in: query
+          schema:
+            nullable: true
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Tasks
+      x-required-permissions:
+        - task.manage
+  /api/v1/tasks/routable-roles:
+    get:
+      operationId: TasksController_listRoutableRoles
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Tasks
+      x-required-permissions:
+        - task.create
+  /api/v1/me/tasks:
+    get:
+      operationId: TasksController_listMine
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Tasks
+  /api/v1/tasks/{id}/status:
+    patch:
+      operationId: TasksController_updateStatus
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskStatusDto'
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Tasks
   /api/v1/flow/today:
     get:
       operationId: FlowController_today
@@ -4653,6 +4747,29 @@ paths:
         - attendance.checkin
         - dialysis.session.view
         - nursing.ward.view
+  /api/v1/me/calendar:
+    get:
+      operationId: CalendarController_get
+      parameters:
+        - name: from
+          required: true
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            type: string
+        - name: to
+          required: true
+          in: query
+          schema:
+            pattern: ^\d{4}-\d{2}-\d{2}$
+            type: string
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Calendar
 info:
   title: DCMS API
   description: >-
@@ -5962,3 +6079,45 @@ components:
           description: boolean or integer, depending on the setting
       required:
         - value
+    CreateTaskDto:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        assignedToId:
+          type: string
+          nullable: true
+        assignedToRoleId:
+          type: string
+          nullable: true
+        patientId:
+          type: string
+          nullable: true
+        priority:
+          type: string
+          enum:
+            - LOW
+            - NORMAL
+            - HIGH
+            - URGENT
+          nullable: true
+        dueAt:
+          type: string
+          nullable: true
+      required:
+        - title
+    UpdateTaskStatusDto:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - OPEN
+            - IN_PROGRESS
+            - DONE
+            - CANCELLED
+      required:
+        - status
