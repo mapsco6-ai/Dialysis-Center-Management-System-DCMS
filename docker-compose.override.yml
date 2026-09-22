@@ -1,6 +1,8 @@
 # Local ports outside the ranges currently reserved by Windows.
 services:
   api:
+    environment:
+      CORS_ORIGINS: "http://localhost:13000,http://127.0.0.1:13000"
     ports: !override
       - "127.0.0.1:13001:3001"
   web:
