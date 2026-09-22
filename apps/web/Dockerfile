@@ -13,8 +13,13 @@ COPY apps/web apps/web
 
 WORKDIR /repo/apps/web
 
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v2
+ARG NEXT_PUBLIC_API_URL=/api/v2
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+# Next resolves rewrites() at build time into the routes manifest, so the
+# API proxy target has to be present here, not only at run time.
+ARG API_PROXY_TARGET=http://api:3001
+ENV API_PROXY_TARGET=$API_PROXY_TARGET
 
 RUN npm run build
 

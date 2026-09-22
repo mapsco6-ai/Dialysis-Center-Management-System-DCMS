@@ -84,8 +84,14 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api/v2}
+        # Relative on purpose: the browser calls the API on whichever host it
+        # opened the app with, so the session cookie is never cross-site (see
+        # API_PROXY_TARGET in apps/web/next.config.mjs).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v2}
+        API_PROXY_TARGET: ${API_PROXY_TARGET:-http://api:3001}
     restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: ${API_PROXY_TARGET:-http://api:3001}
     depends_on:
       - api
     ports:
