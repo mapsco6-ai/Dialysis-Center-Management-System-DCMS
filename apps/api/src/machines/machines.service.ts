@@ -518,6 +518,15 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      emitNotification(this.eventEmitter, {
+        permission: "approval.machine.decide",
+        excludeUserId: actor.id,
+        type: "MACHINE_APPROVAL_REQUESTED",
+        title: `Machine approval: ${machine.machineCode}`,
+        body: reason,
+        link: "/admin/facility/machines",
+      });
+
       return approval;
     });
   }

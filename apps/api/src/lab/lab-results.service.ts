@@ -177,6 +177,7 @@ export class LabResultsService {
       if (dto.flagCritical) {
         emitNotification(this.eventEmitter, {
           userIds: [item.labOrder.orderedByDoctorId],
+          excludeUserId: actor.id,
           type: "LAB_CRITICAL_RESULT",
           title: `Critical result: ${item.labTest.name}`,
           body: `${dto.value}`,
@@ -202,6 +203,15 @@ export class LabResultsService {
           },
           tx,
         );
+      } else {
+        emitNotification(this.eventEmitter, {
+          userIds: [item.labOrder.orderedByDoctorId],
+          excludeUserId: actor.id,
+          type: "LAB_RESULT_READY",
+          title: `Result ready: ${item.labTest.name}`,
+          body: `${dto.value}`,
+          link: `/admin/care/patients/${item.labOrder.patientId}`,
+        });
       }
 
       return result;
@@ -266,6 +276,15 @@ export class LabResultsService {
           performedById: actor.id,
           sourceModule: "lab",
         },
+      });
+
+      emitNotification(this.eventEmitter, {
+        userIds: [item.labOrder.orderedByDoctorId],
+        excludeUserId: actor.id,
+        type: "LAB_RESULT_AMENDED",
+        title: `Result amended: ${item.labTest.name}`,
+        body: `${dto.value}`,
+        link: `/admin/care/patients/${item.labOrder.patientId}`,
       });
 
       return amended;

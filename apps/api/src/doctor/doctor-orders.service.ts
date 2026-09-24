@@ -207,6 +207,27 @@ export class DoctorOrdersService {
         },
       });
 
+      if (dto.type === "NURSING_INSTRUCTION") {
+        emitNotification(this.eventEmitter, {
+          permission: "nursing.ward.view",
+          excludeUserId: actor.id,
+          type: "NURSING_INSTRUCTION",
+          title: `Nursing instruction: ${patient.fullName}`,
+          body: String(dto.payload.instruction),
+          link: "/admin/care/nursing",
+        });
+      }
+      if (dto.type === "EXTRA_SESSION_REQUEST") {
+        emitNotification(this.eventEmitter, {
+          permission: "scheduling.manage",
+          excludeUserId: actor.id,
+          type: "EXTRA_SESSION_REQUEST",
+          title: `Extra session requested: ${patient.fullName}`,
+          body: String(dto.payload.details),
+          link: "/admin/care/appointments",
+        });
+      }
+
       return order;
     });
   }

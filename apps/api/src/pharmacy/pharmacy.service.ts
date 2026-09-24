@@ -233,7 +233,7 @@ export class PharmacyService {
       }
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const dispensed = await this.prisma.$transaction(async (tx) => {
       // Atomic and conditional on the prescription still being DISPENSING -
       // if a doctor stopped or modified it since start-dispensing (docs
       // review DCMS-047's reasoning applies identically here), this rolls
@@ -316,6 +316,14 @@ export class PharmacyService {
 
       return dispense;
     });
+    emitNotification(this.eventEmitter, {
+      userIds: [prescription.doctorId],
+      excludeUserId: actor.id,
+      type: "PRESCRIPTION_DISPENSED",
+      title: `Dispensed: ${prescription.medicationName}`,
+      link: `/admin/care/patients/${prescription.patientId}`,
+    });
+    return dispensed;
   }
 
   // Patient 360's Medication History: Prescribed -> Dispensed -> Administered
