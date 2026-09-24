@@ -5,19 +5,14 @@ import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Button, Card } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
+import { StatusBadge } from "@/components/StatusBadge";
 import { SessionSuppliesResponse } from "@/lib/types";
-
-const getStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
-  ISSUED: t("صُرف", "Issued"),
-  UNAVAILABLE: t("غير متوفر", "Unavailable"),
-  SUBSTITUTED: t("بديل", "Substituted"),
-});
 
 export default function SessionSuppliesPage() {
   const { t, formatNumber } = useI18n();
-  const statusLabel = getStatusLabels(t);
   const params = useParams<{ id: string }>();
   const user = useCurrentUser();
   const [data, setData] = useState<SessionSuppliesResponse | null>(null);
@@ -82,34 +77,35 @@ export default function SessionSuppliesPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   if (error && !data) {
-    return <main className="p-8 text-red-600">{error}</main>;
+    return <main className="p-8 text-danger">{error}</main>;
   }
 
   if (!data) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("مستلزمات الجلسة", "Session supplies")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("مستلزمات الجلسة", "Session supplies")}</h1>
 
       <ErrorNote message={error} className="mt-4" />
 
-      <section className="mt-4 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("بانتظار التأكيد", "Awaiting confirmation")}</h2>
+      <Card className="mt-4 border border-border bg-surface shadow-none">
+        <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("بانتظار التأكيد", "Awaiting confirmation")}</Card.Title></Card.Header>
+        <Card.Content>
         {data.pending.length === 0 ? (
-          <p className="text-sm text-slate-400">{t("لا توجد مواد بانتظار الصرف", "No items awaiting issue")}</p>
+          <p className="text-sm text-muted">{t("لا توجد مواد بانتظار الصرف", "No items awaiting issue")}</p>
         ) : (
           <ul className="space-y-1">
             {data.pending.map((line) => (
               <li key={line.itemId} className="flex items-center justify-between text-sm">
                 <span>
                   {line.item.name} &times; {formatNumber(Number(line.quantity))} {line.item.unit}
-                  {line.isOverridden && <span className="ms-2 text-xs text-amber-600">{t("(معدّلة لهذه الجلسة)", "(Adjusted for this session)")}</span>}
+                  {line.isOverridden && <span className="ms-2 text-xs text-warning">{t("(معدّلة لهذه الجلسة)", "(Adjusted for this session)")}</span>}
                 </span>
               </li>
             ))}
@@ -117,58 +113,43 @@ export default function SessionSuppliesPage() {
         )}
 
         {user.permissions.includes("inventory.issue") && data.pending.length > 0 && (
-          <button
-            onClick={handleConfirmIssue}
-            disabled={busy}
-            className="mt-4 rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-          >
+          <Button className="mt-4" size="sm" variant="primary" isDisabled={busy} onPress={handleConfirmIssue}>
             {busy ? t("جاري التأكيد...", "Confirming...") : t("تأكيد الصرف (Confirm Issue)", "Confirm issue")}
-          </button>
+          </Button>
         )}
-      </section>
+      </Card.Content>
+      </Card>
 
-      <section className="mt-4 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("ما تم صرفه فعلياً", "Items issued")}</h2>
+      <Card className="mt-4 border border-border bg-surface shadow-none">
+        <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("ما تم صرفه فعلياً", "Items issued")}</Card.Title></Card.Header>
+        <Card.Content>
         {data.issued.length === 0 ? (
-          <p className="text-sm text-slate-400">{t("لا يوجد شيء مصروف بعد", "No items issued yet")}</p>
+          <p className="text-sm text-muted">{t("لا يوجد شيء مصروف بعد", "No items issued yet")}</p>
         ) : (
           <ul className="space-y-2">
             {data.issued.map((row) => (
-              <li key={row.id} className="rounded-md border border-slate-100 p-3 text-sm">
+              <li key={row.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="flex items-center justify-between">
                   <span>
-                    <span
-                      className={
-                        row.status === "UNAVAILABLE"
-                          ? "font-semibold text-red-600"
-                          : row.status === "SUBSTITUTED"
-                            ? "font-semibold text-amber-600"
-                            : "font-semibold text-emerald-600"
-                      }
-                    >
-                      [{statusLabel[row.status]}]
-                    </span>{" "}
+                    <StatusBadge group="supplyIssue" value={row.status} />{" "}
                     {row.item.name} &times; {formatNumber(Number(row.quantityIssued))} {row.item.unit}
                     {row.substituteForItem && (
-                      <span className="text-xs text-slate-500"> {t("(بديل عن", "(Substitute for")} {row.substituteForItem.name})</span>
+                      <span className="text-xs text-muted"> {t("(بديل عن", "(Substitute for")} {row.substituteForItem.name})</span>
                     )}
                   </span>
                   {row.status === "UNAVAILABLE" && user.permissions.includes("inventory.issue") && (
-                    <button
-                      onClick={() => setSubstitutingFor(row.itemId)}
-                      className="text-xs font-medium text-slate-600 hover:underline"
-                    >
+                    <Button size="sm" variant="ghost" onPress={() => setSubstitutingFor(row.itemId)}>
                       {t("اختيار بديل", "Choose substitute")}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
                 {substitutingFor === row.itemId && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
                     <select
                       value={substituteItemId}
                       onChange={(e) => setSubstituteItemId(e.target.value)}
-                      className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                      className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                       <option value="">{t("اختر البديل...", "Select a substitute...")}</option>
                       {catalog
@@ -185,30 +166,29 @@ export default function SessionSuppliesPage() {
                       placeholder={t("الكمية", "Quantity")}
                       value={substituteQty}
                       onChange={(e) => setSubstituteQty(e.target.value)}
-                      className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                      className="w-20 rounded-md border border-border px-2 py-1 text-xs"
                     />
                     <input
                       placeholder={t("السبب", "Reason")}
                       value={substituteReason}
                       onChange={(e) => setSubstituteReason(e.target.value)}
-                      className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                      className="w-40 rounded-md border border-border px-2 py-1 text-xs"
                     />
                     <button
                       onClick={() => handleSubstitute(row.itemId)}
-                      className="rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700"
+                      className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground"
                     >
                       {t("حفظ", "Save")}
                     </button>
-                    <button onClick={() => setSubstitutingFor(null)} className="text-xs text-slate-400">
-                      {t("إلغاء", "Cancel")}
-                    </button>
+                    <Button size="sm" variant="ghost" onPress={() => setSubstitutingFor(null)}>{t("إلغاء", "Cancel")}</Button>
                   </div>
                 )}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Card.Content>
+      </Card>
     </AdminShell>
   );
 }

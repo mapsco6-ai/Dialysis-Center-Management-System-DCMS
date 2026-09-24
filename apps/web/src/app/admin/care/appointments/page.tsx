@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -34,9 +35,9 @@ function RescheduleForm({ entry, shifts, shiftLabel, onDone, onCancel }: { entry
       setBusy(false);
     }
   }
-  const field = "rounded-md border border-slate-300 px-2 py-1 text-xs";
+  const field = "rounded-md border border-border px-2 py-1 text-xs";
   return (
-    <form onSubmit={submit} className="mt-1 flex flex-col gap-1 rounded-md border border-slate-200 bg-slate-50 p-2">
+    <form onSubmit={submit} className="mt-1 flex flex-col gap-1 rounded-md border border-border bg-surface-secondary p-2">
       <div className="flex gap-1">
         <input required type="date" className={field} value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} aria-label={t("التاريخ الجديد", "New date")} />
         <select required className={field} value={form.shiftId} onChange={(e) => setForm({ ...form, shiftId: e.target.value })} aria-label={t("الوردية", "Shift")}>
@@ -46,8 +47,8 @@ function RescheduleForm({ entry, shifts, shiftLabel, onDone, onCancel }: { entry
       </div>
       <input required className={field} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("سبب النقل", "Reason")} />
       <div className="flex gap-2">
-        <button type="submit" disabled={busy} className="rounded-md bg-slate-800 px-2 py-1 text-xs text-white disabled:opacity-50">{t("نقل الموعد", "Move")}</button>
-        <button type="button" onClick={onCancel} className="text-xs text-slate-500 underline">{t("إلغاء", "Cancel")}</button>
+        <button type="submit" disabled={busy} className="rounded-md bg-accent px-2 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("نقل الموعد", "Move")}</button>
+        <Button type="button" size="sm" variant="ghost" onPress={onCancel}>{t("إلغاء", "Cancel")}</Button>
       </div>
     </form>
   );
@@ -75,12 +76,7 @@ export default function SchedulePage() {
     SHIFT_3: t("الشفت الثالث", "Shift 3"),
     SHIFT_4: t("الشفت الرابع", "Shift 4"),
   };
-  const STATUS_ORDER: { key: string; label: string; className: string }[] = [
-    { key: "SCHEDULED", label: t("متوقع", "Expected"), className: "bg-slate-100 text-slate-700" },
-    { key: "ARRIVED", label: t("حضر", "Arrived"), className: "bg-emerald-100 text-emerald-700" },
-    { key: "LATE", label: t("متأخر", "Late"), className: "bg-amber-100 text-amber-700" },
-    { key: "ABSENT", label: t("غائب", "Absent"), className: "bg-red-100 text-red-700" },
-  ];
+  const STATUS_ORDER = ["SCHEDULED", "ARRIVED", "LATE", "ABSENT"] as const;
 
   const user = useCurrentUser();
   const [date, setDate] = useState(() => toLocalDateInputValue(new Date()));
@@ -165,7 +161,7 @@ export default function SchedulePage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const statusCounts = entries.reduce<Record<string, number>>((acc, entry) => {
@@ -181,35 +177,33 @@ export default function SchedulePage() {
   return (
     <AdminShell user={user}>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">{t("الجدول اليومي", "Daily schedule")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("الجدول اليومي", "Daily schedule")}</h1>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDate(toLocalDateInputValue(new Date()))}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-          >
+          <Button size="sm" variant="secondary" onPress={() => setDate(toLocalDateInputValue(new Date()))}>
             {t("اليوم", "Today")}
-          </button>
+          </Button>
           <input
             type="date"
             aria-label={t("تاريخ الجدول", "Schedule date")}
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-md border border-border px-3 py-2 text-sm"
           />
         </div>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
-        {STATUS_ORDER.map((s) => (
-          <div key={s.key} className={`rounded-lg px-4 py-2 text-sm font-medium ${s.className}`}>
-            {s.label}: {formatNumber(statusCounts[s.key] ?? 0)}
+        {STATUS_ORDER.map((key) => (
+          <div key={key} className="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm">
+            <StatusBadge group="schedule" value={key} />
+            <span className="font-medium tabular-nums text-foreground">{formatNumber(statusCounts[key] ?? 0)}</span>
           </div>
         ))}
       </div>
 
       {loading && <div className="mt-6"><SkeletonTable rows={4} columns={4} /></div>}
       {!loading && entries.length === 0 && (
-        <div className="mt-6 rounded-lg border border-slate-200 bg-white">
+        <div className="mt-6 rounded-lg border border-border bg-surface">
           <EmptyState title={t("لا توجد جلسات مجدولة لهذا اليوم", "No sessions scheduled for this day")}
             description={t("اختر تاريخاً آخر، أو أنشئ موعداً من خطة المريض.", "Pick another date, or create an appointment from a patient's plan.")} />
         </div>
@@ -217,12 +211,12 @@ export default function SchedulePage() {
 
       <div className="mt-6 space-y-6">
         {Object.entries(grouped).map(([shiftName, rows]) => (
-          <section key={shiftName} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
-              {shiftLabel[shiftName] ?? shiftName} <span className="font-normal text-slate-400">{t(`(${formatNumber(rows.length)} مريض)`, `(${formatNumber(rows.length)} patients)`)}</span>
+          <section key={shiftName} className="overflow-hidden rounded-lg border border-border bg-surface">
+            <div className="border-b border-border bg-surface-secondary px-4 py-2 text-sm font-semibold text-muted">
+              {shiftLabel[shiftName] ?? shiftName} <span className="font-normal text-muted">{t(`(${formatNumber(rows.length)} مريض)`, `(${formatNumber(rows.length)} patients)`)}</span>
             </div>
             <table className="w-full text-start text-sm">
-              <thead className="text-slate-400">
+              <thead className="text-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t("المريض", "Patient")}</th>
                   <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
@@ -232,9 +226,9 @@ export default function SchedulePage() {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100">
+                  <tr key={row.id} className="border-t border-border">
                     <td className="px-4 py-2">
-                      <Link href={`/admin/care/patients/${row.patientId}`} className="text-slate-800 hover:underline">
+                      <Link href={`/admin/care/patients/${row.patientId}`} className="text-foreground hover:underline">
                         {row.patient.fullName}
                       </Link>
                     </td>
@@ -244,7 +238,7 @@ export default function SchedulePage() {
                         ? t(` (${formatNumber(row.lateMinutes)} د)`, ` (${formatNumber(row.lateMinutes)} min)`)
                         : ""}
                     </td>
-                    <td className="px-4 py-2 text-slate-500">
+                    <td className="px-4 py-2 text-muted">
                       {scheduleTypeLabel[row.type]}
                       {row.extraReason ? ` — ${row.extraReason}` : ""}
                       {row.emergencyReason ? ` — ${row.emergencyReason}` : ""}
@@ -255,7 +249,7 @@ export default function SchedulePage() {
                           user.permissions.includes("dialysis.session.view") && (
                             <Link
                               href={`/admin/care/sessions/${row.id}`}
-                              className="text-xs font-medium text-slate-600 hover:underline"
+                              className="text-xs font-medium text-muted hover:underline"
                             >
                               {t("جلسة الديلزة", "Dialysis session")}
                             </Link>
@@ -263,7 +257,7 @@ export default function SchedulePage() {
                         {(row.status === "ARRIVED" || row.status === "LATE") && (
                           <Link
                             href={`/admin/care/sessions/${row.id}/supplies`}
-                            className="text-xs font-medium text-slate-600 hover:underline"
+                            className="text-xs font-medium text-muted hover:underline"
                           >
                             {t("المستلزمات", "Supplies")}
                           </Link>
@@ -271,12 +265,12 @@ export default function SchedulePage() {
                         {user.permissions.includes("machine.assign") &&
                           (row.status === "ARRIVED" || row.status === "LATE") &&
                           (row.machineId ? (
-                            <span className="text-xs text-emerald-600">{t("تم تعيين جهاز", "Machine assigned")}</span>
+                            <span className="text-xs text-success">{t("تم تعيين جهاز", "Machine assigned")}</span>
                           ) : (
                             <button
                               onClick={() => handleAssignMachine(row.id)}
                               disabled={assigning === row.id}
-                              className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50"
+                              className="text-xs font-medium text-muted hover:underline disabled:opacity-50"
                             >
                               {assigning === row.id ? t("جاري التعيين...", "Assigning...") : t("تعيين جهاز", "Assign machine")}
                             </button>
@@ -286,11 +280,11 @@ export default function SchedulePage() {
                             <RescheduleForm entry={row} shifts={shifts} shiftLabel={shiftLabel}
                               onCancel={() => setReschedulingId(null)} onDone={() => { setReschedulingId(null); setReloadKey((k) => k + 1); }} />
                           ) : (
-                            <button onClick={() => setReschedulingId(row.id)} className="text-xs font-medium text-slate-600 hover:underline">{t("إعادة جدولة", "Reschedule")}</button>
+                            <button onClick={() => setReschedulingId(row.id)} className="text-xs font-medium text-muted hover:underline">{t("إعادة جدولة", "Reschedule")}</button>
                           )
                         )}
                         {assignError[row.id] && (
-                          <span className="text-xs text-amber-600">{assignError[row.id]}</span>
+                          <span className="text-xs text-warning">{assignError[row.id]}</span>
                         )}
                       </div>
                     </td>

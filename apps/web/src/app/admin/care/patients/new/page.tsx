@@ -10,8 +10,8 @@ import { ErrorNote } from "@/components/ErrorNote";
 import { toast } from "@/components/Toaster";
 
 const inputClass =
-  "w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
-const labelClass = "mb-1 block text-sm font-medium text-slate-600";
+  "w-full rounded-md border border-border px-3 py-2 text-sm ";
+const labelClass = "mb-1 block text-sm font-medium text-muted";
 
 export default function NewPatientPage() {
   const { t } = useI18n();
@@ -62,14 +62,14 @@ export default function NewPatientPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("إضافة مريض جديد", "Add new patient")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("إضافة مريض جديد", "Add new patient")}</h1>
 
-      <form onSubmit={handleSubmit} className="mt-6 max-w-2xl space-y-4 rounded-lg border border-slate-200 bg-white p-6">
+      <form onSubmit={handleSubmit} className="mt-6 max-w-2xl space-y-4 rounded-lg border border-border bg-surface p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="fullName" className={labelClass}>{t("الاسم الكامل *", "Full name *")}</label>
@@ -150,7 +150,7 @@ export default function NewPatientPage() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
         >
           {loading ? t("جاري الحفظ...", "Saving...") : t("حفظ المريض", "Save patient")}
         </button>

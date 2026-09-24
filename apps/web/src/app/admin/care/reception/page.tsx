@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -24,6 +25,11 @@ export default function ReceptionPage() {
     CRITICAL: t("حرج", "Critical"),
     IMPORTANT: t("مهم", "Important"),
     INFORMATION: t("معلومات", "Information"),
+  };
+  const severityTone: Record<string, string> = {
+    CRITICAL: "tone-danger",
+    IMPORTANT: "tone-warning",
+    INFORMATION: "tone-info",
   };
   const shiftLabel: Record<string, string> = {
     SHIFT_1: t("الشفت الأول", "Shift 1"),
@@ -113,20 +119,20 @@ export default function ReceptionPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("الاستقبال — مسح الباركود", "Reception — Barcode check-in")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("الاستقبال — مسح الباركود", "Reception — Barcode check-in")}</h1>
 
       <div className="mt-4 max-w-md">
-        <label className="mb-1 block text-xs text-slate-500">{t("محطة الاستقبال (تُحفظ بهذا الجهاز)", "Reception station (saved on this device)")}</label>
+        <label className="mb-1 block text-xs text-muted">{t("محطة الاستقبال (تُحفظ بهذا الجهاز)", "Reception station (saved on this device)")}</label>
         <input
           value={stationId}
           onChange={(e) => handleStationChange(e.target.value)}
           placeholder={t("مثال: استقبال-1", "Example: Reception-1")}
-          className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none"
+          className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
         />
       </div>
 
@@ -136,13 +142,9 @@ export default function ReceptionPage() {
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
           placeholder={t("امسح أو أدخل الباركود...", "Scan or enter barcode...")}
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50">
           {t("بحث", "Search")}
         </button>
       </form>
@@ -150,15 +152,15 @@ export default function ReceptionPage() {
       <ErrorNote message={error} className="mt-4" />
 
       {patient && (
-        <div className="mt-6 max-w-2xl rounded-lg border border-slate-200 bg-white p-6">
+        <div className="mt-6 max-w-2xl rounded-lg border border-border bg-surface p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-800">{patient.fullName}</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-lg font-semibold text-foreground">{patient.fullName}</h2>
+              <p className="text-sm text-muted">
                 {patient.patientCode} {t("· رقم الإضبارة:", "· File number:")} {patient.fileNumber ?? "-"}
               </p>
             </div>
-            <Link href={`/admin/care/patients/${patient.id}`} className="text-xs text-slate-500 hover:underline">
+            <Link href={`/admin/care/patients/${patient.id}`} className="text-xs text-muted hover:underline">
               {t("فتح الملف", "Open record")}
             </Link>
           </div>
@@ -168,10 +170,7 @@ export default function ReceptionPage() {
               {patient.alerts
                 .filter((a) => !a.resolvedAt)
                 .map((a) => (
-                  <div
-                    key={a.id}
-                    className="rounded-md border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-800"
-                  >
+                  <div key={a.id} className={`status-badge ${severityTone[a.severity] ?? "tone-neutral"} max-w-full whitespace-normal px-3 py-1.5 text-xs`}>
                     [{severityLabel[a.severity]}] {a.category}: {a.message}
                   </div>
                 ))}
@@ -179,21 +178,21 @@ export default function ReceptionPage() {
           )}
 
           <div className="mt-4">
-            <h3 className="text-sm font-semibold text-slate-500">{t("جلسات اليوم", "Today’s sessions")}</h3>
+            <h3 className="text-sm font-semibold text-muted">{t("جلسات اليوم", "Today’s sessions")}</h3>
             {schedules.length === 0 && (
-              <p className="mt-2 text-sm text-slate-400">{t("لا توجد جلسة مجدولة اليوم لهذا المريض", "No sessions scheduled for this patient today")}</p>
+              <p className="mt-2 text-sm text-muted">{t("لا توجد جلسة مجدولة اليوم لهذا المريض", "No sessions scheduled for this patient today")}</p>
             )}
             <div className="mt-2 space-y-2">
               {schedules.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between rounded-md border border-slate-200 px-4 py-2"
+                  className="flex items-center justify-between rounded-md border border-border px-4 py-2"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-700">
-                      {shiftLabel[s.shift.name] ?? s.shift.name} <span className="text-slate-400">({scheduleTypeLabel[s.type]})</span>
+                    <p className="text-sm font-medium text-foreground">
+                      {shiftLabel[s.shift.name] ?? s.shift.name} <span className="text-muted">({scheduleTypeLabel[s.type]})</span>
                     </p>
-                    <p className="flex items-center gap-2 text-xs text-slate-500">
+                    <p className="flex items-center gap-2 text-xs text-muted">
                       <StatusBadge group="schedule" value={s.status} />
                       {s.lateMinutes != null && s.lateMinutes > 0
                         ? t(` — تأخر ${formatNumber(s.lateMinutes)} دقيقة`, ` — ${formatNumber(s.lateMinutes)} min late`)
@@ -201,16 +200,18 @@ export default function ReceptionPage() {
                     </p>
                   </div>
                   {s.status === "SCHEDULED" || s.status === "ABSENT" ? (
-                    <button
-                      onClick={() => handleCheckIn(s.id)}
-                      disabled={checkingInId === s.id || !stationId.trim()}
-                      title={!stationId.trim() ? t("حدد اسم محطة الاستقبال أولاً", "Enter the reception station name first") : undefined}
-                      className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      {t("تسجيل حضور", "Check in")}
-                    </button>
+                    <span title={!stationId.trim() ? t("حدد اسم محطة الاستقبال أولاً", "Enter the reception station name first") : undefined}>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        isDisabled={checkingInId === s.id || !stationId.trim()}
+                        onPress={() => handleCheckIn(s.id)}
+                      >
+                        {t("تسجيل حضور", "Check in")}
+                      </Button>
+                    </span>
                   ) : (
-                    <span className="text-xs text-slate-400">{t("تم", "Done")}</span>
+                    <span className="text-xs text-muted">{t("تم", "Done")}</span>
                   )}
                 </div>
               ))}

@@ -61,6 +61,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npx tsc --noEmit -p apps/web
+      - run: npm run check:tokens --workspace=@dcms/web
       - run: npm run build:web
       - name: Browser tests (fixture API, no real data)
         run: |

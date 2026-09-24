@@ -5,21 +5,11 @@ import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Machine, MachineStatus, MachineUsageApprovalRequest, Ward } from "@/lib/types";
-
-const statusClassName: Record<MachineStatus, string> = {
-  AVAILABLE: "bg-emerald-100 text-emerald-700",
-  IN_USE: "bg-slate-200 text-slate-700",
-  RESERVED: "bg-amber-100 text-amber-700",
-  EMERGENCY_RESERVED: "bg-red-100 text-red-700",
-  APPROVAL_REQUIRED: "bg-purple-100 text-purple-700",
-  WAITING_CLEANING: "bg-sky-100 text-sky-700",
-  CLEANING: "bg-sky-100 text-sky-700",
-  MAINTENANCE: "bg-orange-100 text-orange-700",
-  OUT_OF_SERVICE: "bg-slate-300 text-slate-800",
-};
 
 const GENERIC_STATUSES: MachineStatus[] = ["AVAILABLE", "CLEANING", "WAITING_CLEANING", "MAINTENANCE", "OUT_OF_SERVICE"];
 
@@ -147,7 +137,7 @@ export default function MachinesPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const machinesByWard = machines.reduce<Record<string, Machine[]>>((acc, m) => {
@@ -158,21 +148,15 @@ export default function MachinesPage() {
   return (
     <AdminShell user={user}>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">{t("الردهات والأجهزة", "Wards & machines")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("الردهات والأجهزة", "Wards & machines")}</h1>
         {user.permissions.includes("machine.manage") && (
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowWardForm((v) => !v)}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-            >
+            <Button size="sm" variant="secondary" onPress={() => setShowWardForm((v) => !v)}>
               {t("+ ردهة", "+ Add ward")}
-            </button>
-            <button
-              onClick={() => setShowMachineForm((v) => !v)}
-              className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-            >
+            </Button>
+            <Button size="sm" variant="primary" onPress={() => setShowMachineForm((v) => !v)}>
               {t("+ جهاز", "+ Add machine")}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -180,18 +164,18 @@ export default function MachinesPage() {
       <ErrorNote message={error} className="mt-4" />
 
       {showWardForm && (
-        <form onSubmit={handleCreateWard} className="mt-4 max-w-sm space-y-2 rounded-lg border border-slate-200 bg-white p-4">
-          <input name="name" required placeholder={t("اسم الردهة", "Ward name")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <button type="submit" className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700">
+        <form onSubmit={handleCreateWard} className="mt-4 max-w-sm space-y-2 rounded-lg border border-border bg-surface p-4">
+          <input name="name" required placeholder={t("اسم الردهة", "Ward name")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+          <button type="submit" className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground ">
             {t("حفظ", "Save")}
           </button>
         </form>
       )}
 
       {showMachineForm && (
-        <form onSubmit={handleCreateMachine} className="mt-4 max-w-lg space-y-2 rounded-lg border border-slate-200 bg-white p-4">
-          <input name="machineCode" required placeholder={t("رمز الجهاز", "Machine code")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <select name="wardId" required className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <form onSubmit={handleCreateMachine} className="mt-4 max-w-lg space-y-2 rounded-lg border border-border bg-surface p-4">
+          <input name="machineCode" required placeholder={t("رمز الجهاز", "Machine code")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+          <select name="wardId" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
             <option value="">{t("اختر الردهة...", "Select a ward...")}</option>
             {wards.map((w) => (
               <option key={w.id} value={w.id}>
@@ -199,55 +183,49 @@ export default function MachinesPage() {
               </option>
             ))}
           </select>
-          <input name="serialNumber" placeholder={t("الرقم التسلسلي", "Serial number")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <input name="manufacturer" placeholder={t("الشركة المصنعة", "Manufacturer")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <input name="model" placeholder={t("الموديل", "Model")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input name="serialNumber" placeholder={t("الرقم التسلسلي", "Serial number")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+          <input name="manufacturer" placeholder={t("الشركة المصنعة", "Manufacturer")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+          <input name="model" placeholder={t("الموديل", "Model")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+          <label className="flex items-center gap-2 text-sm text-muted">
             <input type="checkbox" name="isProtected" /> {t("يتطلب Approval قبل الاستخدام الاعتيادي", "Requires approval before routine use")}
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+          <label className="flex items-center gap-2 text-sm text-muted">
             <input type="checkbox" name="isEmergencyDedicated" /> {t("مخصص للطوارئ دائماً", "Permanently reserved for emergencies")}
           </label>
-          <button type="submit" className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700">
+          <button type="submit" className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground ">
             {t("حفظ", "Save")}
           </button>
         </form>
       )}
 
       {(user.permissions.includes("machine.assign") || user.permissions.includes("approval.machine.decide")) && (
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("طلبات موافقة معلّقة", "Pending approval requests")}</h2>
+        <section className="mt-6 rounded-lg border border-border bg-surface p-4">
+          <h2 className="mb-3 text-sm font-semibold text-muted">{t("طلبات موافقة معلّقة", "Pending approval requests")}</h2>
           {approvals.length === 0 ? (
-            <p className="text-sm text-slate-400">{t("لا توجد طلبات معلّقة", "No pending requests")}</p>
+            <p className="text-sm text-muted">{t("لا توجد طلبات معلّقة", "No pending requests")}</p>
           ) : (
             <ul className="space-y-2">
               {approvals.map((a) => (
-                <li key={a.id} className="rounded-md border border-slate-100 p-3 text-sm">
+                <li key={a.id} className="rounded-md border border-border p-3 text-sm">
                   <div>
-                    <span className="font-medium text-slate-800">{a.patient?.fullName}</span>{" "}
-                    <span className="text-slate-500">{t("— جهاز", "— Machine")} {a.machine?.machineCode}</span>
+                    <span className="font-medium text-foreground">{a.patient?.fullName}</span>{" "}
+                    <span className="text-muted">{t("— جهاز", "— Machine")} {a.machine?.machineCode}</span>
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">{t("السبب:", "Reason:")} {a.reason}</div>
+                  <div className="mt-1 text-xs text-muted">{t("السبب:", "Reason:")} {a.reason}</div>
                   {user.permissions.includes("approval.machine.decide") && (
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <input
                         placeholder={t("سبب القرار (اختياري)", "Decision reason (optional)")}
                         value={decisionReason[a.id] ?? ""}
                         onChange={(e) => setDecisionReason((prev) => ({ ...prev, [a.id]: e.target.value }))}
-                        className="w-48 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                        className="w-48 rounded-md border border-border px-2 py-1 text-xs"
                       />
-                      <button
-                        onClick={() => handleDecision(a.id, "APPROVED")}
-                        className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
-                      >
+                      <Button size="sm" variant="primary" onPress={() => handleDecision(a.id, "APPROVED")}>
                         {t("موافقة", "Approve")}
-                      </button>
-                      <button
-                        onClick={() => handleDecision(a.id, "REJECTED")}
-                        className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700"
-                      >
+                      </Button>
+                      <Button size="sm" variant="danger" onPress={() => handleDecision(a.id, "REJECTED")}>
                         {t("رفض", "Reject")}
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </li>
@@ -259,12 +237,12 @@ export default function MachinesPage() {
 
       <div className="mt-6 space-y-6">
         {wards.map((ward) => (
-          <section key={ward.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
+          <section key={ward.id} className="overflow-hidden rounded-lg border border-border bg-surface">
+            <div className="border-b border-border bg-surface-secondary px-4 py-2 text-sm font-semibold text-muted">
               {ward.name}
             </div>
             <table className="w-full text-start text-sm">
-              <thead className="text-slate-400">
+              <thead className="text-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t("الجهاز", "Machine")}</th>
                   <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
@@ -274,14 +252,12 @@ export default function MachinesPage() {
               </thead>
               <tbody>
                 {(machinesByWard[ward.id] ?? []).map((m) => (
-                  <tr key={m.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 text-slate-800">{m.machineCode}</td>
+                  <tr key={m.id} className="border-t border-border">
+                    <td className="px-4 py-2 text-foreground">{m.machineCode}</td>
                     <td className="px-4 py-2">
-                      <span className={`rounded-md px-2 py-1 text-xs font-medium ${statusClassName[m.status]}`}>
-                        {statusLabel[m.status]}
-                      </span>
+                      <StatusBadge group="machine" value={m.status} />
                     </td>
-                    <td className="px-4 py-2 text-xs text-slate-500">
+                    <td className="px-4 py-2 text-xs text-muted">
                       {m.isProtected && <span className="me-2">{t("محمي", "Protected")}</span>}
                       {m.isEmergencyDedicated && <span>{t("مخصص للطوارئ", "Emergency use")}</span>}
                     </td>
@@ -293,7 +269,7 @@ export default function MachinesPage() {
                               <select
                                 value={statusChoice}
                                 onChange={(e) => setStatusChoice(e.target.value as MachineStatus)}
-                                className="rounded-md border border-slate-300 px-2 py-1 text-xs"
+                                className="rounded-md border border-border px-2 py-1 text-xs"
                               >
                                 {GENERIC_STATUSES.map((s) => (
                                   <option key={s} value={s}>
@@ -305,29 +281,20 @@ export default function MachinesPage() {
                                 placeholder={t("السبب", "Reason")}
                                 value={statusReason}
                                 onChange={(e) => setStatusReason(e.target.value)}
-                                className="w-32 rounded-md border border-slate-300 px-2 py-1 text-xs"
+                                className="w-32 rounded-md border border-border px-2 py-1 text-xs"
                               />
                               <button
                                 onClick={() => handleChangeStatus(m.id)}
-                                className="rounded bg-slate-800 px-2 py-1 text-xs text-white"
+                                className="rounded-md bg-accent px-2 py-1 text-xs text-white"
                               >
                                 {t("حفظ", "Save")}
                               </button>
-                              <button onClick={() => setChangingStatusId(null)} className="text-xs text-slate-400">
-                                {t("إلغاء", "Cancel")}
-                              </button>
+                              <Button size="sm" variant="ghost" onPress={() => setChangingStatusId(null)}>{t("إلغاء", "Cancel")}</Button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => {
-                                setChangingStatusId(m.id);
-                                setStatusChoice("MAINTENANCE");
-                                setStatusReason("");
-                              }}
-                              className="text-xs text-slate-600 hover:underline"
-                            >
+                            <Button size="sm" variant="ghost" onPress={() => { setChangingStatusId(m.id); setStatusChoice("MAINTENANCE"); setStatusReason(""); }}>
                               {t("تغيير الحالة", "Change status")}
-                            </button>
+                            </Button>
                           )}
                         </>
                       )}
@@ -336,7 +303,7 @@ export default function MachinesPage() {
                 ))}
                 {(machinesByWard[ward.id] ?? []).length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-4 text-center text-slate-400">
+                    <td colSpan={4} className="px-4 py-4 text-center text-muted">
                       {t("لا توجد أجهزة في هذه الردهة", "No machines in this ward")}
                     </td>
                   </tr>
@@ -345,7 +312,7 @@ export default function MachinesPage() {
             </table>
           </section>
         ))}
-        {wards.length === 0 && <p className="text-sm text-slate-400">{t("لا توجد ردهات بعد", "No wards yet")}</p>}
+        {wards.length === 0 && <p className="text-sm text-muted">{t("لا توجد ردهات بعد", "No wards yet")}</p>}
       </div>
     </AdminShell>
   );

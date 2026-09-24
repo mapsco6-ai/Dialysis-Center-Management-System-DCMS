@@ -5,7 +5,9 @@ import { apiFetch, apiFetchBlob, ApiError } from "@/lib/api";
 import { downloadBlob } from "@/lib/download";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   AuthenticatedUser,
   ClinicalAuditRow,
@@ -16,13 +18,6 @@ import {
   Machine,
   Patient,
 } from "@/lib/types";
-
-const severityClass: Record<IncidentSeverity, string> = {
-  LOW: "bg-slate-100 text-slate-600",
-  MEDIUM: "bg-amber-100 text-amber-700",
-  HIGH: "bg-orange-100 text-orange-700",
-  CRITICAL: "bg-red-100 text-red-700",
-};
 
 type TabKey = ReturnType<typeof getLabels>["TABS"][number]["key"];
 
@@ -89,10 +84,10 @@ function PatientPicker({ onSelect, selected }: { onSelect: (p: Patient | null) =
           setQuery(e.target.value);
         }}
         placeholder={t("ابحث برقم المريض أو الاسم...", "Search by patient number or name...")}
-        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
       />
       {results.length > 0 && !selected && (
-        <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-slate-200 text-sm">
+        <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-border text-sm">
           {results.map((p) => (
             <li
               key={p.id}
@@ -100,7 +95,7 @@ function PatientPicker({ onSelect, selected }: { onSelect: (p: Patient | null) =
                 onSelect(p);
                 setResults([]);
               }}
-              className="cursor-pointer px-3 py-1.5 hover:bg-slate-100"
+              className="cursor-pointer px-3 py-1.5 hover:bg-surface-secondary"
             >
               {p.patientCode} - {p.fullName}
             </li>
@@ -164,14 +159,14 @@ function ReportIncidentTab() {
   }
 
   return (
-    <section className="max-w-xl space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+    <section className="max-w-xl space-y-4 rounded-lg border border-border bg-surface p-4">
       <div>
-        <label className="mb-1 block text-xs text-slate-500">{t("المريض (اختياري إن كانت الحادثة عن جهاز فقط)", "Patient (optional for machine-only incidents)")}</label>
+        <label className="mb-1 block text-xs text-muted">{t("المريض (اختياري إن كانت الحادثة عن جهاز فقط)", "Patient (optional for machine-only incidents)")}</label>
         <PatientPicker selected={patient} onSelect={setPatient} />
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">{t("الجهاز (اختياري)", "Machine (optional)")}</label>
-        <select value={machineId} onChange={(e) => setMachineId(e.target.value)} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <label className="mb-1 block text-xs text-muted">{t("الجهاز (اختياري)", "Machine (optional)")}</label>
+        <select value={machineId} onChange={(e) => setMachineId(e.target.value)} className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
           <option value="">{t("-- بدون --", "-- None --")}</option>
           {machines.map((m) => (
             <option key={m.id} value={m.id}>
@@ -181,18 +176,18 @@ function ReportIncidentTab() {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">{t("رقم الجلسة (اختياري)", "Session ID (optional)")}</label>
+        <label className="mb-1 block text-xs text-muted">{t("رقم الجلسة (اختياري)", "Session ID (optional)")}</label>
         <input
           value={sessionId}
           onChange={(e) => setSessionId(e.target.value)}
-          className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
           placeholder={t("معرّف الجلسة إن وُجد", "Session ID, if available")}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 block text-xs text-slate-500">{t("النوع", "Type")}</label>
-          <select value={type} onChange={(e) => setType(e.target.value as IncidentType)} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+          <label className="mb-1 block text-xs text-muted">{t("النوع", "Type")}</label>
+          <select value={type} onChange={(e) => setType(e.target.value as IncidentType)} className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
             {Object.entries(typeLabel).map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
@@ -201,11 +196,11 @@ function ReportIncidentTab() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs text-slate-500">{t("الشدة", "Severity")}</label>
+          <label className="mb-1 block text-xs text-muted">{t("الشدة", "Severity")}</label>
           <select
             value={severity}
             onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}
-            className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+            className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
           >
             {Object.entries(severityLabel).map(([key, label]) => (
               <option key={key} value={key}>
@@ -216,21 +211,21 @@ function ReportIncidentTab() {
         </div>
       </div>
       <div>
-        <label className="mb-1 block text-xs text-slate-500">{t("الوصف", "Description")}</label>
+        <label className="mb-1 block text-xs text-muted">{t("الوصف", "Description")}</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
-          className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
         />
       </div>
       {message && (
-        <p className={`text-sm ${message.kind === "ok" ? "text-emerald-600" : "text-red-600"}`}>{message.text}</p>
+        <p className={`text-sm ${message.kind === "ok" ? "text-success" : "text-danger"}`}>{message.text}</p>
       )}
       <button
         onClick={submit}
         disabled={submitting}
-        className="rounded-md bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
+        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
       >
         {submitting ? t("جاري الإرسال...", "Submitting...") : t("تسجيل الحادثة", "Record incident")}
       </button>
@@ -295,10 +290,10 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4 text-xs text-slate-500">
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 text-xs text-muted">
         <label className="flex flex-col gap-1">
           {t("النوع", "Type")}
-          <select value={type} onChange={(e) => setType(e.target.value)} className="rounded border border-slate-300 px-2 py-1">
+          <select value={type} onChange={(e) => setType(e.target.value)} className="rounded border border-border px-2 py-1">
             <option value="">{t("الكل", "All")}</option>
             {Object.entries(typeLabel).map(([key, label]) => (
               <option key={key} value={key}>
@@ -309,7 +304,7 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
         </label>
         <label className="flex flex-col gap-1">
           {t("الشدة", "Severity")}
-          <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="rounded border border-slate-300 px-2 py-1">
+          <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="rounded border border-border px-2 py-1">
             <option value="">{t("الكل", "All")}</option>
             {Object.entries(severityLabel).map(([key, label]) => (
               <option key={key} value={key}>
@@ -320,7 +315,7 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
         </label>
         <label className="flex flex-col gap-1">
           {t("الحالة", "Status")}
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded border border-slate-300 px-2 py-1">
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded border border-border px-2 py-1">
             <option value="">{t("الكل", "All")}</option>
             {Object.entries(statusLabel).map(([key, label]) => (
               <option key={key} value={key}>
@@ -331,28 +326,28 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
         </label>
         <label className="flex flex-col gap-1">
           {t("من", "From")}
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex flex-col gap-1">
           {t("إلى", "To")}
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
-        <button onClick={refresh} className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-100">
+        <button onClick={refresh} className="rounded-md border border-border px-3 py-1.5 text-foreground hover:bg-surface-secondary">
           {t("تصفية", "Filter")}
         </button>
         <div className="ms-auto flex gap-2">
-          <button onClick={() => exportAs("pdf")} className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 hover:bg-slate-100">
+          <button onClick={() => exportAs("pdf")} className="rounded-md border border-border px-3 py-1.5 text-muted hover:bg-surface-secondary">
             PDF
           </button>
-          <button onClick={() => exportAs("excel")} className="rounded-md border border-slate-300 px-3 py-1.5 text-slate-600 hover:bg-slate-100">
+          <button onClick={() => exportAs("excel")} className="rounded-md border border-border px-3 py-1.5 text-muted hover:bg-surface-secondary">
             Excel
           </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-500">
+          <thead className="bg-surface-secondary text-xs text-muted">
             <tr>
               <th className="px-3 py-2 text-start">{t("التاريخ", "Date")}</th>
               <th className="px-3 py-2 text-start">{t("النوع", "Type")}</th>
@@ -367,25 +362,25 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-slate-400">
+                <td colSpan={8} className="px-3 py-4 text-center text-muted">
                   {t("جاري التحميل...", "Loading...")}
                 </td>
               </tr>
             ) : incidents.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-4 text-center text-slate-400">
+                <td colSpan={8} className="px-3 py-4 text-center text-muted">
                   {t("لا توجد حوادث", "No incidents")}
                 </td>
               </tr>
             ) : (
               incidents.map((i) => (
-                <tr key={i.id} className="border-t border-slate-100">
+                <tr key={i.id} className="border-t border-border">
                   <td className="px-3 py-2">{formatDate(i.createdAt, { dateStyle: "short", timeStyle: "short" })}</td>
                   <td className="px-3 py-2">{typeLabel[i.type]}</td>
                   <td className="px-3 py-2">
-                    <span className={`rounded px-2 py-0.5 text-xs ${severityClass[i.severity]}`}>{severityLabel[i.severity]}</span>
+                    <StatusBadge group="incidentSeverity" value={i.severity} />
                   </td>
-                  <td className="px-3 py-2">{statusLabel[i.status]}</td>
+                  <td className="px-3 py-2"><StatusBadge group="incident" value={i.status} /></td>
                   <td className="px-3 py-2">{i.patient ? `${i.patient.patientCode} - ${i.patient.fullName}` : "-"}</td>
                   <td className="px-3 py-2">{i.machine?.machineCode ?? "-"}</td>
                   <td className="px-3 py-2">{i.reportedBy.fullName}</td>
@@ -393,16 +388,16 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
                     <td className="px-3 py-2">
                       {i.status === "OPEN" && (
                         <div className="flex gap-1">
-                          <button onClick={() => changeStatus(i.id, "UNDER_REVIEW")} className="text-xs text-amber-600 hover:underline">
+                          <button onClick={() => changeStatus(i.id, "UNDER_REVIEW")} className="text-xs text-warning hover:underline">
                             {t("مراجعة", "Review")}
                           </button>
-                          <button onClick={() => changeStatus(i.id, "CLOSED")} className="text-xs text-slate-600 hover:underline">
+                          <button onClick={() => changeStatus(i.id, "CLOSED")} className="text-xs text-muted hover:underline">
                             {t("إغلاق", "Close")}
                           </button>
                         </div>
                       )}
                       {i.status === "UNDER_REVIEW" && (
-                        <button onClick={() => changeStatus(i.id, "CLOSED")} className="text-xs text-slate-600 hover:underline">
+                        <button onClick={() => changeStatus(i.id, "CLOSED")} className="text-xs text-muted hover:underline">
                           {t("إغلاق", "Close")}
                         </button>
                       )}
@@ -441,24 +436,24 @@ function ClinicalAuditTab() {
 
   return (
     <section className="space-y-4">
-      <div className="max-w-md rounded-lg border border-slate-200 bg-white p-4">
-        <label className="mb-1 block text-xs text-slate-500">{t("المريض", "Patient")}</label>
+      <div className="max-w-md rounded-lg border border-border bg-surface p-4">
+        <label className="mb-1 block text-xs text-muted">{t("المريض", "Patient")}</label>
         <PatientPicker selected={patient} onSelect={setPatient} />
       </div>
 
       {rows && (
         <>
           <div className="flex justify-end gap-2">
-            <button onClick={() => exportAs("pdf")} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
+            <button onClick={() => exportAs("pdf")} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-secondary">
               PDF
             </button>
-            <button onClick={() => exportAs("excel")} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
+            <button onClick={() => exportAs("excel")} className="rounded-md border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-secondary">
               Excel
             </button>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500">
+              <thead className="bg-surface-secondary text-xs text-muted">
                 <tr>
                   <th className="px-3 py-2 text-start">{t("التاريخ", "Date")}</th>
                   <th className="px-3 py-2 text-start">{t("المصدر", "Source")}</th>
@@ -470,13 +465,13 @@ function ClinicalAuditTab() {
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 text-center text-slate-400">
+                    <td colSpan={5} className="px-3 py-4 text-center text-muted">
                       {t("لا توجد سجلات", "No records")}
                     </td>
                   </tr>
                 ) : (
                   rows.map((r, idx) => (
-                    <tr key={idx} className="border-t border-slate-100">
+                    <tr key={idx} className="border-t border-border">
                       <td className="px-3 py-2">{formatDate(r.timestamp, { dateStyle: "short", timeStyle: "short" })}</td>
                       <td className="px-3 py-2">{r.source === "AUDIT_LOG" ? t("سجل تدقيق", "Audit log") : t("الجدول الزمني", "Timeline")}</td>
                       <td className="px-3 py-2">{r.actor}</td>
@@ -501,7 +496,7 @@ export default function QualityPage() {
   const [tab, setTab] = useState<TabKey>("report");
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canReport = user.permissions.includes("incident.report");
@@ -514,19 +509,15 @@ export default function QualityPage() {
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("الجودة والسلامة", "Quality & safety")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("الجودة والسلامة", "Quality & safety")}</h1>
 
-      <nav className="mt-4 flex gap-1 border-b border-slate-200 text-sm">
+      <div className="mt-4 flex flex-wrap gap-2">
         {visibleTabs.map((entry) => (
-          <button
-            key={entry.key}
-            onClick={() => setTab(entry.key)}
-            className={`px-3 py-2 ${tab === entry.key ? "border-b-2 border-slate-800 font-medium text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
-          >
+          <Button key={entry.key} size="sm" variant={tab === entry.key ? "primary" : "secondary"} aria-pressed={tab === entry.key} onPress={() => setTab(entry.key)}>
             {entry.label}
-          </button>
+          </Button>
         ))}
-      </nav>
+      </div>
 
       <div className="mt-4">
         {tab === "report" && canReport && <ReportIncidentTab />}

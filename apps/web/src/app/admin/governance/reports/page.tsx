@@ -41,14 +41,14 @@ function ExportButtons({ path, filename }: { path: string; filename: string }) {
       <button
         onClick={() => download("pdf")}
         disabled={busy !== null}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+        className="rounded-md border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-secondary disabled:opacity-50"
       >
         {busy === "pdf" ? "..." : "PDF"}
       </button>
       <button
         onClick={() => download("excel")}
         disabled={busy !== null}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+        className="rounded-md border border-border px-3 py-1.5 text-xs text-muted hover:bg-surface-secondary disabled:opacity-50"
       >
         {busy === "excel" ? "..." : "Excel"}
       </button>
@@ -58,8 +58,8 @@ function ExportButtons({ path, filename }: { path: string; filename: string }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-500">{title}</h2>
+    <section className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="mb-3 text-sm font-semibold text-muted">{title}</h2>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -68,9 +68,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function ReportRow({ label, path, filename, emptyLabel }: { label: string; path: string | null; filename: string; emptyLabel?: string }) {
   const { t } = useI18n();
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3 first:border-t-0 first:pt-0">
-      <span className="text-sm text-slate-700">{label}</span>
-      {path ? <ExportButtons path={path} filename={filename} /> : <span className="text-xs text-slate-400">{emptyLabel ?? t("اختر مريضاً أولاً", "Select a patient first")}</span>}
+    <div className="flex items-center justify-between gap-3 border-t border-border pt-3 first:border-t-0 first:pt-0">
+      <span className="text-sm text-foreground">{label}</span>
+      {path ? <ExportButtons path={path} filename={filename} /> : <span className="text-xs text-muted">{emptyLabel ?? t("اختر مريضاً أولاً", "Select a patient first")}</span>}
     </div>
   );
 }
@@ -106,10 +106,10 @@ function PatientPicker({ onSelect, selected }: { onSelect: (p: Patient) => void;
           setQuery(e.target.value);
         }}
         placeholder={t("ابحث برقم المريض أو الاسم...", "Search by patient number or name...")}
-        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+        className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
       />
       {results.length > 0 && !selected && (
-        <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-slate-200 text-sm">
+        <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-border text-sm">
           {results.map((p) => (
             <li
               key={p.id}
@@ -117,7 +117,7 @@ function PatientPicker({ onSelect, selected }: { onSelect: (p: Patient) => void;
                 onSelect(p);
                 setResults([]);
               }}
-              className="cursor-pointer px-3 py-1.5 hover:bg-slate-100"
+              className="cursor-pointer px-3 py-1.5 hover:bg-surface-secondary"
             >
               {p.patientCode} - {p.fullName}
             </li>
@@ -141,15 +141,15 @@ function PatientReportsPanel() {
   return (
     <Panel title={t("تقارير المريض", "Patient reports")}>
       <PatientPicker selected={patient} onSelect={setPatient} />
-      <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+      <div className="flex flex-wrap gap-3 text-xs text-muted">
         <label className="flex items-center gap-1">
-          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
-          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
-          {t("الشهر:", "Month:")} <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("الشهر:", "Month:")} <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
       </div>
       <div className="space-y-2">
@@ -174,23 +174,23 @@ function DialysisReportsPanel() {
 
   return (
     <Panel title={t("تقارير الديلزة", "Dialysis reports")}>
-      <div className="flex flex-wrap items-end gap-3 text-xs text-slate-500">
+      <div className="flex flex-wrap items-end gap-3 text-xs text-muted">
         <label className="flex items-center gap-1">
-          {t("اليوم:", "Day:")} <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("اليوم:", "Day:")} <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
       </div>
       <ReportRow label={t("جلسات اليوم حسب الردهة", "Today's sessions by ward")} path={`/reports/dialysis/daily-sessions-by-ward?date=${date}`} filename="dialysis-daily" />
 
-      <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+      <div className="flex flex-wrap items-end gap-3 border-t border-border pt-3 text-xs text-muted">
         <label className="flex items-center gap-1">
-          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
-          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
           {t("التجميع:", "Group by:")}
-          <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} className="rounded border border-slate-300 px-2 py-1">
+          <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} className="rounded border border-border px-2 py-1">
             <option value="day">{t("يومي", "Daily")}</option>
             <option value="week">{t("أسبوعي", "Weekly")}</option>
             <option value="month">{t("شهري", "Monthly")}</option>
@@ -219,16 +219,16 @@ function MachineReportsPanel() {
 
   return (
     <Panel title={t("تقارير الأجهزة", "Machine reports")}>
-      <div className="flex flex-wrap items-end gap-3 text-xs text-slate-500">
+      <div className="flex flex-wrap items-end gap-3 text-xs text-muted">
         <label className="flex items-center gap-1">
-          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
-          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
           {t("الجهاز:", "Machine:")}
-          <select value={machineId} onChange={(e) => setMachineId(e.target.value)} className="rounded border border-slate-300 px-2 py-1">
+          <select value={machineId} onChange={(e) => setMachineId(e.target.value)} className="rounded border border-border px-2 py-1">
             <option value="">{t("-- اختر --", "-- Select --")}</option>
             {machines.map((m) => (
               <option key={m.id} value={m.id}>
@@ -266,15 +266,15 @@ function OperationalReportsPanel({ user }: { user: AuthenticatedUser }) {
 
   return (
     <Panel title={t("تقارير المخزون والصيدلية والمختبر", "Inventory, pharmacy & lab reports")}>
-      <div className="flex flex-wrap items-end gap-3 text-xs text-slate-500">
+      <div className="flex flex-wrap items-end gap-3 text-xs text-muted">
         <label className="flex items-center gap-1">
-          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("من:", "From:")} <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
-          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("إلى:", "To:")} <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
         <label className="flex items-center gap-1">
-          {t("الشهر:", "Month:")} <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-slate-300 px-2 py-1" />
+          {t("الشهر:", "Month:")} <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="rounded border border-border px-2 py-1" />
         </label>
       </div>
       <div className="space-y-2">
@@ -297,7 +297,7 @@ export default function ReportsPage() {
   const user = useCurrentUser();
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canDialysis = user.permissions.includes("scheduling.manage") || user.permissions.includes("dialysis.session.view");
@@ -307,7 +307,7 @@ export default function ReportsPage() {
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("التقارير", "Reports")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("التقارير", "Reports")}</h1>
       <div className="mt-6 space-y-6">
         {user.permissions.includes("patient.view") && <PatientReportsPanel />}
         {canDialysis && <DialysisReportsPanel />}

@@ -16,7 +16,7 @@ export function LabTrendView({ trend, testName }: { trend: LabTrend; testName: s
   const { points } = trend;
 
   if (points.length === 0) {
-    return <p className="mt-2 text-xs text-slate-400">{t("لا توجد نتائج نهائية لهذا التحليل بعد", "No final results for this test yet")}</p>;
+    return <p className="mt-2 text-xs text-muted">{t("لا توجد نتائج نهائية لهذا التحليل بعد", "No final results for this test yet")}</p>;
   }
 
   const low = trend.referenceRangeLow != null ? Number(trend.referenceRangeLow) : null;
@@ -26,7 +26,7 @@ export function LabTrendView({ trend, testName }: { trend: LabTrend; testName: s
 
   if (!allNumeric) {
     return (
-      <ul className="mt-2 space-y-1 text-xs text-slate-600">
+      <ul className="mt-2 space-y-1 text-xs text-muted">
         {points.map((p, i) => (
           <li key={i}>{formatDate(p.date)} — {p.value} ({p.episodeCode})</li>
         ))}
@@ -40,7 +40,7 @@ export function LabTrendView({ trend, testName }: { trend: LabTrend; testName: s
 
   return (
     <div className="mt-2 space-y-2">
-      <div className="flex items-center gap-2 text-xs text-slate-600">
+      <div className="flex items-center gap-2 text-xs text-muted">
         <span>{t("آخر قيمة", "Latest value")}: <strong>{latest.value}{trend.unit ? ` ${trend.unit}` : ""}</strong></span>
         <StatusBadge group="labFlag" value={latestFlag} />
       </div>

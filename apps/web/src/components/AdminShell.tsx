@@ -197,14 +197,14 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
           </div>
         </header>
         <main id="workspace-main" tabIndex={-1} className={`workspace-content ${pathname === "/admin/settings" ? "settings-content" : ""}`}>
-          {user.mustChangePassword && pathname !== "/admin/settings" && <div role="alert" className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          {user.mustChangePassword && pathname !== "/admin/settings" && <div role="alert" className="mb-4 rounded-md border border-warning bg-surface-secondary px-4 py-2 text-sm text-warning">
             {t("كلمة مرورك مؤقتة. ", "Your password is temporary. ")}<Link href="/admin/settings" className="font-medium underline">{t("غيّرها الآن", "Change it now")}</Link>
           </div>}
           {forbidden ? (
-            <div role="alert" className="mx-auto mt-16 max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center">
-              <h1 className="text-lg font-semibold text-slate-800">{t("غير مصرّح بالدخول", "Access denied")}</h1>
-              <p className="mt-2 text-sm text-slate-500">{t("ليس لديك صلاحية لفتح هذا القسم. تواصل مع مسؤول النظام إن كنت تحتاجه.", "You do not have permission to open this section. Ask your administrator if you need it.")}</p>
-              <Link href={user.landingPath ?? "/admin"} className="mt-4 inline-block rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white">{t("العودة إلى مساحتي", "Back to my workspace")}</Link>
+            <div role="alert" className="mx-auto mt-16 max-w-md rounded-lg border border-border bg-surface p-6 text-center">
+              <h1 className="text-lg font-semibold text-foreground">{t("غير مصرّح بالدخول", "Access denied")}</h1>
+              <p className="mt-2 text-sm text-muted">{t("ليس لديك صلاحية لفتح هذا القسم. تواصل مع مسؤول النظام إن كنت تحتاجه.", "You do not have permission to open this section. Ask your administrator if you need it.")}</p>
+              <Link href={user.landingPath ?? "/admin"} className="mt-4 inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">{t("العودة إلى مساحتي", "Back to my workspace")}</Link>
             </div>
           ) : children}
         </main>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
 import { BarList, ChartCard, LineChart, StatTile, daysBetween, type DayPoint, type Tally } from "@/components/Charts";
@@ -20,7 +21,7 @@ interface TimelineRow { id: string; performedAt: string; type: string; sourceMod
 interface Timeline { total: number; modules: Tally; data: TimelineRow[] }
 
 const toDateInput = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-const inputClass = "rounded-md border border-slate-300 px-2 py-1 text-sm";
+const inputClass = "rounded-md border border-border px-2 py-1 text-sm";
 
 // Bilingual names for the enum keys the API returns; anything unknown falls
 // back to a readable version of the raw key.
@@ -60,7 +61,7 @@ export default function OversightPage() {
   const summary = useApi<Summary>(user ? `/oversight/summary?${qs}` : null);
   const timeline = useApi<Timeline>(user ? `/oversight/timeline?${qs}&page=${page}&limit=${PAGE_SIZE}${module ? `&module=${module}` : ""}${type ? `&type=${type}` : ""}` : null);
 
-  if (!user) return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+  if (!user) return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
 
   const applyPreset = (days: number) => {
     setPreset(days);
@@ -107,25 +108,24 @@ export default function OversightPage() {
     { key: "type", header: t("الحدث", "Event"), render: (r) => <span className="font-mono text-xs">{r.type}</span> },
     { key: "patientCode", header: t("رمز المريض", "Patient code"), render: (r) => <bdi>{r.patientCode}</bdi> },
     { key: "performedBy", header: t("بواسطة", "By"), render: (r) => r.performedBy ?? "-" },
-    { key: "payload", header: t("التفاصيل", "Details"), render: (r) => r.payload ? <details><summary className="cursor-pointer text-xs text-slate-500">{t("عرض", "View")}</summary><pre className="mt-1 max-w-xs overflow-x-auto whitespace-pre-wrap text-xs" dir="ltr">{JSON.stringify(r.payload, null, 1)}</pre></details> : "-" },
+    { key: "payload", header: t("التفاصيل", "Details"), render: (r) => r.payload ? <details><summary className="cursor-pointer text-xs text-muted">{t("عرض", "View")}</summary><pre className="mt-1 max-w-xs overflow-x-auto whitespace-pre-wrap text-xs" dir="ltr">{JSON.stringify(r.payload, null, 1)}</pre></details> : "-" },
   ];
 
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">{t("لوحة الرقابة", "Oversight dashboard")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("لوحة الرقابة", "Oversight dashboard")}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {[7, 30, 90].map((d) => (
-            <button key={d} type="button" aria-pressed={preset === d} onClick={() => applyPreset(d)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${preset === d ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
+            <Button key={d} size="sm" variant={preset === d ? "primary" : "secondary"} aria-pressed={preset === d} onPress={() => applyPreset(d)}>
               {t(`${d} يوماً`, `${d} days`)}
-            </button>
+            </Button>
           ))}
           <input type="date" className={inputClass} value={range.from} max={range.to} onChange={(e) => { setPreset(null); setRange({ ...range, from: e.target.value }); }} aria-label={t("من", "From")} />
           <input type="date" className={inputClass} value={range.to} min={range.from} onChange={(e) => { setPreset(null); setRange({ ...range, to: e.target.value }); }} aria-label={t("إلى", "To")} />
         </div>
       </div>
-      <p className="mt-1 text-sm text-slate-500">{t("عرض للقراءة فقط: مؤشرات كل أقسام المركز والسجلات الزمنية. لا تظهر أسماء المرضى.", "Read-only view of every section and the record timeline. Patient names are never shown.")}</p>
+      <p className="mt-1 text-sm text-muted">{t("عرض للقراءة فقط: مؤشرات كل أقسام المركز والسجلات الزمنية. لا تظهر أسماء المرضى.", "Read-only view of every section and the record timeline. Patient names are never shown.")}</p>
 
       <ErrorNote message={summary.error} className="mt-4" />
 
@@ -159,15 +159,14 @@ export default function OversightPage() {
         </div>
       )}
 
-      <h2 className="mt-8 text-base font-semibold text-slate-800">{t("السجل الزمني للأحداث", "Record timeline")}</h2>
+      <h2 className="mt-8 text-base font-semibold text-foreground">{t("السجل الزمني للأحداث", "Record timeline")}</h2>
       <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label={t("تصفية حسب القسم", "Filter by section")}>
         {[{ key: "", count: timeline.data?.modules.reduce((n, m) => n + m.count, 0) ?? 0 }, ...(timeline.data?.modules ?? [])].map((m) => (
-          <button key={m.key || "all"} type="button" aria-pressed={(module ?? "") === m.key} onClick={() => setModule(m.key || null)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${(module ?? "") === m.key ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
+          <Button key={m.key || "all"} size="sm" variant={(module ?? "") === m.key ? "primary" : "secondary"} aria-pressed={(module ?? "") === m.key} onPress={() => setModule(m.key || null)}>
             {m.key || t("الكل", "All")} ({formatNumber(m.count)})
-          </button>
+          </Button>
         ))}
-        {type && <button type="button" onClick={() => setType(null)} className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs text-amber-900">{type} ×</button>}
+        {type && <Button size="sm" variant="secondary" onPress={() => setType(null)}>{type} ×</Button>}
       </div>
       <div className="mt-3">
         <PaginatedTable columns={columns} rows={timeline.data?.data ?? null} total={timeline.data?.total ?? null} page={page} pageSize={PAGE_SIZE}

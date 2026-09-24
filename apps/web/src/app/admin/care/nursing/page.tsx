@@ -2,11 +2,13 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { Button, Card } from "@heroui/react";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
+import { StatusBadge } from "@/components/StatusBadge";
 import { ErrorNote } from "@/components/ErrorNote";
 import { NursingAssignment, Patient, Shift, Ward, WardDashboard } from "@/lib/types";
 
@@ -16,25 +18,6 @@ function toLocalDateInputValue(date: Date) {
   const dd = String(date.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
-
-const getStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
-  AVAILABLE: t("متاح", "Available"),
-  IN_USE: t("قيد الاستخدام", "In use"),
-  RESERVED: t("محجوز", "Reserved"),
-  EMERGENCY_RESERVED: t("محجوز للطوارئ", "Emergency reserved"),
-  APPROVAL_REQUIRED: t("بانتظار الموافقة", "Awaiting approval"),
-  WAITING_CLEANING: t("بانتظار التعقيم", "Awaiting cleaning"),
-  CLEANING: t("قيد التعقيم", "Cleaning"),
-  MAINTENANCE: t("صيانة", "Maintenance"),
-  OUT_OF_SERVICE: t("خارج الخدمة", "Out of service"),
-});
-
-const getSessionStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
-  ASSIGNED: t("تم تعيين الجهاز", "Machine assigned"),
-  IN_DIALYSIS: t("الديلزة جارية", "Dialysis in progress"),
-  POST_DIALYSIS: t("ما بعد الديلزة", "Post-dialysis"),
-  INTERRUPTED: t("متوقفة", "Interrupted"),
-});
 
 const getShiftLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
   SHIFT_1: t("الوجبة الأولى", "Shift 1"),
@@ -59,8 +42,6 @@ export default function NursingPage() {
   const { t, formatNumber } = useI18n();
   const shiftLabels = getShiftLabels(t);
   const clinicalLabels = getClinicalLabels(t);
-  const statusLabel = getStatusLabels(t);
-  const sessionStatusLabel = getSessionStatusLabels(t);
   const user = useCurrentUser();
   const [wards, setWards] = useState<Ward[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -141,7 +122,7 @@ export default function NursingPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canViewAll = user.permissions.includes("nursing.ward.view.all");
@@ -150,37 +131,38 @@ export default function NursingPage() {
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">{t("التمريض - لوحة الردهة", "Nursing — Ward dashboard")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("التمريض - لوحة الردهة", "Nursing — Ward dashboard")}</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={wardId} onChange={(e) => setWardId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <select value={wardId} onChange={(e) => setWardId(e.target.value)} className="rounded-md border border-border px-3 py-2 text-sm" aria-label={t("الردهة", "Ward")}>
             {wards.map((w) => (
               <option key={w.id} value={w.id}>{w.name}</option>
             ))}
           </select>
-          <select value={shiftId} onChange={(e) => setShiftId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm">
+          <select value={shiftId} onChange={(e) => setShiftId(e.target.value)} className="rounded-md border border-border px-3 py-2 text-sm" aria-label={t("الوجبة", "Shift")}>
             <option value="">{t("كل الوجبات", "All shifts")}</option>
             {shifts.map((s) => (
               <option key={s.id} value={s.id}>{shiftLabels[s.name] ?? s.name}</option>
             ))}
           </select>
-          <button onClick={() => setDate(toLocalDateInputValue(new Date()))} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
+          <Button size="sm" variant="secondary" onPress={() => setDate(toLocalDateInputValue(new Date()))}>
             {t("اليوم", "Today")}
-          </button>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          </Button>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-md border border-border px-3 py-2 text-sm" aria-label={t("التاريخ", "Date")} />
         </div>
       </div>
 
       <ErrorNote message={error} className="mt-4" />
       {!canViewAll && (
-        <p className="mt-3 text-xs text-amber-600">
+        <p className="mt-3 text-xs text-warning">
           {t("تعرض هذه الشاشة فقط المرضى المخصصين لك اليوم لهذه الردهة/الوجبة.", "This page shows only the patients assigned to you today for this ward and shift.")}
         </p>
       )}
 
       {dashboard && (
-        <section className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <Card className="mt-4 overflow-hidden border border-border bg-surface shadow-none">
+          <Card.Content className="p-0">
           <table className="w-full text-start text-sm">
-            <thead className="bg-slate-50 text-slate-400">
+            <thead className="bg-surface-secondary text-muted">
               <tr>
                 <th className="px-4 py-2 font-medium">{t("الجهاز", "Machine")}</th>
                 <th className="px-4 py-2 font-medium">{t("حالة الجهاز", "Machine status")}</th>
@@ -195,57 +177,53 @@ export default function NursingPage() {
             </thead>
             <tbody>
               {dashboard.machines.map((m) => (
-                <tr key={m.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2 text-slate-800">{m.machineCode}</td>
-                  <td className="px-4 py-2 text-slate-500">{statusLabel[m.status] ?? m.status}</td>
+                <tr key={m.id} className="border-t border-border">
+                  <td className="px-4 py-2 font-medium text-foreground">{m.machineCode}</td>
+                  <td className="px-4 py-2"><StatusBadge group="machine" value={m.status} /></td>
                   {m.session ? (
                     <>
                       <td className="px-4 py-2">
-                        <Link href={`/admin/care/patients/${m.session.patientId}`} className="text-slate-800 hover:underline">
+                        <Link href={`/admin/care/patients/${m.session.patientId}`} className="text-foreground hover:underline">
                           {m.session.patient.fullName}
                         </Link>
                       </td>
-                      <td className="px-4 py-2 text-slate-600">{sessionStatusLabel[m.session.status] ?? m.session.status}</td>
-                      <td className="px-4 py-2 text-slate-500">{m.session.nurse?.fullName ?? "-"}</td>
-                      <td className="px-4 py-2 text-slate-500">
+                      <td className="px-4 py-2"><StatusBadge group="session" value={m.session.status} /></td>
+                      <td className="px-4 py-2 text-muted">{m.session.nurse?.fullName ?? "-"}</td>
+                      <td className="px-4 py-2 tabular-nums text-muted">
                         {m.session.minutesSinceLastReading != null ? t(`منذ ${formatNumber(m.session.minutesSinceLastReading)} د`, `${formatNumber(m.session.minutesSinceLastReading)} min ago`) : t("لا توجد", "None")}
                       </td>
                       <td className="px-4 py-2">
                         {m.session.openAlerts.length > 0 ? (
                           <span
                             title={m.session.openAlerts.map((a) => `[${clinicalLabels[a.severity] ?? a.severity}] ${a.category}: ${a.message}`).join("\n")}
-                            className={`rounded-md px-2 py-1 text-xs font-medium ${
-                              m.session.openAlerts.some((a) => a.severity === "CRITICAL")
-                                ? "bg-red-100 text-red-700"
-                                : "bg-amber-100 text-amber-700"
-                            }`}
+                            className={`status-badge tabular-nums ${m.session.openAlerts.some((a) => a.severity === "CRITICAL") ? "tone-danger" : "tone-warning"}`}
                           >
                             {formatNumber(m.session.openAlerts.length)}
                           </span>
                         ) : (
-                          <span className="text-slate-300">-</span>
+                          <span className="text-muted">-</span>
                         )}
                       </td>
                       <td className="px-4 py-2">
                         {m.session.activeDoctorOrders.length > 0 ? (
                           <span
                             title={m.session.activeDoctorOrders.map((o) => `${clinicalLabels[o.type] ?? o.type} — ${o.doctor.fullName}`).join("\n")}
-                            className="rounded-md bg-sky-100 px-2 py-1 text-xs font-medium text-sky-700"
+                            className="status-badge tone-info tabular-nums"
                           >
                             {formatNumber(m.session.activeDoctorOrders.length)}
                           </span>
                         ) : (
-                          <span className="text-slate-300">-</span>
+                          <span className="text-muted">-</span>
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        <Link href={`/admin/care/sessions/${m.session.id}`} className="text-xs font-medium text-slate-600 hover:underline">
+                        <Link href={`/admin/care/sessions/${m.session.id}`} className="text-xs font-medium text-accent hover:underline">
                           {t("فتح الجلسة", "Open session")}
                         </Link>
                       </td>
                     </>
                   ) : (
-                    <td className="px-4 py-2 text-slate-300" colSpan={6}>
+                    <td className="px-4 py-2 text-muted" colSpan={6}>
                       {t("لا يوجد مريض ظاهر", "No patient to display")}
                     </td>
                   )}
@@ -253,34 +231,38 @@ export default function NursingPage() {
               ))}
               {dashboard.machines.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-slate-400">{t("لا توجد أجهزة في هذه الردهة", "No machines in this ward")}</td>
+                  <td colSpan={9} className="px-4 py-6 text-center text-muted">{t("لا توجد أجهزة في هذه الردهة", "No machines in this ward")}</td>
                 </tr>
               )}
             </tbody>
           </table>
-        </section>
+          </Card.Content>
+        </Card>
       )}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("توزيعي اليوم (مرضاي)", "My assignments today")}</h2>
+        <Card className="border border-border bg-surface shadow-none">
+          <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("توزيعي اليوم (مرضاي)", "My assignments today")}</Card.Title></Card.Header>
+          <Card.Content>
           {myAssignments.length === 0 ? (
-            <p className="text-sm text-slate-400">{t("لا يوجد توزيع مسجل لك في هذا التاريخ", "No assignments for you on this date")}</p>
+            <p className="text-sm text-muted">{t("لا يوجد توزيع مسجل لك في هذا التاريخ", "No assignments for you on this date")}</p>
           ) : (
             <ul className="space-y-2 text-sm">
               {myAssignments.map((a) => (
-                <li key={a.id} className="rounded-md border border-slate-100 p-2">
-                  <div className="font-medium text-slate-700">{a.ward.name} — {shiftLabels[a.shift.name] ?? a.shift.name}</div>
-                  <div className="text-slate-500">{a.patients.map((p) => p.patient.fullName).join(t("، ", ", ")) || t("لا يوجد مرضى", "No patients")}</div>
+                <li key={a.id} className="rounded-md border border-border p-2">
+                  <div className="font-medium text-foreground">{a.ward.name} — {shiftLabels[a.shift.name] ?? a.shift.name}</div>
+                  <div className="text-muted">{a.patients.map((p) => p.patient.fullName).join(t("، ", ", ")) || t("لا يوجد مرضى", "No patients")}</div>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+          </Card.Content>
+        </Card>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("رمز PIN السريع الخاص بي", "My quick-access PIN")}</h2>
-          <p className="mb-2 text-xs text-slate-400">
+        <Card className="border border-border bg-surface shadow-none">
+          <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("رمز PIN السريع الخاص بي", "My quick-access PIN")}</Card.Title></Card.Header>
+          <Card.Content>
+          <p className="mb-2 text-xs text-muted">
             {t("يُستخدم لتحديد هويتك بدقة عند تنفيذ إجراء من جهاز مشترك يسجّل دخوله بحساب آخر.", "Identifies you when you perform an action on a shared device signed in with another account.")}
           </p>
           <form onSubmit={handleSetPin} className="flex items-center gap-2">
@@ -289,14 +271,15 @@ export default function NursingPage() {
               onChange={(e) => setPinValue(e.target.value)}
               placeholder={t("4-6 أرقام", "4–6 digits")}
               inputMode="numeric"
-              className="w-28 rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              className="w-28 rounded-md border border-border px-3 py-1.5 text-sm"
             />
-            <button type="submit" disabled={pinBusy} className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50">
+            <button type="submit" disabled={pinBusy} className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground disabled:opacity-50">
               {t("حفظ", "Save")}
             </button>
           </form>
-          {pinMessage && <p className="mt-2 text-xs text-slate-500">{pinMessage}</p>}
-        </section>
+          {pinMessage && <p className="mt-2 text-xs text-muted">{pinMessage}</p>}
+          </Card.Content>
+        </Card>
       </div>
 
       {canAssign && wardId && (
@@ -376,25 +359,26 @@ function AssignmentManager({
   }
 
   return (
-    <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-500">{t("توزيع الممرضين (HEAD_NURSE)", "Nurse assignments (head nurse)")}</h2>
+    <Card className="mt-6 border border-border bg-surface shadow-none">
+      <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("توزيع الممرضين (HEAD_NURSE)", "Nurse assignments (head nurse)")}</Card.Title></Card.Header>
+      <Card.Content>
       <ErrorNote message={error} className="mb-2" />
       <form onSubmit={handleSubmit} className="space-y-2">
         <div className="flex flex-wrap gap-2">
-          <select value={formShiftId} onChange={(e) => setFormShiftId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+          <select value={formShiftId} onChange={(e) => setFormShiftId(e.target.value)} className="rounded-md border border-border px-3 py-1.5 text-sm" aria-label={t("الوجبة", "Shift")}>
             <option value="">{t("اختر الوجبة...", "Select a shift...")}</option>
             {shifts.map((s) => (
               <option key={s.id} value={s.id}>{shiftLabels[s.name] ?? s.name}</option>
             ))}
           </select>
-          <select value={nurseId} onChange={(e) => setNurseId(e.target.value)} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+          <select value={nurseId} onChange={(e) => setNurseId(e.target.value)} className="rounded-md border border-border px-3 py-1.5 text-sm" aria-label={t("الممرض", "Nurse")}>
             <option value="">{t("اختر الممرض...", "Select a nurse...")}</option>
             {nurses.map((n) => (
               <option key={n.id} value={n.id}>{n.fullName}</option>
             ))}
           </select>
         </div>
-        <div className="max-h-40 overflow-y-auto rounded-md border border-slate-100 p-2">
+        <div className="max-h-40 overflow-y-auto rounded-md border border-border p-2">
           {patients.map((p) => (
             <label key={p.id} className="flex items-center gap-2 py-0.5 text-xs">
               <input type="checkbox" checked={selectedPatientIds.includes(p.id)} onChange={() => togglePatient(p.id)} />
@@ -402,19 +386,20 @@ function AssignmentManager({
             </label>
           ))}
         </div>
-        <button type="submit" disabled={busy} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
+        <button type="submit" disabled={busy} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50">
           {t("حفظ التوزيع", "Save assignment")}
         </button>
       </form>
 
       <div className="mt-4 space-y-2">
         {assignments.map((a) => (
-          <div key={a.id} className="rounded-md border border-slate-100 p-2 text-sm">
-            <span className="font-medium text-slate-700">{a.nurse.fullName}</span>{" "}
-            <span className="text-slate-500">({shiftLabels[a.shift.name] ?? a.shift.name}): {a.patients.map((p) => p.patient.fullName).join(t("، ", ", ")) || t("بدون مرضى", "No patients")}</span>
+          <div key={a.id} className="rounded-md border border-border p-2 text-sm">
+            <span className="font-medium text-foreground">{a.nurse.fullName}</span>{" "}
+            <span className="text-muted">({shiftLabels[a.shift.name] ?? a.shift.name}): {a.patients.map((p) => p.patient.fullName).join(t("، ", ", ")) || t("بدون مرضى", "No patients")}</span>
           </div>
         ))}
       </div>
-    </section>
+      </Card.Content>
+    </Card>
   );
 }

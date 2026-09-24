@@ -26,6 +26,12 @@ const GROUPS = {
     CLOSED: { ar: "مغلق", en: "Closed", tone: "muted" },
     REJECTED: { ar: "مرفوض", en: "Rejected", tone: "danger" },
   },
+  flowAttention: {
+    INTERRUPTED: { ar: "جلسة مقاطَعة", en: "Interrupted", tone: "danger" },
+    WAITING_MACHINE: { ar: "بانتظار جهاز", en: "Waiting for a machine", tone: "danger" },
+    ABSENT: { ar: "غائب", en: "Absent", tone: "neutral" },
+    LATE: { ar: "متأخر", en: "Late", tone: "warning" },
+  },
   schedule: {
     SCHEDULED: { ar: "مجدول", en: "Scheduled", tone: "info" },
     ARRIVED: { ar: "وصل", en: "Arrived", tone: "success" },
@@ -105,6 +111,12 @@ const GROUPS = {
     CLOSED: { ar: "مغلق", en: "Closed", tone: "muted" },
     CANCELLED: { ar: "ملغى", en: "Cancelled", tone: "muted" },
   },
+  incidentSeverity: {
+    LOW: { ar: "منخفضة", en: "Low", tone: "muted" },
+    MEDIUM: { ar: "متوسطة", en: "Medium", tone: "warning" },
+    HIGH: { ar: "عالية", en: "High", tone: "warning" },
+    CRITICAL: { ar: "حرجة", en: "Critical", tone: "danger" },
+  },
   incident: {
     OPEN: { ar: "مفتوح", en: "Open", tone: "warning" },
     UNDER_REVIEW: { ar: "قيد المراجعة", en: "Under review", tone: "info" },
@@ -122,6 +134,11 @@ const GROUPS = {
     ISSUED: { ar: "مُصدر", en: "Issued", tone: "success" },
     UNAVAILABLE: { ar: "غير متوفر", en: "Unavailable", tone: "danger" },
     SUBSTITUTED: { ar: "بديل", en: "Substituted", tone: "warning" },
+  },
+  clinicalSeverity: {
+    CRITICAL: { ar: "حرج", en: "Critical", tone: "danger" },
+    IMPORTANT: { ar: "مهم", en: "Important", tone: "warning" },
+    INFORMATION: { ar: "معلومات", en: "Information", tone: "info" },
   },
   stockTransfer: {
     REQUESTED: { ar: "مطلوب", en: "Requested", tone: "info" },

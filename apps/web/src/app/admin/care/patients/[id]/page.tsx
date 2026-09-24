@@ -19,10 +19,10 @@ import {
   Weekday,
 } from "@/lib/types";
 
-const severityStyles: Record<string, string> = {
-  CRITICAL: "bg-red-50 border-red-300 text-red-800",
-  IMPORTANT: "bg-amber-50 border-amber-300 text-amber-800",
-  INFORMATION: "bg-slate-50 border-slate-300 text-slate-700",
+const severityBadgeTone: Record<string, string> = {
+  CRITICAL: "tone-danger",
+  IMPORTANT: "tone-warning",
+  INFORMATION: "tone-info",
 };
 
 const severityTone: Record<string, string> = {
@@ -205,15 +205,15 @@ export default function PatientProfilePage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   if (patientError) {
-    return <main className="p-8 text-red-600">{patientError}</main>;
+    return <main className="p-8 text-danger">{patientError}</main>;
   }
 
   if (!patient) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canPlan = user.permissions.includes("scheduling.manage");
@@ -231,14 +231,14 @@ export default function PatientProfilePage() {
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/admin/care/patients" className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+        <Link href="/admin/care/patients" className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted">
           <svg className="dir-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           {t("المرضى", "Patients")}
         </Link>
         {user.permissions.includes("patient.alert.manage") && (
-          <button onClick={() => setShowAlertForm((v) => !v)} className="bg-slate-900 px-4 text-sm text-white">
+          <button onClick={() => setShowAlertForm((v) => !v)} className="bg-accent px-4 text-sm text-white">
             {showAlertForm ? t("إلغاء", "Cancel") : t("+ تنبيه سريري", "+ Clinical alert")}
           </button>
         )}
@@ -247,7 +247,7 @@ export default function PatientProfilePage() {
       {openAlerts.length > 0 && (
         <div className="mt-4 space-y-2">
           {openAlerts.map((alert) => (
-            <div key={alert.id} className={`rounded-md border px-4 py-2 text-sm ${severityStyles[alert.severity]}`}>
+            <div key={alert.id} className={`status-badge whitespace-normal px-4 py-2 text-sm ${severityBadgeTone[alert.severity] ?? "tone-neutral"}`}>
               <span className="font-semibold">[{severityLabel[alert.severity]}]</span> {alert.category}: {alert.message}
             </div>
           ))}
@@ -255,12 +255,12 @@ export default function PatientProfilePage() {
       )}
 
       {showAlertForm && (
-        <form onSubmit={handleCreateAlert} className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <form onSubmit={handleCreateAlert} className="mt-4 rounded-lg border border-border bg-surface p-4">
           <h2>{t("تنبيه سريري جديد", "New clinical alert")}</h2>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs font-medium">
               {t("الخطورة", "Severity")}
-              <select name="severity" required className="border border-slate-200">
+              <select name="severity" required className="border border-border">
                 <option value="CRITICAL">{severityLabel.CRITICAL}</option>
                 <option value="IMPORTANT">{severityLabel.IMPORTANT}</option>
                 <option value="INFORMATION">{severityLabel.INFORMATION}</option>
@@ -268,13 +268,13 @@ export default function PatientProfilePage() {
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium">
               {t("التصنيف", "Category")}
-              <input name="category" required placeholder={t("مثال: حساسية دواء", "e.g. Drug allergy")} className="border border-slate-200" />
+              <input name="category" required placeholder={t("مثال: حساسية دواء", "e.g. Drug allergy")} className="border border-border" />
             </label>
             <label className="flex min-w-60 flex-1 flex-col gap-1 text-xs font-medium">
               {t("نص التنبيه", "Message")}
-              <input name="message" required className="border border-slate-200" />
+              <input name="message" required className="border border-border" />
             </label>
-            <button type="submit" className="bg-slate-900 px-4 text-sm text-white">{t("حفظ التنبيه", "Save alert")}</button>
+            <button type="submit" className="bg-accent px-4 text-sm text-white">{t("حفظ التنبيه", "Save alert")}</button>
           </div>
           <ErrorNote message={alertError} />
         </form>
@@ -282,7 +282,7 @@ export default function PatientProfilePage() {
 
       <div className="mt-5 pt-layout">
         <div className="grid gap-4">
-          <section className="rounded-lg border border-slate-200 bg-white p-5 pt-identity">
+          <section className="rounded-lg border border-border bg-surface p-5 pt-identity">
             <span className="pt-avatar" aria-hidden="true">{initials}</span>
             <h1 className="pt-name">{patient.fullName}</h1>
             <p className="pt-code">{patient.patientCode}</p>
@@ -304,7 +304,7 @@ export default function PatientProfilePage() {
             )}
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="rounded-lg border border-border bg-surface p-5">
             <h2>{t("التنبيهات السريرية", "Clinical alerts")}</h2>
             <div className="mt-3 pt-list">
               {(patient.alerts ?? []).map((alert) => (
@@ -319,11 +319,11 @@ export default function PatientProfilePage() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5">
+          <section className="rounded-lg border border-border bg-surface p-5">
             <h2>{t("الحساسية والملاحظات", "Allergies & notes")}</h2>
             <div className="mt-3 pt-list">
-              <div><p className="text-xs text-muted">{t("الحساسية", "Allergies")}</p><p className="mt-1 text-xs font-semibold text-slate-700">{patient.allergies || t("لا توجد حساسية مسجّلة", "None recorded")}</p></div>
-              <div><p className="text-xs text-muted">{t("ملاحظات طبية", "Medical notes")}</p><p className="mt-1 text-xs font-semibold text-slate-700">{patient.medicalNotes || t("لا توجد ملاحظات", "No notes")}</p></div>
+              <div><p className="text-xs text-muted">{t("الحساسية", "Allergies")}</p><p className="mt-1 text-xs font-semibold text-foreground">{patient.allergies || t("لا توجد حساسية مسجّلة", "None recorded")}</p></div>
+              <div><p className="text-xs text-muted">{t("ملاحظات طبية", "Medical notes")}</p><p className="mt-1 text-xs font-semibold text-foreground">{patient.medicalNotes || t("لا توجد ملاحظات", "No notes")}</p></div>
             </div>
           </section>
         </div>
@@ -365,7 +365,7 @@ export default function PatientProfilePage() {
                 {patient.medicalNotes && (
                   <>
                     <p className="pt-section-label mt-8">{t("ملاحظات طبية", "Medical notes")}</p>
-                    <p className="text-sm text-slate-700">{patient.medicalNotes}</p>
+                    <p className="text-sm text-foreground">{patient.medicalNotes}</p>
                   </>
                 )}
               </>
@@ -376,7 +376,7 @@ export default function PatientProfilePage() {
                 <div className="flex items-center justify-between">
                   <p className="pt-section-label" style={{ marginBottom: 0 }}>{t("خطة الغسيل الأسبوعية", "Weekly dialysis plan")}</p>
                   {!editingPlan && (
-                    <button onClick={startEditingPlan} className="text-xs font-semibold text-slate-600 hover:underline">
+                    <button onClick={startEditingPlan} className="text-xs font-semibold text-muted hover:underline">
                       {t("تعديل الخطة", "Edit plan")}
                     </button>
                   )}
@@ -400,14 +400,14 @@ export default function PatientProfilePage() {
                         <select
                           value={entry.weekday}
                           onChange={(e) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, weekday: e.target.value as Weekday } : row)))}
-                          className="border border-slate-200 text-sm"
+                          className="border border-border text-sm"
                         >
                           {WEEKDAYS.map((day) => <option key={day} value={day}>{WEEKDAY_LABELS[day]}</option>)}
                         </select>
                         <select
                           value={entry.shiftId}
                           onChange={(e) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, shiftId: e.target.value } : row)))}
-                          className="border border-slate-200 text-sm"
+                          className="border border-border text-sm"
                         >
                           {shifts.map((shift) => (
                             <option key={shift.id} value={shift.id}>
@@ -415,14 +415,14 @@ export default function PatientProfilePage() {
                             </option>
                           ))}
                         </select>
-                        <button onClick={() => setPlanDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-red-600 hover:underline">
+                        <button onClick={() => setPlanDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-danger hover:underline">
                           {t("حذف", "Remove")}
                         </button>
                       </div>
                     ))}
 
                     {planDraft.length < 4 && (
-                      <button onClick={() => setPlanDraft((prev) => [...prev, { weekday: "SUN", shiftId: shifts[0]?.id ?? "" }])} className="text-xs font-semibold text-slate-600 hover:underline">
+                      <button onClick={() => setPlanDraft((prev) => [...prev, { weekday: "SUN", shiftId: shifts[0]?.id ?? "" }])} className="text-xs font-semibold text-muted hover:underline">
                         {t("+ إضافة يوم", "+ Add day")}
                       </button>
                     )}
@@ -430,8 +430,8 @@ export default function PatientProfilePage() {
                     <ErrorNote message={planError} />
 
                     <div className="flex gap-2 pt-2">
-                      <button onClick={handleSavePlan} className="bg-slate-900 px-4 text-xs text-white">{t("حفظ الخطة", "Save plan")}</button>
-                      <button onClick={() => setEditingPlan(false)} className="rounded-md border border-slate-200 px-4 text-xs text-slate-600">{t("إلغاء", "Cancel")}</button>
+                      <button onClick={handleSavePlan} className="bg-accent px-4 text-xs text-accent-foreground">{t("حفظ الخطة", "Save plan")}</button>
+                      <button onClick={() => setEditingPlan(false)} className="rounded-md border border-border px-4 text-xs text-muted">{t("إلغاء", "Cancel")}</button>
                     </div>
                   </div>
                 )}
@@ -443,7 +443,7 @@ export default function PatientProfilePage() {
                 <div className="flex items-center justify-between">
                   <p className="pt-section-label" style={{ marginBottom: 0 }}>{t("مستلزمات الجلسة الافتراضية", "Default session supplies")}</p>
                   {!editingSupplyProfile && user.permissions.includes("inventory.manage") && (
-                    <button onClick={startEditingSupplyProfile} className="text-xs font-semibold text-slate-600 hover:underline">
+                    <button onClick={startEditingSupplyProfile} className="text-xs font-semibold text-muted hover:underline">
                       {t("تعديل", "Edit")}
                     </button>
                   )}
@@ -467,7 +467,7 @@ export default function PatientProfilePage() {
                         <select
                           value={entry.itemId}
                           onChange={(e) => setSupplyProfileDraft((prev) => prev.map((row, i) => (i === index ? { ...row, itemId: e.target.value } : row)))}
-                          className="border border-slate-200 text-sm"
+                          className="border border-border text-sm"
                         >
                           {inventoryItems.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>)}
                         </select>
@@ -477,23 +477,23 @@ export default function PatientProfilePage() {
                           min="0.01"
                           value={entry.defaultQuantity}
                           onChange={(e) => setSupplyProfileDraft((prev) => prev.map((row, i) => (i === index ? { ...row, defaultQuantity: Number(e.target.value) } : row)))}
-                          className="w-24 border border-slate-200 text-sm"
+                          className="w-24 border border-border text-sm"
                         />
-                        <button onClick={() => setSupplyProfileDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-red-600 hover:underline">
+                        <button onClick={() => setSupplyProfileDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-danger hover:underline">
                           {t("حذف", "Remove")}
                         </button>
                       </div>
                     ))}
 
-                    <button onClick={() => setSupplyProfileDraft((prev) => [...prev, { itemId: inventoryItems[0]?.id ?? "", defaultQuantity: 1 }])} className="text-xs font-semibold text-slate-600 hover:underline">
+                    <button onClick={() => setSupplyProfileDraft((prev) => [...prev, { itemId: inventoryItems[0]?.id ?? "", defaultQuantity: 1 }])} className="text-xs font-semibold text-muted hover:underline">
                       {t("+ إضافة مادة", "+ Add item")}
                     </button>
 
                     <ErrorNote message={supplyProfileError} />
 
                     <div className="flex gap-2 pt-2">
-                      <button onClick={handleSaveSupplyProfile} className="bg-slate-900 px-4 text-xs text-white">{t("حفظ", "Save")}</button>
-                      <button onClick={() => setEditingSupplyProfile(false)} className="rounded-md border border-slate-200 px-4 text-xs text-slate-600">{t("إلغاء", "Cancel")}</button>
+                      <button onClick={handleSaveSupplyProfile} className="bg-accent px-4 text-xs text-accent-foreground">{t("حفظ", "Save")}</button>
+                      <button onClick={() => setEditingSupplyProfile(false)} className="rounded-md border border-border px-4 text-xs text-muted">{t("إلغاء", "Cancel")}</button>
                     </div>
                   </div>
                 )}
@@ -504,10 +504,10 @@ export default function PatientProfilePage() {
               <>
                 <p className="pt-section-label">{t("السجل الزمني", "Patient timeline")}</p>
                 {timeline.length === 0 && <p className="text-sm text-muted">{t("لا توجد أحداث بعد", "No events yet")}</p>}
-                <ol className="space-y-3 border-s-2 border-slate-100 ps-4">
+                <ol className="space-y-3 border-s-2 border-border ps-4">
                   {timeline.map((event) => (
                     <li key={event.id} className="text-sm">
-                      <p className="font-semibold text-slate-700">{TIMELINE_LABELS[event.type] ? t(...TIMELINE_LABELS[event.type]) : event.type}</p>
+                      <p className="font-semibold text-foreground">{TIMELINE_LABELS[event.type] ? t(...TIMELINE_LABELS[event.type]) : event.type}</p>
                       <p className="text-xs text-muted">
                         {formatDate(event.performedAt, { dateStyle: "medium", timeStyle: "short" })} · {event.performedBy?.fullName ?? t("النظام", "System")}
                       </p>

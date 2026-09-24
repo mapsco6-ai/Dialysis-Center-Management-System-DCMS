@@ -24,12 +24,12 @@ export default function AdminPage() {
   const user = useCurrentUser();
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("لوحة المركز الحية", "Center overview")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("لوحة المركز الحية", "Center overview")}</h1>
       <p className="mt-1 text-sm text-muted">
         {t("متابعة جلسات اليوم، جاهزية الأجهزة، واحتياجات فرق الرعاية.", "Today’s sessions, machine availability, and care team priorities.")}
       </p>
@@ -100,7 +100,7 @@ function LiveCenterWidget({ user }: { user: AuthenticatedUser }) {
   return (
     <WidgetCard title={t("مركز اليوم الحي", "Today at the center")}>
       {!data ? (
-        <p className="text-sm text-slate-400">{t("جاري التحميل...", "Loading...")}</p>
+        <p className="text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>
       ) : (
         <div className="grid grid-cols-4 gap-2">
           <Tile label={t("مجدول", "Scheduled")} value={data.scheduled} />
@@ -145,7 +145,7 @@ function MachinesWidget({ user }: { user: AuthenticatedUser }) {
   return (
     <WidgetCard title={t("الأجهزة الحية", "Machine status")}>
       {!data ? (
-        <p className="text-sm text-slate-400">{t("جاري التحميل...", "Loading...")}</p>
+        <p className="text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>
       ) : (
         <>
           <div className="grid grid-cols-4 gap-2">
@@ -154,8 +154,8 @@ function MachinesWidget({ user }: { user: AuthenticatedUser }) {
             <Tile label={t("تعقيم", "Cleaning")} value={(data.byStatus.CLEANING ?? 0) + (data.byStatus.WAITING_CLEANING ?? 0)} tone="amber" />
             <Tile label={t("صيانة", "Maintenance")} value={(data.byStatus.MAINTENANCE ?? 0) + (data.byStatus.OUT_OF_SERVICE ?? 0)} tone="red" />
           </div>
-          <p className="mt-3 text-xs text-slate-500">
-            {t("نسبة الإشغال:", "Utilization:")} <span className="font-medium text-slate-700">{formatNumber(data.utilizationPercent / 100, { style: "percent", maximumFractionDigits: 1 })}</span> {t("— الإجمالي", "— Total")} {formatNumber(data.totalMachines)}
+          <p className="mt-3 text-xs text-muted">
+            {t("نسبة الإشغال:", "Utilization:")} <span className="font-medium text-foreground">{formatNumber(data.utilizationPercent / 100, { style: "percent", maximumFractionDigits: 1 })}</span> {t("— الإجمالي", "— Total")} {formatNumber(data.totalMachines)}
           </p>
         </>
       )}
@@ -203,13 +203,13 @@ function WardsWidget({ user }: { user: AuthenticatedUser }) {
   return (
     <WidgetCard title={t("خريطة الردهات", "Ward overview")}>
       {data.length === 0 ? (
-        <p className="text-sm text-slate-400">{t("لا توجد ردهات بعد", "No wards yet")}</p>
+        <p className="text-sm text-muted">{t("لا توجد ردهات بعد", "No wards yet")}</p>
       ) : (
         <ul className="space-y-2">
           {data.map((w) => (
             <li key={w.id} className="flex items-center justify-between text-sm">
-              <span className="text-slate-700">{w.name}</span>
-              <span className="text-xs text-slate-500">
+              <span className="text-foreground">{w.name}</span>
+              <span className="text-xs text-muted">
                 {Object.entries(w.byStatus)
                   .map(([status, count]) => `${machineStatusLabel[status as MachineStatus]}: ${formatNumber(count)}`)
                   .join(" · ")}
@@ -237,7 +237,7 @@ function InventoryAlertsWidget({ user }: { user: AuthenticatedUser }) {
   return (
     <WidgetCard title={t("تنبيهات المخزون", "Inventory alerts")}>
       {!data ? (
-        <p className="text-sm text-slate-400">{t("جاري التحميل...", "Loading...")}</p>
+        <p className="text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>
       ) : (
         <div className="grid grid-cols-4 gap-2">
           <Tile label={t("منخفض", "Low stock")} value={data.lowStockCount} tone="amber" />
@@ -265,7 +265,7 @@ function PendingWorkWidget({ user }: { user: AuthenticatedUser }) {
   return (
     <WidgetCard title={t("العمل المعلّق", "Pending work")}>
       {!data ? (
-        <p className="text-sm text-slate-400">{t("جاري التحميل...", "Loading...")}</p>
+        <p className="text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {data.labPending !== null && <Tile label={t("طلبات المختبر", "Lab orders")} value={data.labPending} />}
@@ -291,14 +291,14 @@ function SessionCostWidget({ user }: { user: AuthenticatedUser }) {
   return (
     <WidgetCard title={t("تكلفة جلسات اليوم", "Today’s session costs")}>
       {!data ? (
-        <p className="text-sm text-slate-400">{t("جاري التحميل...", "Loading...")}</p>
+        <p className="text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           <Tile label={t("مستلزمات", "Supplies")} value={formatNumber(data.consumablesCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
           <Tile label={t("أدوية", "Medication")} value={formatNumber(data.medicationCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
           <Tile label={t("مختبر", "Laboratory")} value={formatNumber(data.labConsumablesCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
-          <div className="col-span-3 mt-1 text-center text-sm text-slate-600">
-            {t("الإجمالي:", "Total:")} <span className="font-semibold text-slate-800">{formatNumber(data.totalCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> {t(`(${formatNumber(data.scheduleCount)} جلسة)`, `(${formatNumber(data.scheduleCount)} sessions)`)}
+          <div className="col-span-3 mt-1 text-center text-sm text-muted">
+            {t("الإجمالي:", "Total:")} <span className="font-semibold text-foreground">{formatNumber(data.totalCost, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> {t(`(${formatNumber(data.scheduleCount)} جلسة)`, `(${formatNumber(data.scheduleCount)} sessions)`)}
           </div>
         </div>
       )}

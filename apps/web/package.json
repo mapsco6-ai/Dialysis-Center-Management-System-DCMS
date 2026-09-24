@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "check:tokens": "bash scripts/check-design-tokens.sh"
   },
   "dependencies": {
     "@heroui/react": "^3.2.5",

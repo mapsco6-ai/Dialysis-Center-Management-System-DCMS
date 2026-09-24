@@ -79,7 +79,7 @@ export default function MyCalendarPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const todayKey = toLocalDateInputValue(new Date());
@@ -143,7 +143,7 @@ export default function MyCalendarPage() {
           </p>
         </div>
         {user.permissions.includes("task.create") && (
-          <button onClick={() => setAdding((v) => !v)} className="bg-slate-900 px-4 text-sm text-white">
+          <button onClick={() => setAdding((v) => !v)} className="bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">
             {adding ? t("إلغاء", "Cancel") : t("+ مهمة جديدة", "+ Add task")}
           </button>
         )}
@@ -171,17 +171,17 @@ export default function MyCalendarPage() {
             <button onClick={() => setAnchor(new Date())}>{t("اليوم", "Today")}</button>
             <button onClick={() => shift(1)} aria-label={t("التالي", "Next")}><Arrow dir="end" /></button>
           </div>
-          <select value={view} onChange={(e) => setView(e.target.value as "month" | "week")} aria-label={t("طريقة العرض", "View")} className="border border-slate-200 text-sm">
+          <select value={view} onChange={(e) => setView(e.target.value as "month" | "week")} aria-label={t("طريقة العرض", "View")} className="border border-border text-sm">
             <option value="month">{t("عرض شهري", "Month view")}</option>
             <option value="week">{t("عرض أسبوعي", "Week view")}</option>
           </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value as "ALL" | TaskStatus)} aria-label={t("الحالة", "Status")} className="border border-slate-200 text-sm">
+          <select value={status} onChange={(e) => setStatus(e.target.value as "ALL" | TaskStatus)} aria-label={t("الحالة", "Status")} className="border border-border text-sm">
             <option value="ALL">{t("كل الحالات", "All statuses")}</option>
             <option value="OPEN">{t("مفتوحة", "Open")}</option>
             <option value="IN_PROGRESS">{t("قيد التنفيذ", "In progress")}</option>
             <option value="DONE">{t("منجزة", "Done")}</option>
           </select>
-          <select value={priority} onChange={(e) => setPriority(e.target.value as "ALL" | TaskPriority)} aria-label={t("الأولوية", "Priority")} className="border border-slate-200 text-sm">
+          <select value={priority} onChange={(e) => setPriority(e.target.value as "ALL" | TaskPriority)} aria-label={t("الأولوية", "Priority")} className="border border-border text-sm">
             <option value="ALL">{t("كل الأولويات", "All priorities")}</option>
             <option value="URGENT">{t("عاجلة", "Urgent")}</option>
             <option value="HIGH">{t("عالية", "High")}</option>
@@ -220,7 +220,7 @@ export default function MyCalendarPage() {
       </div>
 
       {undated.length > 0 && (
-        <section className="mt-5 rounded-lg border border-slate-200 bg-white p-4">
+        <section className="mt-5 rounded-lg border border-border bg-surface p-4">
           <h2>{t("مهام بدون موعد محدد", "Tasks with no due date")}</h2>
           <div className="mt-3 grid gap-1">
             {undated.map((task) => (
@@ -302,27 +302,27 @@ function AddTaskForm({ userId, onDone }: { userId: string; onDone: () => void })
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+    <form onSubmit={submit} className="mt-4 rounded-lg border border-border bg-surface p-4">
       <h2>{t("مهمة جديدة لي", "New task for me")}</h2>
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <label className="flex min-w-60 flex-1 flex-col gap-1 text-xs font-medium">
           {t("العنوان", "Title")}
-          <input name="title" required autoFocus className="border border-slate-200" />
+          <input name="title" required autoFocus className="border border-border" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium">
           {t("التاريخ", "Due date")}
-          <input type="date" name="dueAt" className="border border-slate-200" />
+          <input type="date" name="dueAt" className="border border-border" />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium">
           {t("الأولوية", "Priority")}
-          <select name="priority" defaultValue="NORMAL" className="border border-slate-200">
+          <select name="priority" defaultValue="NORMAL" className="border border-border">
             <option value="URGENT">{t("عاجلة", "Urgent")}</option>
             <option value="HIGH">{t("عالية", "High")}</option>
             <option value="NORMAL">{t("عادية", "Normal")}</option>
             <option value="LOW">{t("منخفضة", "Low")}</option>
           </select>
         </label>
-        <button type="submit" disabled={saving} className="bg-slate-900 px-4 text-sm text-white">
+        <button type="submit" disabled={saving} className="bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">
           {saving ? t("جاري الحفظ...", "Saving...") : t("حفظ", "Save")}
         </button>
       </div>

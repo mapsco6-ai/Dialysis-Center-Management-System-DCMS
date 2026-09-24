@@ -25,7 +25,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={`${inter.variable} ${plexArabic.variable} ${theme === "dark" ? "dark" : ""}`.trim()}
       data-theme={theme} data-density={compact ? "compact" : "comfortable"} data-reduced-motion={String(reducedMotion)}>
-      <body><I18nProvider initialPreferences={{ locale, theme, compact, reducedMotion }}>{children}<GlobalLoader /><Toaster /></I18nProvider></body>
+      <body className="bg-background text-foreground">
+        <I18nProvider initialPreferences={{ locale, theme, compact, reducedMotion }}>{children}<GlobalLoader /><Toaster /></I18nProvider>
+      </body>
     </html>
   );
 }

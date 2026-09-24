@@ -68,9 +68,9 @@ export function PaginatedTable<T>({
   const showEmpty = !loading && !error && rows !== null && rows.length === 0;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
       <table className="w-full text-start text-sm">
-        <thead className="bg-slate-50 text-slate-500">
+        <thead className="bg-surface-secondary text-muted">
           <tr>
             {columns.map((column) => (
               <th key={column.key} className="px-4 py-2 font-medium">{column.header}</th>
@@ -101,9 +101,9 @@ export function PaginatedTable<T>({
             </tr>
           )}
           {showBody && !error && rows && rows.length > 0 && rows.map((row, index) => (
-            <tr key={rowKey ? rowKey(row, index) : index} className="border-t border-slate-100 hover:bg-slate-50">
+            <tr key={rowKey ? rowKey(row, index) : index} className="border-t border-border hover:bg-surface-secondary">
               {columns.map((column) => (
-                <td key={column.key} className="px-4 py-2 text-slate-800">
+                <td key={column.key} className="px-4 py-2 text-foreground">
                   {column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? "-")}
                 </td>
               ))}
@@ -112,7 +112,7 @@ export function PaginatedTable<T>({
         </tbody>
       </table>
       {!hidePagination && (
-        <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-2 text-xs text-slate-500">
+        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-2 text-xs text-muted">
           <span>
             {formatNumber(from)}–{formatNumber(to)} / {formatNumber(total ?? 0)}
           </span>

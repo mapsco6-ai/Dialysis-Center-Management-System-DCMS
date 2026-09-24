@@ -29,9 +29,9 @@ interface StaffMember {
   roles: string[];
 }
 
-const inputClass = "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
-const primaryButton = "rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50";
-const secondaryButton = "rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50";
+const inputClass = "rounded-md border border-border px-3 py-2 text-sm focus:border-border0 focus:outline-none";
+const primaryButton = "rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50";
+const secondaryButton = "rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-secondary";
 
 function CreateStaff({ roleNames, onDone }: { roleNames: string[]; onDone: () => void }) {
   const { t } = useI18n();
@@ -59,7 +59,7 @@ function CreateStaff({ roleNames, onDone }: { roleNames: string[]; onDone: () =>
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 grid gap-2 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-3">
+    <form onSubmit={submit} className="mt-4 grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-3">
       <input required className={inputClass} placeholder={t("الاسم الكامل", "Full name")} value={form.fullName} onChange={set("fullName")} />
       <input required className={inputClass} placeholder={t("اسم المستخدم", "Username")} autoComplete="off" value={form.username} onChange={set("username")} />
       <input required minLength={8} type="text" className={inputClass} placeholder={t("كلمة مرور مؤقتة (8+)", "Temporary password (8+)")} autoComplete="off" value={form.password} onChange={set("password")} />
@@ -106,8 +106,8 @@ function TaskForm({ target, targetLabel, onDone, onCancel }: { target: { assigne
   }
 
   return (
-    <form onSubmit={submit} className="mt-2 grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
-      <p className="text-xs font-medium text-slate-500 sm:col-span-2">{t("مهمة إلى: ", "Task to: ")}{targetLabel}</p>
+    <form onSubmit={submit} className="mt-2 grid gap-2 rounded-md border border-border bg-surface-secondary p-3 sm:grid-cols-2">
+      <p className="text-xs font-medium text-muted sm:col-span-2">{t("مهمة إلى: ", "Task to: ")}{targetLabel}</p>
       <input required className={`${inputClass} sm:col-span-2`} placeholder={t("عنوان المهمة", "Task title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <input className={`${inputClass} sm:col-span-2`} placeholder={t("تفاصيل (اختياري)", "Details (optional)")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       <input type="datetime-local" className={inputClass} value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} aria-label={t("الموعد النهائي", "Due date")} />
@@ -145,11 +145,11 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-slate-300 bg-white p-4">
+    <div className="mt-4 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-slate-800">{member.fullName}</h2>
-          <p className="text-xs text-slate-500">{member.username} · {member.isActive ? t("نشط", "Active") : t("معطّل", "Deactivated")}</p>
+          <h2 className="text-base font-semibold text-foreground">{member.fullName}</h2>
+          <p className="text-xs text-muted">{member.username} · {member.isActive ? t("نشط", "Active") : t("معطّل", "Deactivated")}</p>
         </div>
         <button className={secondaryButton} onClick={onClose}>{t("إغلاق", "Close")}</button>
       </div>
@@ -157,10 +157,10 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
       {canEdit && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div>
-            <h3 className="text-sm font-semibold text-slate-600">{t("الأدوار", "Roles")}</h3>
+            <h3 className="text-sm font-semibold text-muted">{t("الأدوار", "Roles")}</h3>
             <div className="mt-2 flex flex-wrap gap-2">
               {roleNames.map((name) => (
-                <label key={name} className="flex items-center gap-1 rounded-full border border-slate-300 px-2 py-1 text-xs">
+                <label key={name} className="flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs">
                   <input type="checkbox" checked={roles.includes(name)} onChange={(e) => setRoles(e.target.checked ? [...roles, name] : roles.filter((r) => r !== name))} />
                   {name}
                 </label>
@@ -176,7 +176,7 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-slate-600">{t("إجراءات الحساب", "Account actions")}</h3>
+            <h3 className="text-sm font-semibold text-muted">{t("إجراءات الحساب", "Account actions")}</h3>
             <div className="mt-2 flex flex-wrap gap-2">
               <button className={secondaryButton}
                 onClick={async () => { const r = await act(t("تم تصفير كلمة المرور", "Password reset"), `/users/${member.id}/reset-password`, { method: "POST" }); if (r) setTempPassword(r.temporaryPassword); }}>
@@ -191,7 +191,7 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
               <Link className={secondaryButton} href={`/admin/governance/audit?actorId=${member.id}`}>{t("سجل نشاطه", "Activity log")}</Link>
             </div>
             {tempPassword && (
-              <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
+              <p className="mt-2 rounded-md border border-warning bg-surface-secondary px-3 py-2 text-sm">
                 {t("كلمة المرور المؤقتة (تظهر مرة واحدة): ", "Temporary password (shown once): ")}<bdi className="font-mono font-semibold">{tempPassword}</bdi>
               </p>
             )}
@@ -199,8 +199,8 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
         </div>
       )}
 
-      <h3 className="mt-4 text-sm font-semibold text-slate-600">{t("الصلاحيات الفعلية", "Effective permissions")}</h3>
-      <p className="mt-1 text-xs leading-6 text-slate-500" dir="ltr">{detail.data?.permissions.join(" · ") || "…"}</p>
+      <h3 className="mt-4 text-sm font-semibold text-muted">{t("الصلاحيات الفعلية", "Effective permissions")}</h3>
+      <p className="mt-1 text-xs leading-6 text-muted" dir="ltr">{detail.data?.permissions.join(" · ") || "…"}</p>
     </div>
   );
 }
@@ -233,10 +233,10 @@ export default function StaffPage() {
   const canCreateTask = Boolean(user?.permissions.includes("task.create"));
   const routableRoles = useApi<{ id: string; name: string }[]>(canCreateTask ? "/tasks/routable-roles" : null);
 
-  if (!user) return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+  if (!user) return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
 
   const columns: TableColumn<StaffMember>[] = [
-    { key: "fullName", header: t("الموظف", "Staff member"), render: (m) => <><span className="font-medium">{m.fullName}</span><br /><span className="text-xs text-slate-500">{m.username}{m.employeeNo ? ` · ${m.employeeNo}` : ""}</span></> },
+    { key: "fullName", header: t("الموظف", "Staff member"), render: (m) => <><span className="font-medium">{m.fullName}</span><br /><span className="text-xs text-muted">{m.username}{m.employeeNo ? ` · ${m.employeeNo}` : ""}</span></> },
     { key: "roles", header: t("الأدوار", "Roles"), render: (m) => m.roles.join("، ") },
     { key: "jobTitle", header: t("المسمى", "Title"), render: (m) => m.jobTitle ?? "-" },
     { key: "lastLoginAt", header: t("آخر دخول", "Last sign-in"), render: (m) => (m.lastLoginAt ? formatDate(m.lastLoginAt) : "-") },
@@ -252,7 +252,7 @@ export default function StaffPage() {
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">{t("الموظفون", "Staff")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("الموظفون", "Staff")}</h1>
         <div className="flex gap-2">
           {user.permissions.includes("role.manage") && <Link href="/admin/people/staff/roles" className={secondaryButton}>{t("مصفوفة الصلاحيات", "Permissions matrix")}</Link>}
           {canCreateTask && <button className={secondaryButton} onClick={() => setRoutingToRole(!routingToRole)}>{t("+ توجيه مهمة لدور", "+ Route task to a role")}</button>}
@@ -263,7 +263,7 @@ export default function StaffPage() {
       {showCreate && <CreateStaff roleNames={roleNames} onDone={() => { setShowCreate(false); list.refresh(); }} />}
 
       {routingToRole && (
-        <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <div className="mt-4 rounded-lg border border-border bg-surface p-4">
           <select className={inputClass} value={taskRoleId} onChange={(e) => setTaskRoleId(e.target.value)} aria-label={t("الدور المستهدف", "Target role")}>
             <option value="">{t("اختر الدور…", "Choose role…")}</option>
             {(routableRoles.data ?? []).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}

@@ -4,8 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiFetch, apiFetchBlob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   DowntimeReport,
   Machine,
@@ -17,11 +19,11 @@ import {
 
 type TabKey = ReturnType<typeof getLabels>["TABS"][number]["key"];
 
-const severityClass: Record<MaintenanceSeverity, string> = {
-  LOW: "bg-slate-100 text-slate-600",
-  MEDIUM: "bg-amber-100 text-amber-700",
-  HIGH: "bg-orange-100 text-orange-700",
-  CRITICAL: "bg-red-100 text-red-700",
+const severityTone: Record<MaintenanceSeverity, string> = {
+  LOW: "tone-muted",
+  MEDIUM: "tone-warning",
+  HIGH: "tone-warning",
+  CRITICAL: "tone-danger",
 };
 
 function getLabels(t: (arabic: string, english: string) => string) {
@@ -83,24 +85,20 @@ export default function MaintenancePage() {
   }, [user]);
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("الصيانة", "Maintenance")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("الصيانة", "Maintenance")}</h1>
 
-      <nav className="mt-4 flex gap-1 border-b border-slate-200 text-sm">
+      <div className="mt-4 flex flex-wrap gap-2" role="tablist" aria-label={t("أقسام الصيانة", "Maintenance sections")}>
         {TABS.map((entry) => (
-          <button
-            key={entry.key}
-            onClick={() => setTab(entry.key)}
-            className={`px-3 py-2 ${tab === entry.key ? "border-b-2 border-slate-800 font-medium text-slate-800" : "text-slate-500 hover:text-slate-700"}`}
-          >
+          <Button key={entry.key} size="sm" variant={tab === entry.key ? "primary" : "secondary"} aria-pressed={tab === entry.key} onPress={() => setTab(entry.key)}>
             {entry.label}
-          </button>
+          </Button>
         ))}
-      </nav>
+      </div>
 
       <div className="mt-4">
         {tab === "tickets" && <TicketsTab user={user} machines={machines} />}
@@ -221,49 +219,49 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
   return (
     <div>
       <div className="flex items-center justify-between">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as MaintenanceTicketStatus | "")} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as MaintenanceTicketStatus | "")} className="rounded-md border border-border px-3 py-1.5 text-sm">
           <option value="">{t("كل الحالات", "All statuses")}</option>
           {Object.entries(statusLabel).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
         {user.permissions.includes("machine.fault.report") && (
-          <button onClick={() => setShowReportForm((v) => !v)} className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+          <Button size="sm" variant="danger" onPress={() => setShowReportForm((v) => !v)}>
             {t("+ بلاغ عطل", "+ Report fault")}
-          </button>
+          </Button>
         )}
       </div>
 
       <ErrorNote message={error} className="mt-3" />
 
       {showReportForm && (
-        <form onSubmit={handleReport} className="mt-4 max-w-lg space-y-2 rounded-lg border border-slate-200 bg-white p-4">
-          <select name="machineId" required className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <form onSubmit={handleReport} className="mt-4 max-w-lg space-y-2 rounded-lg border border-border bg-surface p-4">
+          <select name="machineId" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
             <option value="">{t("اختر الجهاز...", "Select a machine...")}</option>
             {machines.filter((m) => m.status !== "OUT_OF_SERVICE").map((m) => (
               <option key={m.id} value={m.id}>{m.machineCode}</option>
             ))}
           </select>
-          <textarea name="problem" required placeholder={t("وصف المشكلة", "Problem description")} className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm" rows={3} />
-          <select name="severity" required className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+          <textarea name="problem" required placeholder={t("وصف المشكلة", "Problem description")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" rows={3} />
+          <select name="severity" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
             <option value="">{t("درجة الخطورة...", "Severity...")}</option>
             {Object.entries(severityLabel).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
           </select>
           <div>
-            <label className="block text-xs text-slate-500">{t("صورة (اختياري)", "Photo (optional)")}</label>
+            <label className="block text-xs text-muted">{t("صورة (اختياري)", "Photo (optional)")}</label>
             <input type="file" name="attachment" accept="image/*" className="mt-1 w-full text-sm" />
           </div>
-          <button type="submit" disabled={busy} className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+          <button type="submit" disabled={busy} className="rounded-md bg-danger px-3 py-1.5 text-xs font-medium text-accent-foreground disabled:opacity-50">
             {t("إرسال البلاغ", "Submit report")}
           </button>
         </form>
       )}
 
-      <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="w-full text-start text-sm">
-          <thead className="bg-slate-50 text-slate-500">
+          <thead className="bg-surface-secondary text-muted">
             <tr>
               <th className="px-4 py-2 font-medium">{t("الجهاز", "Machine")}</th>
               <th className="px-4 py-2 font-medium">{t("المشكلة", "Problem")}</th>
@@ -276,53 +274,53 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
           </thead>
           <tbody>
             {tickets.map((entry) => (
-              <tr key={entry.id} className="border-t border-slate-100">
+              <tr key={entry.id} className="border-t border-border">
                 <td className="px-4 py-2">{entry.machine?.machineCode}</td>
-                <td className="px-4 py-2 max-w-xs truncate text-slate-600">{entry.problem}</td>
+                <td className="px-4 py-2 max-w-xs truncate text-muted">{entry.problem}</td>
                 <td className="px-4 py-2">
-                  <span className={`rounded-md px-2 py-1 text-xs font-medium ${severityClass[entry.severity]}`}>{severityLabel[entry.severity]}</span>
+                  <span className={`status-badge ${severityTone[entry.severity]}`}>{severityLabel[entry.severity]}</span>
                 </td>
-                <td className="px-4 py-2 text-slate-500">{statusLabel[entry.status]}</td>
-                <td className="px-4 py-2 text-slate-500">{entry.assignedTo?.fullName ?? "-"}</td>
+                <td className="px-4 py-2"><StatusBadge group="maintenanceTicket" value={entry.status} /></td>
+                <td className="px-4 py-2 text-muted">{entry.assignedTo?.fullName ?? "-"}</td>
                 <td className="px-4 py-2">{entry.attachmentUrl && <AttachmentThumbnail ticketId={entry.id} />}</td>
                 {canManage && (
                   <td className="px-4 py-2">
                     {entry.status === "OPEN" && (
                       assigningId === entry.id ? (
                         <div className="flex items-center gap-1">
-                          <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-xs">
+                          <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="rounded-md border border-border px-2 py-1 text-xs">
                             <option value="">{t("اختر فني...", "Select a technician...")}</option>
                             {staff.map((s) => (
                               <option key={s.id} value={s.id}>{s.fullName}</option>
                             ))}
                           </select>
-                          <button onClick={() => handleAssign(entry.id)} disabled={busy} className="rounded bg-slate-800 px-2 py-1 text-xs text-white disabled:opacity-50">{t("إسناد", "Assign")}</button>
-                          <button onClick={() => setAssigningId(null)} className="text-xs text-slate-400">{t("إلغاء", "Cancel")}</button>
+                          <Button size="sm" variant="primary" isDisabled={busy} onPress={() => handleAssign(entry.id)}>{t("إسناد", "Assign")}</Button>
+                          <Button size="sm" variant="ghost" onPress={() => setAssigningId(null)}>{t("إلغاء", "Cancel")}</Button>
                         </div>
                       ) : (
-                        <button onClick={() => setAssigningId(entry.id)} className="text-xs font-medium text-slate-700 hover:underline">{t("إسناد", "Assign")}</button>
+                        <Button size="sm" variant="ghost" onPress={() => setAssigningId(entry.id)}>{t("إسناد", "Assign")}</Button>
                       )
                     )}
                     {entry.status === "ASSIGNED" && (
-                      <button onClick={() => advance(entry.id, "IN_PROGRESS")} disabled={busy} className="text-xs font-medium text-slate-700 hover:underline disabled:opacity-50">{t("بدء العمل", "Start work")}</button>
+                      <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => advance(entry.id, "IN_PROGRESS")}>{t("بدء العمل", "Start work")}</Button>
                     )}
                     {entry.status === "IN_PROGRESS" && (
                       <div className="flex gap-2">
-                        <button onClick={() => advance(entry.id, "WAITING_PART")} disabled={busy} className="text-xs font-medium text-amber-700 hover:underline disabled:opacity-50">{t("بانتظار قطعة", "Awaiting part")}</button>
-                        <button onClick={() => advance(entry.id, "COMPLETED")} disabled={busy} className="text-xs font-medium text-emerald-700 hover:underline disabled:opacity-50">{t("إكمال", "Complete")}</button>
+                        <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => advance(entry.id, "WAITING_PART")}>{t("بانتظار قطعة", "Awaiting part")}</Button>
+                        <Button size="sm" variant="primary" isDisabled={busy} onPress={() => advance(entry.id, "COMPLETED")}>{t("إكمال", "Complete")}</Button>
                       </div>
                     )}
                     {entry.status === "WAITING_PART" && (
                       <div className="flex gap-2">
-                        <button onClick={() => advance(entry.id, "IN_PROGRESS")} disabled={busy} className="text-xs font-medium text-slate-700 hover:underline disabled:opacity-50">{t("استئناف العمل", "Resume work")}</button>
-                        <button onClick={() => advance(entry.id, "COMPLETED")} disabled={busy} className="text-xs font-medium text-emerald-700 hover:underline disabled:opacity-50">{t("إكمال", "Complete")}</button>
+                        <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => advance(entry.id, "IN_PROGRESS")}>{t("استئناف العمل", "Resume work")}</Button>
+                        <Button size="sm" variant="primary" isDisabled={busy} onPress={() => advance(entry.id, "COMPLETED")}>{t("إكمال", "Complete")}</Button>
                       </div>
                     )}
                     {(entry.status === "OPEN" || entry.status === "ASSIGNED") && (
-                      <button onClick={() => cancelTicket(entry.id)} disabled={busy} className="mt-1 block text-xs font-medium text-red-600 hover:underline disabled:opacity-50">{t("إلغاء البلاغ", "Cancel ticket")}</button>
+                      <Button size="sm" variant="danger" className="mt-1" isDisabled={busy} onPress={() => cancelTicket(entry.id)}>{t("إلغاء البلاغ", "Cancel ticket")}</Button>
                     )}
                     {entry.status === "COMPLETED" && (
-                      <button onClick={() => close(entry.id)} disabled={busy} className="text-xs font-medium text-emerald-700 hover:underline disabled:opacity-50">{t("إغلاق وإعادة الجهاز للخدمة", "Close and return machine to service")}</button>
+                      <Button size="sm" variant="primary" isDisabled={busy} onPress={() => close(entry.id)}>{t("إغلاق وإعادة الجهاز للخدمة", "Close and return machine to service")}</Button>
                     )}
                   </td>
                 )}
@@ -330,7 +328,7 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
             ))}
             {tickets.length === 0 && (
               <tr>
-                <td colSpan={canManage ? 7 : 6} className="px-4 py-6 text-center text-slate-400">{t("لا توجد تذاكر صيانة", "No maintenance tickets")}</td>
+                <td colSpan={canManage ? 7 : 6} className="px-4 py-6 text-center text-muted">{t("لا توجد تذاكر صيانة", "No maintenance tickets")}</td>
               </tr>
             )}
           </tbody>
@@ -357,7 +355,7 @@ function AttachmentThumbnail({ ticketId }: { ticketId: string }) {
     };
   }, [ticketId]);
 
-  if (!url) return <span className="text-xs text-slate-400">...</span>;
+  if (!url) return <span className="text-xs text-muted">...</span>;
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={url} alt={t("صورة العطل", "Fault photo")} className="h-10 w-10 rounded object-cover" />;
 }
@@ -391,7 +389,7 @@ function TimelineTab({ machines }: { machines: Machine[] }) {
   return (
     <div>
       <div className="flex items-center gap-2">
-        <label className="text-sm text-slate-500">{t("الجهاز:", "Machine:")}</label>
+        <label className="text-sm text-muted">{t("الجهاز:", "Machine:")}</label>
         <select
           value={machineId}
           onChange={(e) => {
@@ -400,7 +398,7 @@ function TimelineTab({ machines }: { machines: Machine[] }) {
             if (e.target.value) loadTimeline(e.target.value);
             else setEvents([]);
           }}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+          className="rounded-md border border-border px-3 py-1.5 text-sm"
         >
           <option value="">{t("اختر جهازاً...", "Select a machine...")}</option>
           {machines.map((m) => (
@@ -411,24 +409,24 @@ function TimelineTab({ machines }: { machines: Machine[] }) {
 
       {machineId && (
         <>
-          <form onSubmit={loadDowntime} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-4">
-            <label className="text-xs text-slate-500">{t("من", "From")}</label>
-            <input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} required className="rounded-md border border-slate-300 px-2 py-1 text-xs" />
-            <label className="text-xs text-slate-500">{t("إلى", "To")}</label>
-            <input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} required className="rounded-md border border-slate-300 px-2 py-1 text-xs" />
-            <button type="submit" className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white">{t("حساب فترة التعطل", "Calculate downtime")}</button>
+          <form onSubmit={loadDowntime} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-4">
+            <label className="text-xs text-muted">{t("من", "From")}</label>
+            <input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} required className="rounded-md border border-border px-2 py-1 text-xs" />
+            <label className="text-xs text-muted">{t("إلى", "To")}</label>
+            <input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} required className="rounded-md border border-border px-2 py-1 text-xs" />
+            <button type="submit" className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground">{t("حساب فترة التعطل", "Calculate downtime")}</button>
           </form>
           <ErrorNote message={error} className="mt-2" />
           {downtime && (
-            <p className="mt-2 text-sm text-slate-600">
-              {t("إجمالي التعطل:", "Total downtime:")} <span className="font-semibold text-slate-800">{formatNumber(downtime.totalDowntimeHours, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t("ساعة", "hours")}</span>{" "}
+            <p className="mt-2 text-sm text-muted">
+              {t("إجمالي التعطل:", "Total downtime:")} <span className="font-semibold text-foreground">{formatNumber(downtime.totalDowntimeHours, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t("ساعة", "hours")}</span>{" "}
               ({formatNumber(downtime.intervals.length)} {t("فترة)", "intervals)")}
             </p>
           )}
 
-          <div className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="w-full text-start text-sm">
-              <thead className="bg-slate-50 text-slate-500">
+              <thead className="bg-surface-secondary text-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t("الوقت", "Time")}</th>
                   <th className="px-4 py-2 font-medium">{t("التصنيف", "Category")}</th>
@@ -439,21 +437,21 @@ function TimelineTab({ machines }: { machines: Machine[] }) {
               </thead>
               <tbody>
                 {events.map((e, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-4 py-2 text-slate-500">{formatDate(e.timestamp, { dateStyle: "short", timeStyle: "short" })}</td>
+                  <tr key={i} className="border-t border-border">
+                    <td className="px-4 py-2 text-muted">{formatDate(e.timestamp, { dateStyle: "short", timeStyle: "short" })}</td>
                     <td className="px-4 py-2">{timelineCategoryLabel[e.category]}</td>
-                    <td className="px-4 py-2 text-slate-600">
+                    <td className="px-4 py-2 text-muted">
                       {e.fromStatus ? timelineStatusLabel[e.fromStatus] ?? e.fromStatus : "-"}
                       {" → "}
                       {e.toStatus ? timelineStatusLabel[e.toStatus] ?? e.toStatus : "-"}
                     </td>
-                    <td className="px-4 py-2 text-slate-500">{e.changedBy?.fullName ?? "-"}</td>
-                    <td className="px-4 py-2 text-slate-400">{e.reason ?? "-"}</td>
+                    <td className="px-4 py-2 text-muted">{e.changedBy?.fullName ?? "-"}</td>
+                    <td className="px-4 py-2 text-muted">{e.reason ?? "-"}</td>
                   </tr>
                 ))}
                 {events.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-slate-400">{t("لا توجد أحداث بعد لهذا الجهاز", "No events for this machine yet")}</td>
+                    <td colSpan={5} className="px-4 py-6 text-center text-muted">{t("لا توجد أحداث بعد لهذا الجهاز", "No events for this machine yet")}</td>
                   </tr>
                 )}
               </tbody>

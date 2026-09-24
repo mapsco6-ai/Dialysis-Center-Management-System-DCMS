@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Button } from "@heroui/react";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
@@ -101,7 +102,7 @@ export default function PatientsPage() {
       key: "patientCode",
       header: t("الرقم", "ID"),
       render: (patient) => (
-        <Link href={`/admin/care/patients/${patient.id}`} className="text-slate-800 hover:underline">{patient.patientCode}</Link>
+        <Link href={`/admin/care/patients/${patient.id}`} className="text-foreground hover:underline">{patient.patientCode}</Link>
       ),
     },
     { key: "fullName", header: t("الاسم", "Name"), render: (patient) => <bdi>{patient.fullName}</bdi> },
@@ -113,15 +114,15 @@ export default function PatientsPage() {
 
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">{t("سجل المرضى", "Patient registry")}</h1>
+        <h1 className="text-xl font-semibold text-foreground">{t("سجل المرضى", "Patient registry")}</h1>
         {user.permissions.includes("patient.create") && (
-          <Link href="/admin/care/patients/new" className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+          <Link href="/admin/care/patients/new" className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">
             {t("+ إضافة مريض", "+ Add patient")}
           </Link>
         )}
@@ -132,15 +133,14 @@ export default function PatientsPage() {
         placeholder={t("ابحث بالاسم، رقم الإضبارة، أو الهاتف...", "Search by name, file number, or phone...")}
         value={queryInput}
         onChange={(e) => setQueryInput(e.target.value)}
-        className="mt-4 w-full max-w-md rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+        className="mt-4 w-full max-w-md rounded-md border border-border px-3 py-2 text-sm"
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-2" role="group" aria-label={t("فلترة حسب الحالة", "Filter by status")}>
         {statusFilters.map((filter) => (
-          <button key={filter.value} type="button" aria-pressed={status === filter.value} onClick={() => setStatus(filter.value)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${status === filter.value ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
+          <Button key={filter.value} size="sm" variant={status === filter.value ? "primary" : "secondary"} aria-pressed={status === filter.value} onPress={() => setStatus(filter.value)}>
             {t(filter.ar, filter.en)}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -163,7 +163,7 @@ export default function PatientsPage() {
         />
       </div>
       {searching && (
-        <p className="mt-2 text-xs text-slate-400">
+        <p className="mt-2 text-xs text-muted">
           {t("البحث يعرض حتى 100 نتيجة — امسح البحث للتصفح الكامل المُرقّم.", "Search shows up to 100 results — clear it to browse the full paginated registry.")}
         </p>
       )}

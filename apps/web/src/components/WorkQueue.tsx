@@ -29,14 +29,14 @@ export function WorkQueue() {
   if (items.length === 0) return null;
   return (
     <section aria-label={t("عملي الآن", "My work")} className="mt-4">
-      <h2 className="text-sm font-semibold text-slate-600">{t("عملي الآن", "My work")}</h2>
+      <h2 className="text-sm font-semibold text-muted">{t("عملي الآن", "My work")}</h2>
       <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
         {items.map((item) => {
           const [ar, en] = LABELS[item.key] ?? [item.key, item.key];
           return (
-            <Link key={item.key} href={item.link} className={`rounded-lg border p-3 hover:bg-slate-50 ${item.count > 0 ? "border-slate-300 bg-white" : "border-slate-200 bg-white text-slate-400"}`}>
+            <Link key={item.key} href={item.link} className={`rounded-lg border p-3 hover:bg-surface-secondary ${item.count > 0 ? "border-border bg-surface" : "border-border bg-surface text-muted"}`}>
               <span className="block text-2xl font-semibold">{formatNumber(item.count)}</span>
-              <span className="text-xs text-slate-500">{t(ar, en)}</span>
+              <span className="text-xs text-muted">{t(ar, en)}</span>
             </Link>
           );
         })}

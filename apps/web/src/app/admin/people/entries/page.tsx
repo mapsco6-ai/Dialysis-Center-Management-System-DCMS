@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { Button, Card } from "@heroui/react";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
@@ -36,9 +37,7 @@ interface Entry {
   author: { fullName: string };
 }
 
-const inputClass = "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
-const primaryButton = "rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50";
-const secondaryButton = "rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50";
+const fieldClass = "rounded-md border border-border px-3 py-2 text-sm";
 
 export default function EntriesPage() {
   const { t, formatDate } = useI18n();
@@ -57,7 +56,6 @@ export default function EntriesPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [selected, setSelected] = useState<Entry | null>(null);
   useEffect(() => setPage(1), [view, typeFilter]);
-
   const list = useApi<Paginated<Entry>>(
     user ? `${view === "mine" ? "/me/staff-entries" : "/staff-entries"}?page=${page}&limit=${PAGE_SIZE}${typeFilter ? `&type=${typeFilter}` : ""}` : null,
   );
@@ -111,71 +109,78 @@ export default function EntriesPage() {
     }
   }
 
-  if (!user) return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+  if (!user) return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
 
   const columns: TableColumn<Entry>[] = [
     { key: "entryDate", header: t("التاريخ", "Date"), render: (e) => formatDate(e.entryDate, { dateStyle: "short", timeStyle: "short" }) },
     { key: "type", header: t("النوع", "Type"), render: (e) => typeLabel[e.type] },
-    { key: "title", header: t("العنوان", "Title"), render: (e) => <>{e.title}{e.isConfidential ? <> <span className="text-xs text-slate-500">({t("سري", "Confidential")})</span></> : ""}<br /><span className="text-xs text-slate-500">{e.author.fullName}</span></> },
+    { key: "title", header: t("العنوان", "Title"), render: (e) => <>{e.title}{e.isConfidential ? <> <span className="text-xs text-muted">({t("سري", "Confidential")})</span></> : ""}<br /><span className="text-xs text-muted">{e.author.fullName}</span></> },
     { key: "status", header: t("الحالة", "Status"), render: (e) => <StatusBadge group="entry" value={e.status} /> },
-    { key: "open", header: "", render: (e) => <button className={secondaryButton} onClick={() => setSelected(e)}>{t("عرض", "View")}</button> },
+    { key: "open", header: "", render: (e) => <Button size="sm" variant="secondary" onPress={() => setSelected(e)}>{t("عرض", "View")}</Button> },
   ];
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("تقاريري وإجراءاتي", "Reports & actions")}</h1>
-      <p className="mt-1 text-sm text-slate-500">{t("سجّل إجراءً قمت به، تقرير دوامك، مشكلة، شكوى أو مقترحاً. تُحفظ بلا حذف ويراجعها المسؤول.", "Record an action, your shift report, a problem, complaint or suggestion. Entries are kept permanently and reviewed by management.")}</p>
+      <h1 className="text-xl font-semibold text-foreground">{t("تقاريري وإجراءاتي", "Reports & actions")}</h1>
+      <p className="mt-1 text-sm text-muted">{t("سجّل إجراءً قمت به، تقرير دوامك، مشكلة، شكوى أو مقترحاً. تُحفظ بلا حذف ويراجعها المسؤول.", "Record an action, your shift report, a problem, complaint or suggestion. Entries are kept permanently and reviewed by management.")}</p>
 
       {canCreate && (
-        <form onSubmit={submit} className="mt-4 grid gap-2 rounded-lg border border-slate-200 bg-white p-4">
+        <Card className="mt-4 border border-border bg-surface shadow-none">
+          <Card.Content className="p-4">
+        <form onSubmit={submit} className="grid gap-2">
           <div className="flex flex-wrap gap-2">
-            <select className={inputClass} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as EntryType })} aria-label={t("النوع", "Type")}>
+            <select className={fieldClass} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as EntryType })} aria-label={t("النوع", "Type")}>
               {TYPES.map((type) => <option key={type} value={type}>{typeLabel[type]}</option>)}
             </select>
-            <select className={inputClass} value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} aria-label={t("الأهمية", "Severity")}>
+            <select className={fieldClass} value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} aria-label={t("الأهمية", "Severity")}>
               {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <input required className={`${inputClass} min-w-[14rem] flex-1`} placeholder={t("العنوان", "Title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <button type="button" className={secondaryButton} onClick={loadShiftSummary}>{t("تعبئة من نشاط اليوم", "Fill from today’s activity")}</button>
+            <input required className={`${fieldClass} min-w-[14rem] flex-1`} placeholder={t("العنوان", "Title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Button type="button" size="sm" variant="secondary" onPress={loadShiftSummary}>{t("تعبئة من نشاط اليوم", "Fill from today’s activity")}</Button>
           </div>
-          <textarea required rows={5} className={inputClass} placeholder={t("التفاصيل", "Details")} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+          <textarea required rows={5} className={fieldClass} placeholder={t("التفاصيل", "Details")} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" checked={form.isConfidential} onChange={(e) => setForm({ ...form, isConfidential: e.target.checked })} />{t("سرّي (للكاتب والمراجعين فقط)", "Confidential (author and reviewers only)")}</label>
-            <button type="submit" disabled={busy} className={primaryButton}>{t("تسجيل", "Submit")}</button>
+            <label className="flex items-center gap-1 text-xs text-muted"><input type="checkbox" checked={form.isConfidential} onChange={(e) => setForm({ ...form, isConfidential: e.target.checked })} />{t("سرّي (للكاتب والمراجعين فقط)", "Confidential (author and reviewers only)")}</label>
+            <button type="submit" disabled={busy} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50">{t("تسجيل", "Submit")}</button>
           </div>
         </form>
+          </Card.Content>
+        </Card>
       )}
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {canReview && (["mine", "all"] as const).map((v) => (
-          <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${view === v ? "border-slate-800 bg-slate-800 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"}`}>
+          <Button key={v} size="sm" variant={view === v ? "primary" : "secondary"} aria-pressed={view === v} onPress={() => setView(v)}>
             {v === "mine" ? t("سجلاتي", "My entries") : t("كل السجلات للمراجعة", "All entries (review)")}
-          </button>
+          </Button>
         ))}
-        <select className={inputClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label={t("فلترة حسب النوع", "Filter by type")}>
+        <select className={fieldClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label={t("فلترة حسب النوع", "Filter by type")}>
           <option value="">{t("كل الأنواع", "All types")}</option>
           {TYPES.map((type) => <option key={type} value={type}>{typeLabel[type]}</option>)}
         </select>
       </div>
 
       {selected && (
-        <div className="mt-4 rounded-lg border border-slate-300 bg-white p-4">
+        <Card className="mt-4 border border-border bg-surface shadow-none">
+          <Card.Content className="p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-800">{selected.title} <StatusBadge group="entry" value={selected.status} /></h2>
-              <p className="text-xs text-slate-500">{typeLabel[selected.type]} · {selected.author.fullName}{selected.escalatedIncidentId ? ` · ${t("حُوّلت إلى حادثة", "escalated to incident")}` : ""}</p>
+              <h2 className="text-base font-semibold text-foreground">{selected.title} <StatusBadge group="entry" value={selected.status} /></h2>
+              <p className="text-xs text-muted">{typeLabel[selected.type]} · {selected.author.fullName}{selected.escalatedIncidentId ? ` · ${t("حُوّلت إلى حادثة", "escalated to incident")}` : ""}</p>
             </div>
-            <button className={secondaryButton} onClick={() => setSelected(null)}>{t("إغلاق", "Close")}</button>
+            <Button size="sm" variant="secondary" onPress={() => setSelected(null)}>{t("إغلاق", "Close")}</Button>
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{selected.body}</p>
-          {selected.response && <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"><strong>{t("ردّ الإدارة: ", "Management reply: ")}</strong>{selected.response}</p>}
+          <p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{selected.body}</p>
+          {selected.response && <p className="mt-3 rounded-md border border-border bg-surface-secondary px-3 py-2 text-sm text-foreground"><strong>{t("ردّ الإدارة: ", "Management reply: ")}</strong>{selected.response}</p>}
           {canReview && (NEXT_STATUS[selected.status] ?? []).length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {NEXT_STATUS[selected.status].map((status) => <button key={status} className={secondaryButton} onClick={() => review(selected, status)}>→ {status}</button>)}
+              {NEXT_STATUS[selected.status].map((status) => (
+                <Button key={status} size="sm" variant="secondary" onPress={() => review(selected, status)}>→ {status}</Button>
+              ))}
             </div>
           )}
-        </div>
+          </Card.Content>
+        </Card>
       )}
 
       <div className="mt-4">

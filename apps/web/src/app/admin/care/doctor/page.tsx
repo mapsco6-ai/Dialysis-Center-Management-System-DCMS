@@ -6,8 +6,10 @@ import { useI18n } from "@/lib/i18n";
 import { TIMELINE_LABELS } from "@/lib/timelineLabels";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
+import { StatusBadge } from "@/components/StatusBadge";
 import { LabTrendView } from "@/components/LabTrendView";
 import {
   ClinicalNote,
@@ -113,7 +115,7 @@ export default function DoctorPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canOrder = user.permissions.includes("prescription.create");
@@ -123,7 +125,7 @@ export default function DoctorPage() {
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-slate-800">{t("واجهة الطبيب — مسح المريض", "Doctor workspace — Patient scan")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("واجهة الطبيب — مسح المريض", "Doctor workspace — Patient scan")}</h1>
 
       <form onSubmit={handleScan} className="mt-4 flex max-w-md gap-2">
         <input
@@ -131,9 +133,9 @@ export default function DoctorPage() {
           value={code}
           onChange={(e) => setCode(e.target.value)}
           placeholder={t("امسح الباركود أو أدخله...", "Scan or enter a barcode...")}
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+          className="flex-1 rounded-md border border-border px-3 py-2 text-sm"
         />
-        <button type="submit" disabled={loading} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">
+        <button type="submit" disabled={loading} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50">
           {t("بحث", "Search")}
         </button>
       </form>
@@ -141,27 +143,21 @@ export default function DoctorPage() {
 
       {patient && (
         <>
-          <div className="mt-6 flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4">
+          <div className="mt-6 flex items-center justify-between rounded-lg border border-border bg-surface p-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-800">{patient.fullName}</h2>
-              <p className="text-sm text-slate-500">{patient.patientCode}</p>
+              <h2 className="text-lg font-semibold text-foreground">{patient.fullName}</h2>
+              <p className="text-sm text-muted">{patient.patientCode}</p>
             </div>
-            <Link href={`/admin/care/patients/${patient.id}`} className="text-xs text-slate-500 hover:underline">
+            <Link href={`/admin/care/patients/${patient.id}`} className="text-xs text-muted hover:underline">
               {t("الملف الكامل", "Full patient record")}
             </Link>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2 border-b border-slate-200">
+          <div className="mt-4 flex flex-wrap gap-2">
             {TABS.map((entry) => (
-              <button
-                key={entry.key}
-                onClick={() => setTab(entry.key)}
-                className={`rounded-t-md px-3 py-2 text-sm font-medium ${
-                  tab === entry.key ? "border-b-2 border-slate-800 text-slate-800" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
+              <Button key={entry.key} size="sm" variant={tab === entry.key ? "primary" : "secondary"} aria-pressed={tab === entry.key} onPress={() => setTab(entry.key)}>
                 {entry.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -268,42 +264,43 @@ function OverviewTab({
   return (
     <div className="space-y-4">
       <ErrorNote message={error} />
-      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+      <section className="rounded-lg border border-border bg-surface p-4 text-sm">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-          <div><span className="text-slate-400">{t("الجنس:", "Sex:")}</span> {patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")}</div>
-          <div><span className="text-slate-400">{t("الوزن الجاف:", "Dry weight:")}</span> {patient.dryWeight != null ? formatNumber(Number(patient.dryWeight)) : "-"}</div>
-          <div><span className="text-slate-400">{t("نوع الوصول الوعائي:", "Vascular access type:")}</span> {patient.vascularAccessType ? clinicalLabels[patient.vascularAccessType] ?? patient.vascularAccessType : "-"}</div>
-          <div><span className="text-slate-400">{t("الأمراض المزمنة:", "Chronic conditions:")}</span> {(patient.chronicDiseases ?? []).join(t("، ", ", ")) || "-"}</div>
-          <div><span className="text-slate-400">{t("الحساسية:", "Allergies:")}</span> {patient.allergies ?? "-"}</div>
-          <div><span className="text-slate-400">{t("التشخيص:", "Diagnosis:")}</span> {patient.diagnoses ?? "-"}</div>
+          <div><span className="text-muted">{t("الجنس:", "Sex:")}</span> {patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")}</div>
+          <div><span className="text-muted">{t("الوزن الجاف:", "Dry weight:")}</span> {patient.dryWeight != null ? formatNumber(Number(patient.dryWeight)) : "-"}</div>
+          <div><span className="text-muted">{t("نوع الوصول الوعائي:", "Vascular access type:")}</span> {patient.vascularAccessType ? clinicalLabels[patient.vascularAccessType] ?? patient.vascularAccessType : "-"}</div>
+          <div><span className="text-muted">{t("الأمراض المزمنة:", "Chronic conditions:")}</span> {(patient.chronicDiseases ?? []).join(t("، ", ", ")) || "-"}</div>
+          <div><span className="text-muted">{t("الحساسية:", "Allergies:")}</span> {patient.allergies ?? "-"}</div>
+          <div><span className="text-muted">{t("التشخيص:", "Diagnosis:")}</span> {patient.diagnoses ?? "-"}</div>
         </div>
         {canOrder && (
           <div className="mt-3">
             {!showDryWeight ? (
-              <button onClick={() => setShowDryWeight(true)} className="text-xs font-medium text-slate-600 hover:underline">
+              <button onClick={() => setShowDryWeight(true)} className="text-xs font-medium text-muted hover:underline">
                 {t("تغيير الوزن الجاف", "Change dry weight")}
               </button>
             ) : (
-              <form onSubmit={handleDryWeight} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
-                <input name="newDryWeight" type="number" step="0.1" required placeholder={t("الوزن الجاف الجديد", "New dry weight")} className="w-32 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-48 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ", "Save")}</button>
-                <button type="button" onClick={() => setShowDryWeight(false)} className="text-xs text-slate-400">{t("إلغاء", "Cancel")}</button>
+              <form onSubmit={handleDryWeight} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
+                <input name="newDryWeight" type="number" step="0.1" required placeholder={t("الوزن الجاف الجديد", "New dry weight")} className="w-32 rounded-md border border-border px-2 py-1 text-xs" />
+                <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-48 rounded-md border border-border px-2 py-1 text-xs" />
+                <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
+                <button type="button" onClick={() => setShowDryWeight(false)} className="text-xs text-muted">{t("إلغاء", "Cancel")}</button>
               </form>
             )}
           </div>
         )}
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-500">{t("التنبيهات السريرية المفتوحة", "Open clinical alerts")}</h2>
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="mb-2 text-sm font-semibold text-muted">{t("التنبيهات السريرية المفتوحة", "Open clinical alerts")}</h2>
         {openAlerts.length === 0 ? (
-          <p className="text-sm text-slate-400">{t("لا توجد تنبيهات مفتوحة", "No open alerts")}</p>
+          <p className="text-sm text-muted">{t("لا توجد تنبيهات مفتوحة", "No open alerts")}</p>
         ) : (
           <ul className="space-y-1">
             {openAlerts.map((a) => (
-              <li key={a.id} className={`rounded-md border px-3 py-1.5 text-xs ${a.severity === "CRITICAL" ? "border-red-300 bg-red-50 text-red-800" : "border-amber-300 bg-amber-50 text-amber-800"}`}>
-                [{clinicalLabels[a.severity] ?? a.severity}] {a.category}: {a.message}
+              <li key={a.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-secondary px-3 py-1.5 text-xs">
+                <StatusBadge group="clinicalSeverity" value={a.severity} />
+                <span>{a.category}: {a.message}</span>
               </li>
             ))}
           </ul>
@@ -311,20 +308,20 @@ function OverviewTab({
         {canAlert && (
           <div className="mt-3">
             {!showAlert ? (
-              <button onClick={() => setShowAlert(true)} className="text-xs font-medium text-slate-600 hover:underline">
+              <button onClick={() => setShowAlert(true)} className="text-xs font-medium text-muted hover:underline">
                 {t("+ إضافة تنبيه سريري", "+ Add clinical alert")}
               </button>
             ) : (
-              <form onSubmit={handleAlert} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
-                <select name="severity" className="rounded-md border border-slate-300 px-2 py-1 text-xs">
+              <form onSubmit={handleAlert} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
+                <select name="severity" className="rounded-md border border-border px-2 py-1 text-xs">
                   <option value="CRITICAL">{clinicalLabels.CRITICAL}</option>
                   <option value="IMPORTANT">{clinicalLabels.IMPORTANT}</option>
                   <option value="INFORMATION">{clinicalLabels.INFORMATION}</option>
                 </select>
-                <input name="category" required placeholder={t("التصنيف", "Category")} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                <input name="message" required placeholder={t("الرسالة", "Message")} className="w-48 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ", "Save")}</button>
-                <button type="button" onClick={() => setShowAlert(false)} className="text-xs text-slate-400">{t("إلغاء", "Cancel")}</button>
+                <input name="category" required placeholder={t("التصنيف", "Category")} className="w-28 rounded-md border border-border px-2 py-1 text-xs" />
+                <input name="message" required placeholder={t("الرسالة", "Message")} className="w-48 rounded-md border border-border px-2 py-1 text-xs" />
+                <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
+                <button type="button" onClick={() => setShowAlert(false)} className="text-xs text-muted">{t("إلغاء", "Cancel")}</button>
               </form>
             )}
           </div>
@@ -337,25 +334,15 @@ function OverviewTab({
 function DialysisTab({ patientId }: { patientId: string }) {
   const { t } = useI18n();
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">
+    <div className="rounded-lg border border-border bg-surface p-6 text-sm text-muted">
       <p>{t("راجع جدول الديلزة والجلسات النشطة لهذا المريض من الشاشات المخصصة:", "View this patient's dialysis schedule and active sessions in the following pages:")}</p>
       <div className="mt-2 flex gap-4">
-        <Link href="/admin/care/appointments" className="text-slate-700 hover:underline">{t("الجدول اليومي", "Daily schedule")}</Link>
-        <Link href={`/admin/care/patients/${patientId}`} className="text-slate-700 hover:underline">{t("ملف المريض", "Patient record")}</Link>
+        <Link href="/admin/care/appointments" className="text-foreground hover:underline">{t("الجدول اليومي", "Daily schedule")}</Link>
+        <Link href={`/admin/care/patients/${patientId}`} className="text-foreground hover:underline">{t("ملف المريض", "Patient record")}</Link>
       </div>
     </div>
   );
 }
-
-const getLabItemStatusLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
-  ORDERED: t("بانتظار سحب العينة", "Awaiting sample"),
-  SAMPLE_COLLECTED: t("تم سحب العينة", "Sample collected"),
-  PROCESSING: t("قيد المعالجة", "Processing"),
-  RESULT_ENTERED: t("أُدخلت النتيجة", "Result entered"),
-  FINAL: t("نهائية", "Final"),
-  AMENDED: t("مُعدَّلة", "Amended"),
-  CANCELLED: t("ملغاة", "Cancelled"),
-});
 
 function LabsTab({
   patientId,
@@ -373,7 +360,6 @@ function LabsTab({
   onChanged: () => void;
 }) {
   const { t, formatDate, formatNumber } = useI18n();
-  const labItemStatusLabel = getLabItemStatusLabels(t);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
@@ -424,18 +410,18 @@ function LabsTab({
     <div className="space-y-4">
       <ErrorNote message={error} />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-500">{t("حلقات التحاليل (Lab Episodes)", "Lab episodes")}</h2>
+          <h2 className="text-sm font-semibold text-muted">{t("حلقات التحاليل (Lab Episodes)", "Lab episodes")}</h2>
           {canRequest && (
-            <button onClick={() => setShowRequest((v) => !v)} className="text-xs font-medium text-slate-600 hover:underline">
+            <button onClick={() => setShowRequest((v) => !v)} className="text-xs font-medium text-muted hover:underline">
               {t("+ طلب تحليل", "+ Request lab test")}
             </button>
           )}
         </div>
 
         {showRequest && (
-          <form onSubmit={handleRequest} className="mt-2 space-y-2 rounded-md bg-slate-50 p-3">
+          <form onSubmit={handleRequest} className="mt-2 space-y-2 rounded-md bg-surface-secondary p-3">
             <div className="flex gap-3 text-xs">
               <label className="flex items-center gap-1">
                 <input type="radio" checked={mode === "panel"} onChange={() => setMode("panel")} /> {t("مجموعة تحاليل", "Test panel")}
@@ -445,14 +431,14 @@ function LabsTab({
               </label>
             </div>
             {mode === "panel" ? (
-              <select name="labPanelId" required className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs">
+              <select name="labPanelId" required className="w-full rounded-md border border-border px-2 py-1 text-xs">
                 <option value="">{t("اختر المجموعة...", "Select a panel...")}</option>
                 {labPanels.map((p) => (
                   <option key={p.id} value={p.id}>{p.name} ({formatNumber(p.tests.length)} {t("تحليل)", "tests)")}</option>
                 ))}
               </select>
             ) : (
-              <div className="max-h-32 overflow-y-auto rounded-md border border-slate-100 p-2">
+              <div className="max-h-32 overflow-y-auto rounded-md border border-border p-2">
                 {labTests.map((entry) => (
                   <label key={entry.id} className="flex items-center gap-2 py-0.5 text-xs">
                     <input type="checkbox" checked={selectedTestIds.includes(entry.id)} onChange={() => toggleTest(entry.id)} />
@@ -461,14 +447,14 @@ function LabsTab({
                 ))}
               </div>
             )}
-            <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("إرسال الطلب", "Submit request")}</button>
+            <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("إرسال الطلب", "Submit request")}</button>
           </form>
         )}
 
         <ul className="mt-3 space-y-2 text-sm">
           {labOrders.map((order) => (
-            <li key={order.id} className="rounded-md border border-slate-100 p-3">
-              <p className="mb-1 text-xs font-medium text-slate-500">
+            <li key={order.id} className="rounded-md border border-border p-3">
+              <p className="mb-1 text-xs font-medium text-muted">
                 {order.episodeCode} — {formatDate(order.orderedAt, { dateStyle: "medium", timeStyle: "short" })} — {order.orderedByDoctor?.fullName}
               </p>
               <ul className="space-y-1">
@@ -476,20 +462,20 @@ function LabsTab({
                   <li key={item.id} className="flex items-center justify-between text-xs">
                     <span>
                       {item.labTest.name}: {item.results[0] ? item.results[0].value : "-"}{" "}
-                      <span className="text-slate-400">[{labItemStatusLabel[item.status] ?? item.status}]</span>
+                      <StatusBadge group="labOrderItem" value={item.status} />
                     </span>
                   </li>
                 ))}
               </ul>
             </li>
           ))}
-          {labOrders.length === 0 && <li className="text-slate-400">{t("لا توجد طلبات تحاليل بعد", "No lab requests yet")}</li>}
+          {labOrders.length === 0 && <li className="text-muted">{t("لا توجد طلبات تحاليل بعد", "No lab requests yet")}</li>}
         </ul>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-500">{t("اتجاه القيمة عبر الزمن (Trend)", "Result trend over time")}</h2>
-        <select value={trendTestId} onChange={(e) => loadTrend(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-xs">
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="mb-2 text-sm font-semibold text-muted">{t("اتجاه القيمة عبر الزمن (Trend)", "Result trend over time")}</h2>
+        <select value={trendTestId} onChange={(e) => loadTrend(e.target.value)} className="rounded-md border border-border px-2 py-1 text-xs">
           <option value="">{t("اختر تحليلاً...", "Select a test...")}</option>
           {labTests.map((entry) => (
             <option key={entry.id} value={entry.id}>{entry.name}</option>
@@ -517,7 +503,6 @@ function MedicationsTab({
   onChanged: () => void;
 }) {
   const { t, formatDate, formatNumber } = useI18n();
-  const clinicalLabels = getClinicalLabels(t);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -614,22 +599,22 @@ function MedicationsTab({
     <div className="space-y-4">
       <ErrorNote message={error} />
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
+      <section className="rounded-lg border border-border bg-surface p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-500">{t("الأدوية الحالية (PRESCRIBED)", "Current prescriptions")}</h2>
+          <h2 className="text-sm font-semibold text-muted">{t("الأدوية الحالية (PRESCRIBED)", "Current prescriptions")}</h2>
           {canOrder && (
-            <button onClick={() => setShowAdd((v) => !v)} className="text-xs font-medium text-slate-600 hover:underline">
+            <button onClick={() => setShowAdd((v) => !v)} className="text-xs font-medium text-muted hover:underline">
               {t("+ إضافة دواء", "+ Add medication")}
             </button>
           )}
         </div>
         {showAdd && (
-          <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-md bg-slate-50 p-3">
-            <input name="medicationName" required placeholder={t("اسم الدواء", "Medication name")} className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs" />
-            <input name="dose" required placeholder={t("الجرعة", "Dose")} className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs" />
-            <input name="frequency" required placeholder={t("التكرار", "Frequency")} className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs" />
-            <input name="duration" placeholder={t("المدة (اختياري)", "Duration (optional)")} className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs" />
-            <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ", "Save")}</button>
+          <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-md bg-surface-secondary p-3">
+            <input name="medicationName" required placeholder={t("اسم الدواء", "Medication name")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
+            <input name="dose" required placeholder={t("الجرعة", "Dose")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
+            <input name="frequency" required placeholder={t("التكرار", "Frequency")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
+            <input name="duration" placeholder={t("المدة (اختياري)", "Duration (optional)")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
+            <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
           </form>
         )}
 
@@ -637,70 +622,70 @@ function MedicationsTab({
           {current.map((p) => {
             const orderId = activeOrderId(p);
             return (
-              <li key={p.id} className="rounded-md border border-slate-100 p-3 text-sm">
+              <li key={p.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="flex items-center justify-between">
                   <span>
-                    <span className="font-medium text-slate-800">{p.medicationName}</span> — {p.dose} / {p.frequency}
+                    <span className="font-medium text-foreground">{p.medicationName}</span> — {p.dose} / {p.frequency}
                     {p.duration ? ` / ${p.duration}` : ""}
                   </span>
                   <div className="flex gap-2">
                     {canModify && orderId && (
-                      <button onClick={() => setModifyingId(modifyingId === p.id ? null : p.id)} className="text-xs text-slate-500 hover:underline">
+                      <button onClick={() => setModifyingId(modifyingId === p.id ? null : p.id)} className="text-xs text-muted hover:underline">
                         {t("تعديل الجرعة", "Change dose")}
                       </button>
                     )}
                     {canModify && orderId && (
-                      <button onClick={() => handleStop(orderId, "أوقفه الطبيب")} className="text-xs text-red-600 hover:underline">
+                      <button onClick={() => handleStop(orderId, "أوقفه الطبيب")} className="text-xs text-danger hover:underline">
                         {t("إيقاف", "Stop")}
                       </button>
                     )}
                     {canAdminister && (
-                      <button onClick={() => setAdministeringId(administeringId === p.id ? null : p.id)} className="text-xs text-emerald-600 hover:underline">
+                      <button onClick={() => setAdministeringId(administeringId === p.id ? null : p.id)} className="text-xs text-success hover:underline">
                         {t("تسجيل إعطاء", "Record administration")}
                       </button>
                     )}
                   </div>
                 </div>
                 {modifyingId === p.id && orderId && (
-                  <form onSubmit={(e) => handleModify(e, orderId)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
-                    <input name="newDose" required placeholder={t("الجرعة الجديدة", "New dose")} className="w-28 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                    <input name="reason" required placeholder={t("سبب التعديل", "Reason for amendment")} className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                    <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ", "Save")}</button>
+                  <form onSubmit={(e) => handleModify(e, orderId)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
+                    <input name="newDose" required placeholder={t("الجرعة الجديدة", "New dose")} className="w-28 rounded-md border border-border px-2 py-1 text-xs" />
+                    <input name="reason" required placeholder={t("سبب التعديل", "Reason for amendment")} className="w-40 rounded-md border border-border px-2 py-1 text-xs" />
+                    <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
                   </form>
                 )}
                 {administeringId === p.id && (
-                  <form onSubmit={(e) => handleAdminister(e, p.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-emerald-50 p-2">
-                    <input name="doseGiven" required placeholder={t("الجرعة المُعطاة فعلياً", "Actual dose administered")} className="w-32 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                    <button type="submit" disabled={busy} className="rounded bg-emerald-600 px-3 py-1 text-xs text-white disabled:opacity-50">{t("تأكيد", "Confirm")}</button>
+                  <form onSubmit={(e) => handleAdminister(e, p.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
+                    <input name="doseGiven" required placeholder={t("الجرعة المُعطاة فعلياً", "Actual dose administered")} className="w-32 rounded-md border border-border px-2 py-1 text-xs" />
+                    <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("تأكيد", "Confirm")}</button>
                   </form>
                 )}
                 {(p.dispenses ?? []).length > 0 && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-muted">
                     {t("آخر صرف:", "Last dispensed:")} {p.dispenses![0].item?.name} × {formatNumber(Number(p.dispenses![0].quantity))} {t("بواسطة", "by")} {p.dispenses![0].dispensedBy?.fullName ?? "-"} ({formatDate(p.dispenses![0].dispensedAt, { dateStyle: "medium", timeStyle: "short" })})
                   </p>
                 )}
                 {(p.administrations ?? []).length > 0 && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-muted">
                     {t("آخر إعطاء:", "Last administered:")} {formatDate(p.administrations![0].administeredAt, { dateStyle: "medium", timeStyle: "short" })} {t("بواسطة", "by")} {p.administrations![0].administeredBy?.fullName ?? "-"}
                   </p>
                 )}
               </li>
             );
           })}
-          {current.length === 0 && <li className="text-sm text-slate-400">{t("لا توجد أدوية حالية", "No current medications")}</li>}
+          {current.length === 0 && <li className="text-sm text-muted">{t("لا توجد أدوية حالية", "No current medications")}</li>}
         </ul>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-slate-500">{t("السابقة / الموقوفة", "Previous / stopped")}</h2>
+      <section className="rounded-lg border border-border bg-surface p-4">
+        <h2 className="mb-2 text-sm font-semibold text-muted">{t("السابقة / الموقوفة", "Previous / stopped")}</h2>
         <ul className="space-y-1 text-sm">
           {history.map((p) => (
-            <li key={p.id} className="text-slate-500">
-              <span className={p.status === "STOPPED" ? "text-red-500" : "text-amber-500"}>[{clinicalLabels[p.status] ?? p.status}]</span>{" "}
+            <li key={p.id} className="flex flex-wrap items-center gap-2 text-muted">
+              <StatusBadge group="prescription" value={p.status} />
               {p.medicationName} — {p.dose} / {p.frequency}
             </li>
           ))}
-          {history.length === 0 && <li className="text-slate-400">{t("لا يوجد سجل بعد", "No history yet")}</li>}
+          {history.length === 0 && <li className="text-muted">{t("لا يوجد سجل بعد", "No history yet")}</li>}
         </ul>
       </section>
     </div>
@@ -721,7 +706,6 @@ function OrdersTab({
   onChanged: () => void;
 }) {
   const { t, formatDate } = useI18n();
-  const clinicalLabels = getClinicalLabels(t);
   const orderTypeLabel = getOrderTypeLabels(t);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -773,48 +757,46 @@ function OrdersTab({
   ];
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
+    <section className="rounded-lg border border-border bg-surface p-4">
       <ErrorNote message={error} className="mb-2" />
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-500">{t("كل الأوامر الطبية", "All medical orders")}</h2>
+        <h2 className="text-sm font-semibold text-muted">{t("كل الأوامر الطبية", "All medical orders")}</h2>
         {canOrder && (
-          <button onClick={() => setShowAdd((v) => !v)} className="text-xs font-medium text-slate-600 hover:underline">
+          <button onClick={() => setShowAdd((v) => !v)} className="text-xs font-medium text-muted hover:underline">
             {t("+ أمر جديد", "+ New order")}
           </button>
         )}
       </div>
       {showAdd && (
-        <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-md bg-slate-50 p-3">
-          <select value={orderType} onChange={(e) => setOrderType(e.target.value as DoctorOrderType)} className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs">
+        <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-md bg-surface-secondary p-3">
+          <select value={orderType} onChange={(e) => setOrderType(e.target.value as DoctorOrderType)} className="w-full rounded-md border border-border px-2 py-1 text-xs">
             {nonMedicationTypes.map((entry) => (
               <option key={entry} value={entry}>{orderTypeLabel[entry]}</option>
             ))}
           </select>
-          <textarea name="detail" required placeholder={t("التفاصيل", "Details")} className="w-full rounded-md border border-slate-300 px-2 py-1 text-xs" rows={2} />
-          <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("حفظ", "Save")}</button>
+          <textarea name="detail" required placeholder={t("التفاصيل", "Details")} className="w-full rounded-md border border-border px-2 py-1 text-xs" rows={2} />
+          <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
         </form>
       )}
 
       <ul className="mt-3 space-y-2 text-sm">
         {orders.map((o) => (
-          <li key={o.id} className="rounded-md border border-slate-100 p-2">
+          <li key={o.id} className="rounded-md border border-border p-2">
             <div className="flex items-center justify-between">
               <span>
-                <span className="font-medium text-slate-700">[{orderTypeLabel[o.type]}]</span>{" "}
-                <span className={o.status === "STOPPED" ? "text-red-500" : o.status === "MODIFIED" ? "text-amber-500" : "text-emerald-600"}>
-                  {clinicalLabels[o.status] ?? o.status}
-                </span>{" "}
+                <span className="font-medium text-foreground">[{orderTypeLabel[o.type]}]</span>{" "}
+                <StatusBadge group="doctorOrder" value={o.status} />{" "}
                 — {formatDate(o.createdAt, { dateStyle: "medium", timeStyle: "short" })} — {o.doctor?.fullName}
               </span>
               {canModify && o.status === "ACTIVE" && (
-                <button onClick={() => handleStop(o.id)} className="text-xs text-red-600 hover:underline">{t("إيقاف", "Stop")}</button>
+                <button onClick={() => handleStop(o.id)} className="text-xs text-danger hover:underline">{t("إيقاف", "Stop")}</button>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-500">{JSON.stringify(o.payload)}</p>
-            {o.reason && <p className="text-xs text-slate-400">{t("السبب:", "Reason:")} {o.reason}</p>}
+            <p className="mt-1 text-xs text-muted">{JSON.stringify(o.payload)}</p>
+            {o.reason && <p className="text-xs text-muted">{t("السبب:", "Reason:")} {o.reason}</p>}
           </li>
         ))}
-        {orders.length === 0 && <li className="text-slate-400">{t("لا توجد أوامر بعد", "No orders yet")}</li>}
+        {orders.length === 0 && <li className="text-muted">{t("لا توجد أوامر بعد", "No orders yet")}</li>}
       </ul>
     </section>
   );
@@ -853,22 +835,22 @@ function NotesTab({
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
+    <section className="rounded-lg border border-border bg-surface p-4">
       <ErrorNote message={error} className="mb-2" />
       {canWrite && (
         <form onSubmit={handleSubmit} className="mb-4 flex items-start gap-2">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t("ملاحظة طبية...", "Clinical note...")} className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" rows={2} />
-          <button type="submit" disabled={busy} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">{t("حفظ", "Save")}</button>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t("ملاحظة طبية...", "Clinical note...")} className="flex-1 rounded-md border border-border px-3 py-2 text-sm" rows={2} />
+          <button type="submit" disabled={busy} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
         </form>
       )}
       <ul className="space-y-2 text-sm">
         {notes.map((n) => (
-          <li key={n.id} className="rounded-md border border-slate-100 p-2">
-            <p className="text-slate-700">{n.text}</p>
-            <p className="mt-1 text-xs text-slate-400">{n.author?.fullName} — {formatDate(n.createdAt, { dateStyle: "medium", timeStyle: "short" })}</p>
+          <li key={n.id} className="rounded-md border border-border p-2">
+            <p className="text-foreground">{n.text}</p>
+            <p className="mt-1 text-xs text-muted">{n.author?.fullName} — {formatDate(n.createdAt, { dateStyle: "medium", timeStyle: "short" })}</p>
           </li>
         ))}
-        {notes.length === 0 && <li className="text-slate-400">{t("لا توجد ملاحظات بعد", "No notes yet")}</li>}
+        {notes.length === 0 && <li className="text-muted">{t("لا توجد ملاحظات بعد", "No notes yet")}</li>}
       </ul>
     </section>
   );
@@ -877,15 +859,15 @@ function NotesTab({
 function TimelineTab({ timeline }: { timeline: PatientTimelineEvent[] }) {
   const { t, formatDate } = useI18n();
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
+    <section className="rounded-lg border border-border bg-surface p-4">
       <ul className="space-y-2 text-sm">
         {timeline.map((entry) => (
-          <li key={entry.id} className="border-b border-slate-50 pb-2">
-            <span className="font-medium text-slate-700">{TIMELINE_LABELS[entry.type] ? t(...TIMELINE_LABELS[entry.type]) : entry.type}</span>{" "}
-            <span className="text-xs text-slate-400">— {formatDate(entry.performedAt, { dateStyle: "medium", timeStyle: "short" })} — {entry.performedBy?.fullName ?? t("النظام", "System")}</span>
+          <li key={entry.id} className="border-b border-border pb-2">
+            <span className="font-medium text-foreground">{TIMELINE_LABELS[entry.type] ? t(...TIMELINE_LABELS[entry.type]) : entry.type}</span>{" "}
+            <span className="text-xs text-muted">— {formatDate(entry.performedAt, { dateStyle: "medium", timeStyle: "short" })} — {entry.performedBy?.fullName ?? t("النظام", "System")}</span>
           </li>
         ))}
-        {timeline.length === 0 && <li className="text-slate-400">{t("لا يوجد سجل بعد", "No history yet")}</li>}
+        {timeline.length === 0 && <li className="text-muted">{t("لا يوجد سجل بعد", "No history yet")}</li>}
       </ul>
     </section>
   );

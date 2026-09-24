@@ -389,8 +389,7 @@ span.preference-value { display: inline-flex; align-items: center; padding: 5px 
 [data-theme="dark"] .empty-state-error .empty-state-icon { background: #2e1718; color: #ff7b82; }
 
 /* .page-btn: 34px square, 7px radius, filled accent when current. */
-.pagination-button { min-width: 34px; height: 34px; padding-inline: 8px; border-radius: 7px; border: 0; background: var(--surface); color: #4f5660; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1); }
-[data-theme="dark"] .pagination-button { color: var(--muted); }
+.pagination-button { min-width: 34px; height: 34px; padding-inline: 8px; border-radius: 7px; border: 0; background: var(--surface); color: var(--muted-strong); font-size: 12px; font-weight: 700; cursor: pointer; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 .pagination-button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-soft-foreground); }
 .pagination-button.is-current { background: var(--accent); color: var(--accent-foreground); }
 .pagination-button:disabled { color: var(--disabled); cursor: not-allowed; }

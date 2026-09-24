@@ -26,7 +26,7 @@ interface AuditRow {
   actor: { id: string; fullName: string; username: string };
 }
 
-const inputClass = "rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none";
+const inputClass = "rounded-md border border-border px-3 py-2 text-sm focus:border-border0 focus:outline-none";
 
 // Oversight view for inspection committees: filter by employee, patient,
 // action and date, then export exactly what is on screen (the export is
@@ -48,7 +48,7 @@ export default function AuditPage() {
   const filterQuery = qs.toString();
   const list = useApi<Paginated<AuditRow>>(user ? `/audit-logs?page=${page}&limit=${PAGE_SIZE}${filterQuery ? `&${filterQuery}` : ""}` : null);
 
-  if (!user) return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+  if (!user) return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
 
   async function exportCsv() {
     try {
@@ -61,26 +61,26 @@ export default function AuditPage() {
 
   const columns: TableColumn<AuditRow>[] = [
     { key: "createdAt", header: t("الوقت", "Time"), render: (r) => formatDate(r.createdAt, { dateStyle: "short", timeStyle: "medium" }) },
-    { key: "actor", header: t("الموظف", "Employee"), render: (r) => <>{r.actor.fullName}<br /><span className="text-xs text-slate-500">{r.actorRole}</span></> },
+    { key: "actor", header: t("الموظف", "Employee"), render: (r) => <>{r.actor.fullName}<br /><span className="text-xs text-muted">{r.actorRole}</span></> },
     { key: "action", header: t("الإجراء", "Action"), render: (r) => <span className="font-mono text-xs">{r.action}</span> },
-    { key: "entityType", header: t("الكيان", "Entity"), render: (r) => <>{r.entityType}<br /><span className="font-mono text-xs text-slate-500">{r.entityId.slice(0, 8)}</span></> },
+    { key: "entityType", header: t("الكيان", "Entity"), render: (r) => <>{r.entityType}<br /><span className="font-mono text-xs text-muted">{r.entityId.slice(0, 8)}</span></> },
     { key: "reason", header: t("السبب", "Reason"), render: (r) => r.reason ?? "-" },
   ];
 
   return (
     <AdminShell user={user}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800">{t("سجل التدقيق", "Audit trail")}</h1>
-        {user.permissions.includes("audit.export") && <button className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700" onClick={exportCsv}>{t("تصدير CSV", "Export CSV")}</button>}
+        <h1 className="text-xl font-semibold text-foreground">{t("سجل التدقيق", "Audit trail")}</h1>
+        {user.permissions.includes("audit.export") && <button className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground" onClick={exportCsv}>{t("تصدير CSV", "Export CSV")}</button>}
       </div>
-      <p className="mt-1 text-sm text-slate-500">{t("سجل غير قابل للتعديل أو الحذف: من فعل ماذا ومتى، بما في ذلك فتح ملفات المرضى وتصدير التقارير.", "Append-only record of who did what and when, including chart openings and report exports.")}</p>
+      <p className="mt-1 text-sm text-muted">{t("سجل غير قابل للتعديل أو الحذف: من فعل ماذا ومتى، بما في ذلك فتح ملفات المرضى وتصدير التقارير.", "Append-only record of who did what and when, including chart openings and report exports.")}</p>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <input className={inputClass} placeholder={t("معرّف الموظف", "Employee ID")} value={filters.actorId} onChange={set("actorId")} />
         <input className={inputClass} placeholder={t("معرّف المريض", "Patient ID")} value={filters.patientId} onChange={set("patientId")} />
         <input className={inputClass} placeholder={t("الإجراء (مثال PATIENT_VIEWED)", "Action (e.g. PATIENT_VIEWED)")} value={filters.action} onChange={set("action")} />
-        <label className="flex items-center gap-1 text-xs text-slate-500">{t("من", "From")}<input type="date" className={inputClass} value={filters.from} onChange={set("from")} /></label>
-        <label className="flex items-center gap-1 text-xs text-slate-500">{t("إلى", "To")}<input type="date" className={inputClass} value={filters.to} onChange={set("to")} /></label>
+        <label className="flex items-center gap-1 text-xs text-muted">{t("من", "From")}<input type="date" className={inputClass} value={filters.from} onChange={set("from")} /></label>
+        <label className="flex items-center gap-1 text-xs text-muted">{t("إلى", "To")}<input type="date" className={inputClass} value={filters.to} onChange={set("to")} /></label>
       </div>
 
       <div className="mt-4">

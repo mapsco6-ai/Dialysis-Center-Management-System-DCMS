@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { Button, Card } from "@heroui/react";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -9,20 +10,12 @@ import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
+import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "@/components/Toaster";
 import { InventoryItem, Prescription, PrescriptionStatus } from "@/lib/types";
 
-const getStatusLabels = (t: (arabic: string, english: string) => string): Record<PrescriptionStatus, string> => ({
-  ACTIVE: t("بانتظار الصرف", "Awaiting dispensing"),
-  DISPENSING: t("قيد الصرف", "Dispensing"),
-  DISPENSED: t("تم الصرف", "Dispensed"),
-  MODIFIED: t("عُدِّلت (قديمة)", "Modified (previous)"),
-  STOPPED: t("أُوقفت", "Stopped"),
-});
-
 export default function PharmacyPage() {
   const { t, formatNumber } = useI18n();
-  const statusLabel = getStatusLabels(t);
   const user = useCurrentUser();
   const [filter, setFilter] = useState<PrescriptionStatus | "">("");
   const [queue, setQueue] = useState<Prescription[]>([]);
@@ -83,7 +76,7 @@ export default function PharmacyPage() {
   }
 
   if (!user) {
-    return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
+    return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
   const canManageStock = user.permissions.includes("inventory.manage");
@@ -91,8 +84,8 @@ export default function PharmacyPage() {
   return (
     <AdminShell user={user}>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">{t("الصيدلية — طابور الوصفات", "Pharmacy — Prescription queue")}</h1>
-        <select value={filter} onChange={(e) => setFilter(e.target.value as PrescriptionStatus | "")} className="rounded-md border border-slate-300 px-3 py-1.5 text-sm">
+        <h1 className="text-xl font-semibold text-foreground">{t("الصيدلية — طابور الوصفات", "Pharmacy — Prescription queue")}</h1>
+        <select value={filter} onChange={(e) => setFilter(e.target.value as PrescriptionStatus | "")} className="rounded-md border border-border px-3 py-1.5 text-sm" aria-label={t("فلتر الحالة", "Status filter")}>
           <option value="">{t("الحالية (بانتظار/قيد الصرف)", "Current (awaiting / dispensing)")}</option>
           <option value="DISPENSED">{t("تم الصرف", "Dispensed")}</option>
           <option value="STOPPED">{t("أُوقفت", "Stopped")}</option>
@@ -100,9 +93,10 @@ export default function PharmacyPage() {
         </select>
       </div>
 
-      <section className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <Card className="mt-4 overflow-hidden border border-border bg-surface shadow-none">
+        <Card.Content className="p-0">
         <table className="w-full text-start text-sm">
-          <thead className="bg-slate-50 text-slate-400">
+          <thead className="bg-surface-secondary text-muted">
             <tr>
               <th className="px-4 py-2 font-medium">{t("المريض", "Patient")}</th>
               <th className="px-4 py-2 font-medium">{t("الدواء", "Medication")}</th>
@@ -120,40 +114,42 @@ export default function PharmacyPage() {
               </tr>
             )}
             {queue.map((p) => (
-              <tr key={p.id} className="border-t border-slate-100">
+              <tr key={p.id} className="border-t border-border">
                 <td className="px-4 py-2">
-                  <Link href={`/admin/care/patients/${p.patientId}`} className="text-slate-800 hover:underline">
+                  <Link href={`/admin/care/patients/${p.patientId}`} className="text-foreground hover:underline">
                     {p.patient?.fullName}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-slate-700">{p.medicationName} — {p.dose} / {p.frequency}</td>
-                <td className="px-4 py-2 text-slate-500">{p.doctor?.fullName ?? "-"}</td>
-                <td className="px-4 py-2 text-slate-500">{statusLabel[p.status]}</td>
+                <td className="px-4 py-2 text-foreground">{p.medicationName} — {p.dose} / {p.frequency}</td>
+                <td className="px-4 py-2 text-muted">{p.doctor?.fullName ?? "-"}</td>
+                <td className="px-4 py-2"><StatusBadge group="prescription" value={p.status} /></td>
                 <td className="px-4 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
                   {p.status === "ACTIVE" && (
-                    <button onClick={() => startDispensing(p.id)} disabled={busy} className="text-xs font-medium text-slate-600 hover:underline disabled:opacity-50">
+                    <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => startDispensing(p.id)}>
                       {t("بدء الصرف", "Start dispensing")}
-                    </button>
+                    </Button>
                   )}
                   {p.status === "DISPENSING" && (
-                    <button onClick={() => setDispenseFormId(dispenseFormId === p.id ? null : p.id)} className="text-xs font-medium text-emerald-600 hover:underline">
+                    <Button size="sm" variant="primary" onPress={() => setDispenseFormId(dispenseFormId === p.id ? null : p.id)}>
                       {t("صرف", "Dispense")}
-                    </button>
+                    </Button>
                   )}
+                  </div>
                   {dispenseFormId === p.id && (
-                    <form onSubmit={(e) => submitDispense(e, p.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-slate-50 p-2">
-                      <select name="itemId" required className="rounded-md border border-slate-300 px-2 py-1 text-xs">
+                    <form onSubmit={(e) => submitDispense(e, p.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
+                      <select name="itemId" required className="rounded-md border border-border px-2 py-1 text-xs" aria-label={t("المادة", "Item")}>
                         <option value="">{t("اختر المادة...", "Select an item...")}</option>
                         {items.map((i) => (
                           <option key={i.id} value={i.id}>{i.name}</option>
                         ))}
                       </select>
-                      <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-                      <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("تأكيد الصرف", "Confirm dispensing")}</button>
+                      <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-20 rounded-md border border-border px-2 py-1 text-xs" />
+                      <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("تأكيد الصرف", "Confirm dispensing")}</button>
                     </form>
                   )}
                   {(p.dispenses ?? []).length > 0 && (
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-muted">
                       {t("صُرف:", "Dispensed:")} {p.dispenses![0].item?.name} × {formatNumber(Number(p.dispenses![0].quantity))} {t("بواسطة", "by")} {p.dispenses![0].dispensedBy?.fullName}
                     </p>
                   )}
@@ -170,7 +166,8 @@ export default function PharmacyPage() {
             )}
           </tbody>
         </table>
-      </section>
+        </Card.Content>
+      </Card>
 
       {canManageStock && <StockTransferForm items={items} onChanged={() => apiFetch("/inventory/items").then(setItems).catch(() => undefined)} />}
     </AdminShell>
@@ -207,20 +204,22 @@ function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onCha
   }
 
   return (
-    <section className="mt-6 rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-2 text-sm font-semibold text-slate-500">{t("تغذية مخزون الصيدلية (تحويل من المخزن الرئيسي)", "Replenish pharmacy stock (transfer from main warehouse)")}</h2>
+    <Card className="mt-6 border border-border bg-surface shadow-none">
+      <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("تغذية مخزون الصيدلية (تحويل من المخزن الرئيسي)", "Replenish pharmacy stock (transfer from main warehouse)")}</Card.Title></Card.Header>
+      <Card.Content>
       <ErrorNote message={error} className="mb-2" />
       <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
-        <select name="itemId" required className="rounded-md border border-slate-300 px-2 py-1 text-xs">
+        <select name="itemId" required className="rounded-md border border-border px-2 py-1 text-xs" aria-label={t("المادة", "Item")}>
           <option value="">{t("اختر المادة...", "Select an item...")}</option>
           {items.map((i) => (
             <option key={i.id} value={i.id}>{i.name} {t("(متوفر بالمخزن:", "(Available in warehouse:")} {formatNumber(Number(i.quantityInStock))})</option>
           ))}
         </select>
-        <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-        <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-40 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-        <button type="submit" disabled={busy} className="rounded bg-slate-800 px-3 py-1 text-xs text-white disabled:opacity-50">{t("تحويل", "Transfer")}</button>
+        <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-border px-2 py-1 text-xs" />
+        <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-40 rounded-md border border-border px-2 py-1 text-xs" />
+        <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("تحويل", "Transfer")}</button>
       </form>
-    </section>
+      </Card.Content>
+    </Card>
   );
 }

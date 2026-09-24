@@ -56,9 +56,9 @@ function ChangePassword() {
   }
   return <SettingsSection title={t("تغيير كلمة المرور", "Change password")} description={t("بعد التغيير ستحتاج إلى تسجيل الدخول من جديد.", "You will need to sign in again afterwards.")}>
     <form onSubmit={submit} className="flex max-w-sm flex-col gap-2">
-      <input type="password" required autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder={t("كلمة المرور الحالية", "Current password")} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <input type="password" required minLength={8} autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} placeholder={t("كلمة المرور الجديدة (8 أحرف على الأقل)", "New password (min 8 characters)")} className="rounded-md border border-slate-300 px-3 py-2 text-sm" />
-      <button type="submit" className="self-start rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">{t("تغيير", "Change")}</button>
+      <input type="password" required autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder={t("كلمة المرور الحالية", "Current password")} className="rounded-md border border-border px-3 py-2 text-sm" />
+      <input type="password" required minLength={8} autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} placeholder={t("كلمة المرور الجديدة (8 أحرف على الأقل)", "New password (min 8 characters)")} className="rounded-md border border-border px-3 py-2 text-sm" />
+      <button type="submit" className="self-start rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">{t("تغيير", "Change")}</button>
     </form>
   </SettingsSection>;
 }
@@ -108,12 +108,12 @@ function SystemSettings({ canManage, canAudit }: { canManage: boolean; canAudit:
         selected={shiftRequired} onChange={(value) => save("shiftReportRequired", value)} />
       <div className="preference-row"><div><label htmlFor="retention-years" className="preference-label">{t("مدة الاحتفاظ بسجل التدقيق (سنوات)", "Audit retention (years)")}</label>
         <p className="preference-description">{t("لا يُحذف السجل أبداً؛ يُؤرشف بالتصدير بعد هذه المدة.", "The trail is never deleted; it is archived by export after this period.")}</p></div>
-        <span className="flex items-center gap-2"><input id="retention-years" type="number" min={1} max={50} value={years} onChange={(e) => setYears(e.target.value)} className="w-20 rounded-md border border-slate-300 px-2 py-1 text-sm" />
-          <button type="button" className="rounded-md bg-slate-800 px-3 py-1 text-xs font-medium text-white" onClick={() => save("auditRetentionYears", Number(years))}>{t("حفظ", "Save")}</button></span></div>
+        <span className="flex items-center gap-2"><input id="retention-years" type="number" min={1} max={50} value={years} onChange={(e) => setYears(e.target.value)} className="w-20 rounded-md border border-border px-2 py-1 text-sm" />
+          <button type="button" className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground" onClick={() => save("auditRetentionYears", Number(years))}>{t("حفظ", "Save")}</button></span></div>
     </SettingsSection>}
     {canAudit && <SettingsSection title={t("سلامة سجل التدقيق", "Audit trail integrity")} description={t("يعيد فحص سلسلة التجزئة لكشف أي تعديل على السجلات خارج النظام.", "Re-checks the hash chain to reveal any edit made to the records outside the system.")}>
-      <div className="preference-row"><button type="button" className="rounded-md border border-slate-300 px-3 py-1.5 text-sm" onClick={verify}>{t("فحص السلسلة الآن", "Verify chain now")}</button>
-        {integrity && <span role="status" className={integrity.ok ? "text-emerald-700" : "text-red-700"}>{integrity.ok ? t(`سليمة — فُحص ${formatNumber(integrity.checked)} سجلاً`, `Intact — ${formatNumber(integrity.checked)} records checked`) : t(`مكسورة عند التسلسل ${integrity.brokenAtSeq}: ${integrity.reason}`, `Broken at #${integrity.brokenAtSeq}: ${integrity.reason}`)}</span>}</div>
+      <div className="preference-row"><button type="button" className="rounded-md border border-border px-3 py-1.5 text-sm" onClick={verify}>{t("فحص السلسلة الآن", "Verify chain now")}</button>
+        {integrity && <span role="status" className={integrity.ok ? "text-success" : "text-danger"}>{integrity.ok ? t(`سليمة — فُحص ${formatNumber(integrity.checked)} سجلاً`, `Intact — ${formatNumber(integrity.checked)} records checked`) : t(`مكسورة عند التسلسل ${integrity.brokenAtSeq}: ${integrity.reason}`, `Broken at #${integrity.brokenAtSeq}: ${integrity.reason}`)}</span>}</div>
       {retention && <div className="preference-row"><span className="preference-label">{t("سجلات أقدم من مدة الاحتفاظ", "Records older than retention")}</span><span className="preference-value">{formatNumber(retention.olderThanCutoff)} / {formatNumber(retention.total)}{retention.oldestAt ? ` · ${formatDate(retention.oldestAt, { year: "numeric", month: "short" })}` : ""}</span></div>}
     </SettingsSection>}
   </>;
