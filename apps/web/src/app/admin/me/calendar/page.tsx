@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { toast } from "@/components/Toaster";
 import { MyCalendar, Task, TaskPriority, TaskStatus } from "@/lib/types";
@@ -171,23 +172,41 @@ export default function MyCalendarPage() {
             <button onClick={() => setAnchor(new Date())}>{t("اليوم", "Today")}</button>
             <button onClick={() => shift(1)} aria-label={t("التالي", "Next")}><Arrow dir="end" /></button>
           </div>
-          <select value={view} onChange={(e) => setView(e.target.value as "month" | "week")} aria-label={t("طريقة العرض", "View")} className="border border-border text-sm">
-            <option value="month">{t("عرض شهري", "Month view")}</option>
-            <option value="week">{t("عرض أسبوعي", "Week view")}</option>
-          </select>
-          <select value={status} onChange={(e) => setStatus(e.target.value as "ALL" | TaskStatus)} aria-label={t("الحالة", "Status")} className="border border-border text-sm">
-            <option value="ALL">{t("كل الحالات", "All statuses")}</option>
-            <option value="OPEN">{t("مفتوحة", "Open")}</option>
-            <option value="IN_PROGRESS">{t("قيد التنفيذ", "In progress")}</option>
-            <option value="DONE">{t("منجزة", "Done")}</option>
-          </select>
-          <select value={priority} onChange={(e) => setPriority(e.target.value as "ALL" | TaskPriority)} aria-label={t("الأولوية", "Priority")} className="border border-border text-sm">
-            <option value="ALL">{t("كل الأولويات", "All priorities")}</option>
-            <option value="URGENT">{t("عاجلة", "Urgent")}</option>
-            <option value="HIGH">{t("عالية", "High")}</option>
-            <option value="NORMAL">{t("عادية", "Normal")}</option>
-            <option value="LOW">{t("منخفضة", "Low")}</option>
-          </select>
+          <FilterSelect
+            className="cal-filter-select"
+            aria-label={t("طريقة العرض", "View")}
+            value={view}
+            onChange={(id) => setView(id as "month" | "week")}
+            options={[
+              { id: "month", label: t("عرض شهري", "Month view") },
+              { id: "week", label: t("عرض أسبوعي", "Week view") },
+            ]}
+          />
+          <FilterSelect
+            className="cal-filter-select"
+            aria-label={t("الحالة", "Status")}
+            value={status}
+            onChange={(id) => setStatus(id as "ALL" | TaskStatus)}
+            options={[
+              { id: "ALL", label: t("كل الحالات", "All statuses") },
+              { id: "OPEN", label: t("مفتوحة", "Open") },
+              { id: "IN_PROGRESS", label: t("قيد التنفيذ", "In progress") },
+              { id: "DONE", label: t("منجزة", "Done") },
+            ]}
+          />
+          <FilterSelect
+            className="cal-filter-select"
+            aria-label={t("الأولوية", "Priority")}
+            value={priority}
+            onChange={(id) => setPriority(id as "ALL" | TaskPriority)}
+            options={[
+              { id: "ALL", label: t("كل الأولويات", "All priorities") },
+              { id: "URGENT", label: t("عاجلة", "Urgent") },
+              { id: "HIGH", label: t("عالية", "High") },
+              { id: "NORMAL", label: t("عادية", "Normal") },
+              { id: "LOW", label: t("منخفضة", "Low") },
+            ]}
+          />
         </div>
       </div>
 
