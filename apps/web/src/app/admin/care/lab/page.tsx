@@ -29,10 +29,8 @@ const NEXT_STATUS: Record<string, string | undefined> = {
   SAMPLE_COLLECTED: "PROCESSING",
 };
 
-const POLL_MS = 15000;
-
 export default function LabPage() {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const statusLabel = getStatusLabels(t);
   const user = useCurrentUser();
   const [queue, setQueue] = useState<LabQueueItem[]>([]);
@@ -65,8 +63,6 @@ export default function LabPage() {
     refreshQueue();
     apiFetch("/lab/tests").then(setTests).catch(() => setTests([]));
     apiFetch("/lab/panels").then(setPanels).catch(() => setPanels([]));
-    const interval = setInterval(refreshQueue, POLL_MS);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -123,14 +119,15 @@ export default function LabPage() {
               <th className="px-4 py-2 font-medium">{t("التحليل", "Test")}</th>
               <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
               <th className="px-4 py-2 font-medium">{t("الطبيب الطالب", "Requesting doctor")}</th>
+              <th className="px-4 py-2 font-medium">{t("وقت الطلب", "Requested at")}</th>
               <th className="px-4 py-2 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             {!queueLoaded && queue.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-0">
-                  <SkeletonTable rows={4} columns={5} />
+                <td colSpan={6} className="p-0">
+                  <SkeletonTable rows={4} columns={6} />
                 </td>
               </tr>
             )}
@@ -144,6 +141,7 @@ export default function LabPage() {
                 <td className="px-4 py-2 text-slate-700">{item.labTest.name}</td>
                 <td className="px-4 py-2"><StatusBadge group="labOrderItem" value={item.status} /></td>
                 <td className="px-4 py-2 text-slate-500">{item.labOrder.orderedByDoctor?.fullName ?? "-"}</td>
+                <td className="px-4 py-2 text-slate-500">{formatDate(item.labOrder.orderedAt, { dateStyle: "medium", timeStyle: "short" })}</td>
                 <td className="px-4 py-2">
                   {canProcess && NEXT_STATUS[item.status] && (
                     <button
@@ -184,8 +182,8 @@ export default function LabPage() {
             ))}
             {queueLoaded && queue.length === 0 && (
               <tr>
-                <td colSpan={5}>
-                  <EmptyState icon="✓" title={t("لا توجد طلبات معلّقة", "No pending requests")}
+                <td colSpan={6}>
+                  <EmptyState title={t("لا توجد طلبات معلّقة", "No pending requests")}
                     description={t("الطابور فارغ — ستظهر الطلبات الجديدة هنا لحظة وصولها.", "The queue is clear - new orders will appear here as they arrive.")} />
                 </td>
               </tr>

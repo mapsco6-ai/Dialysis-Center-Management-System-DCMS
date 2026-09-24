@@ -167,7 +167,7 @@ export default function OversightPage() {
             {m.key || t("الكل", "All")} ({formatNumber(m.count)})
           </button>
         ))}
-        {type && <button type="button" onClick={() => setType(null)} className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs text-amber-900">{type} ✕</button>}
+        {type && <button type="button" onClick={() => setType(null)} className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs text-amber-900">{type} ×</button>}
       </div>
       <div className="mt-3">
         <PaginatedTable columns={columns} rows={timeline.data?.data ?? null} total={timeline.data?.total ?? null} page={page} pageSize={PAGE_SIZE}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
@@ -68,12 +68,7 @@ export default function FlowPage() {
   const shifts = useApi<{ id: string; name: string }[]>(user && (user.permissions.includes("scheduling.manage") || user.permissions.includes("nursing.ward.view")) ? "/shifts" : null);
   const board = useApi<Board>(user ? `/flow/today${shiftId ? `?shiftId=${shiftId}` : ""}` : null);
 
-  // Live tag from the API socket + a slow poll as fallback.
   useLiveEvents(() => board.refresh());
-  useEffect(() => {
-    const timer = setInterval(board.refresh, 20_000);
-    return () => clearInterval(timer);
-  }, [board.refresh]);
 
   if (!user) return <main className="p-8 text-slate-500">{t("جاري التحميل...", "Loading...")}</main>;
 
@@ -123,7 +118,7 @@ export default function FlowPage() {
                   {item.machineCode ? ` · ${item.machineCode}` : ""}</span>
               </div>
               <div className="flex items-center gap-2">
-                {item.attention && <span role="status" className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">⚠ {attentionLabel[item.attention]}{item.attention === "LATE" && item.lateMinutes ? ` (${formatNumber(item.lateMinutes)} ${t("د", "min")})` : ""}</span>}
+                {item.attention && <span role="status" className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">{attentionLabel[item.attention]}{item.attention === "LATE" && item.lateMinutes ? ` (${formatNumber(item.lateMinutes)} ${t("د", "min")})` : ""}</span>}
                 {item.minutesInStep !== null && item.current && <span className="text-xs text-slate-500">{formatNumber(item.minutesInStep)} {t("د في هذه الخطوة", "min at this step")}</span>}
                 {item.nextAction && (item.nextAction.allowed ? (
                   <Link href={ACTION_HREF[item.nextAction.key](item.appointmentId)} className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700">{actionLabel[item.nextAction.key]}</Link>
@@ -136,7 +131,7 @@ export default function FlowPage() {
               {item.steps.map((s) => (
                 <li key={s.key} aria-current={s.state === "current" ? "step" : undefined} className="text-center">
                   <div className={`h-1.5 rounded-full ${s.state === "done" ? "bg-emerald-500" : s.state === "current" ? (item.attention ? "bg-red-500" : "bg-blue-600") : "bg-slate-200"}`} />
-                  <span className={`mt-1 block truncate text-[10px] ${s.state === "current" ? "font-semibold text-slate-800" : "text-slate-500"}`}>{s.state === "done" ? "✓ " : ""}{stepLabel[s.key]}</span>
+                  <span className={`mt-1 block truncate text-[10px] ${s.state === "current" ? "font-semibold text-slate-800" : "text-slate-500"}`}>{stepLabel[s.key]}</span>
                 </li>
               ))}
             </ol>

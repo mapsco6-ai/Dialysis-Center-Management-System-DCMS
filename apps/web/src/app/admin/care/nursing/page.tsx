@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
 import { NursingAssignment, Patient, Shift, Ward, WardDashboard } from "@/lib/types";
@@ -34,8 +35,6 @@ const getSessionStatusLabels = (t: (arabic: string, english: string) => string):
   POST_DIALYSIS: t("ما بعد الديلزة", "Post-dialysis"),
   INTERRUPTED: t("متوقفة", "Interrupted"),
 });
-
-const POLL_MS = 15000;
 
 const getShiftLabels = (t: (arabic: string, english: string) => string): Record<string, string> => ({
   SHIFT_1: t("الوجبة الأولى", "Shift 1"),
@@ -119,10 +118,12 @@ export default function NursingPage() {
     refreshDashboard();
     refreshMyAssignments();
     refreshWardAssignments();
-    const interval = setInterval(refreshDashboard, POLL_MS);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, wardId, date, shiftId]);
+
+  useLiveEvents((event) => {
+    if (event.entity === "machine" || event.entity === "session") refreshDashboard();
+  });
 
   async function handleSetPin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();

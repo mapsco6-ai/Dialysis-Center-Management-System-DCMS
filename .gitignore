@@ -11,6 +11,7 @@ playwright-report/
 .env.local
 .env.*.local
 !.env.example
+LOCAL-ADMIN.md
 
 *.log
 npm-debug.log*

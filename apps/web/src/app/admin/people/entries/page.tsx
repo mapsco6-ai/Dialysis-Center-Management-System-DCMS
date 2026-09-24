@@ -116,7 +116,7 @@ export default function EntriesPage() {
   const columns: TableColumn<Entry>[] = [
     { key: "entryDate", header: t("التاريخ", "Date"), render: (e) => formatDate(e.entryDate, { dateStyle: "short", timeStyle: "short" }) },
     { key: "type", header: t("النوع", "Type"), render: (e) => typeLabel[e.type] },
-    { key: "title", header: t("العنوان", "Title"), render: (e) => <>{e.title}{e.isConfidential ? " 🔒" : ""}<br /><span className="text-xs text-slate-500">{e.author.fullName}</span></> },
+    { key: "title", header: t("العنوان", "Title"), render: (e) => <>{e.title}{e.isConfidential ? <> <span className="text-xs text-slate-500">({t("سري", "Confidential")})</span></> : ""}<br /><span className="text-xs text-slate-500">{e.author.fullName}</span></> },
     { key: "status", header: t("الحالة", "Status"), render: (e) => <StatusBadge group="entry" value={e.status} /> },
     { key: "open", header: "", render: (e) => <button className={secondaryButton} onClick={() => setSelected(e)}>{t("عرض", "View")}</button> },
   ];

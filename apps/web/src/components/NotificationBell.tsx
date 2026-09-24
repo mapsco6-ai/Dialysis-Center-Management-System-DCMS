@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useNotificationEvents } from "@/lib/useLiveEvents";
+import { WorkspaceIcon } from "./WorkspaceIcon";
 
 interface Notification { id: string; type: string; title: string; body: string | null; link: string | null; readAt: string | null; createdAt: string }
 
 // Bell in the top bar: unread badge, latest notifications, click to open the
-// related screen. Refreshes when the server pushes a notification, and every
-// minute as a fallback if the socket is down.
+// related screen. Refreshes when the server pushes a notification.
 export function NotificationBell() {
   const { t, formatDate, formatNumber } = useI18n();
   const router = useRouter();
@@ -26,8 +26,6 @@ export function NotificationBell() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60_000);
-    return () => clearInterval(timer);
   }, [load]);
   useNotificationEvents(load);
 
@@ -48,7 +46,7 @@ export function NotificationBell() {
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="true"
         aria-label={t(`الإشعارات (${unread} غير مقروء)`, `Notifications (${unread} unread)`)}
         className="relative rounded-md border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50">
-        <span aria-hidden="true">🔔</span>
+        <WorkspaceIcon name="bell" width={16} height={16} />
         {unread > 0 && <span className="absolute -end-1 -top-1 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] font-semibold leading-4 text-white">{unread > 99 ? "99+" : formatNumber(unread)}</span>}
       </button>
       {open && (

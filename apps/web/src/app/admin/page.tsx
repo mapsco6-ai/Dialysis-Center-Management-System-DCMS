@@ -5,7 +5,7 @@ import { Card } from "@heroui/react";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
-import { useLiveUpdates, LiveUpdateEntity } from "@/lib/useLiveUpdates";
+import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
 import { WorkQueue } from "@/components/WorkQueue";
 import {
@@ -18,11 +18,6 @@ import {
   SessionCostDashboardSummary,
   WardDashboardSummary,
 } from "@/lib/types";
-
-// Slow safety-net poll - the WebSocket push (useLiveUpdates) is what makes
-// this feel live in practice; this interval just covers a socket that never
-// connected or dropped silently (docs/PROJECT-PHASES-PLAN.md Phase 13).
-const FALLBACK_POLL_MS = 30000;
 
 export default function AdminPage() {
   const { t } = useI18n();
@@ -89,14 +84,12 @@ function LiveCenterWidget({ user }: { user: AuthenticatedUser }) {
   useEffect(() => {
     if (!canView) return;
     refresh();
-    const interval = setInterval(refresh, FALLBACK_POLL_MS);
-    return () => clearInterval(interval);
   }, [canView, refresh]);
 
-  useLiveUpdates(
+  useLiveEvents(
     useCallback(
-      (entity: LiveUpdateEntity) => {
-        if (canView && (entity === "session" || entity === "schedule")) refresh();
+      (event) => {
+        if (canView && (event.entity === "session" || event.entity === "schedule")) refresh();
       },
       [canView, refresh],
     ),
@@ -136,14 +129,12 @@ function MachinesWidget({ user }: { user: AuthenticatedUser }) {
   useEffect(() => {
     if (!canView) return;
     refresh();
-    const interval = setInterval(refresh, FALLBACK_POLL_MS);
-    return () => clearInterval(interval);
   }, [canView, refresh]);
 
-  useLiveUpdates(
+  useLiveEvents(
     useCallback(
-      (entity: LiveUpdateEntity) => {
-        if (canView && entity === "machine") refresh();
+      (event) => {
+        if (canView && event.entity === "machine") refresh();
       },
       [canView, refresh],
     ),
@@ -196,14 +187,12 @@ function WardsWidget({ user }: { user: AuthenticatedUser }) {
   useEffect(() => {
     if (!canView) return;
     refresh();
-    const interval = setInterval(refresh, FALLBACK_POLL_MS);
-    return () => clearInterval(interval);
   }, [canView, refresh]);
 
-  useLiveUpdates(
+  useLiveEvents(
     useCallback(
-      (entity: LiveUpdateEntity) => {
-        if (canView && entity === "machine") refresh();
+      (event) => {
+        if (canView && event.entity === "machine") refresh();
       },
       [canView, refresh],
     ),

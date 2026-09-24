@@ -116,8 +116,12 @@ export default function PatientProfilePage() {
       .then(setPatient)
       .catch((err) => setPatientError(err instanceof Error ? err.message : t("تعذر تحميل ملف المريض", "Unable to load patient record")));
     apiFetch(`/patients/${params.id}/timeline`).then(setTimeline).catch(() => setTimeline([]));
-    apiFetch(`/patients/${params.id}/dialysis-plan`).then(setPlan).catch(() => setPlan([]));
-    apiFetch(`/patients/${params.id}/supply-profile`).then(setSupplyProfile).catch(() => setSupplyProfile([]));
+    if (user?.permissions.includes("scheduling.manage")) {
+      apiFetch(`/patients/${params.id}/dialysis-plan`).then(setPlan).catch(() => setPlan([]));
+    }
+    if (user?.permissions.includes("inventory.view")) {
+      apiFetch(`/patients/${params.id}/supply-profile`).then(setSupplyProfile).catch(() => setSupplyProfile([]));
+    }
   }
 
   useEffect(() => {

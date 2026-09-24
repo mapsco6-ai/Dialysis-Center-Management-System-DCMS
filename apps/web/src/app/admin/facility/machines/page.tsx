@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
 import { Machine, MachineStatus, MachineUsageApprovalRequest, Ward } from "@/lib/types";
@@ -21,10 +22,6 @@ const statusClassName: Record<MachineStatus, string> = {
 };
 
 const GENERIC_STATUSES: MachineStatus[] = ["AVAILABLE", "CLEANING", "WAITING_CLEANING", "MAINTENANCE", "OUT_OF_SERVICE"];
-
-// Live board - polling matches the pattern established on /admin/care/appointments
-// (docs/PROJECT-PHASES-PLAN.md Phase 5 criterion 7: "يعرض حالة كل جهاز بدقة لحظية").
-const POLL_MS = 15000;
 
 function getLabels(t: (arabic: string, english: string) => string) {
   const statusLabel: Record<MachineStatus, string> = {
@@ -73,10 +70,12 @@ export default function MachinesPage() {
   useEffect(() => {
     if (!user) return;
     refresh();
-    const interval = setInterval(refresh, POLL_MS);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  useLiveEvents((event) => {
+    if (event.entity === "machine") refresh();
+  });
 
   async function handleCreateWard(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

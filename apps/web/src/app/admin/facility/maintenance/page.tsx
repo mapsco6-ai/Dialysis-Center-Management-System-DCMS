@@ -24,8 +24,6 @@ const severityClass: Record<MaintenanceSeverity, string> = {
   CRITICAL: "bg-red-100 text-red-700",
 };
 
-const POLL_MS = 15000;
-
 function getLabels(t: (arabic: string, english: string) => string) {
   const TABS = [
     { key: "tickets", label: t("تذاكر الصيانة", "Maintenance tickets") },
@@ -131,8 +129,6 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
 
   useEffect(() => {
     refresh();
-    const interval = setInterval(refresh, POLL_MS);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 

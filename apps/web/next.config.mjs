@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Socket.IO polls `/socket.io/`. Next's trailing-slash redirect turns that
+  // into `/socket.io` before the rewrite, and the API never sees the handshake.
+  skipTrailingSlashRedirect: true,
   // Reaching the API on a different host than the page makes the SameSite=Lax
   // session cookie cross-site, so the browser drops it: login returns 200 and
   // the app still acts signed out. That bites both hosted deployments (web and
@@ -13,8 +16,9 @@ const nextConfig = {
     if (!target) return [];
     return [
       { source: "/api/:path*", destination: `${target}/api/:path*` },
-      // The realtime gateway hangs off the server root, outside /api.
-      { source: "/socket.io/:path*", destination: `${target}/socket.io/:path*` },
+      // Exact path. `:path*` compiles to a slash that disappears when the
+      // segment is empty, so the API receives `/socket.io` and ignores it.
+      { source: "/socket.io", destination: `${target}/socket.io/` },
     ];
   },
   // The admin URLs were regrouped by domain (care / facility / governance /

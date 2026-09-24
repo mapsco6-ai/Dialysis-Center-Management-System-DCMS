@@ -25,7 +25,9 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
+    # Image user `minio` cannot write a fresh named volume (root-owned).
+    user: "0:0"
     restart: unless-stopped
     command: server /data
     environment:
@@ -40,7 +42,7 @@ services:
     volumes:
       - dcms_minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -58,9 +60,9 @@ services:
     environment:
       # Owner connection - used only by Prisma CLI (migrate/seed/harden) at
       # container startup, never by the running server (see prisma.service.ts).
-      DATABASE_URL: "postgresql://dcms:${POSTGRES_PASSWORD:?}@postgres:5432/dcms?schema=public"
+      DATABASE_URL: "postgresql://dcms:${POSTGRES_PASSWORD_ENC:?}@postgres:5432/dcms?schema=public"
       # Restricted connection - what the running server actually uses.
-      APP_DATABASE_URL: "postgresql://dcms_app:${APP_DB_PASSWORD:?}@postgres:5432/dcms?schema=public"
+      APP_DATABASE_URL: "postgresql://dcms_app:${APP_DB_PASSWORD_ENC:?}@postgres:5432/dcms?schema=public"
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required, see .env.example}
       JWT_EXPIRES_IN: "8h"
       PORT: "3001"

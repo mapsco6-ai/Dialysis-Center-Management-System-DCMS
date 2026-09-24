@@ -20,8 +20,6 @@ const getStatusLabels = (t: (arabic: string, english: string) => string): Record
   STOPPED: t("أُوقفت", "Stopped"),
 });
 
-const POLL_MS = 15000;
-
 export default function PharmacyPage() {
   const { t, formatNumber } = useI18n();
   const statusLabel = getStatusLabels(t);
@@ -45,8 +43,6 @@ export default function PharmacyPage() {
     if (!user) return;
     refreshQueue();
     apiFetch("/inventory/items").then(setItems).catch(() => setItems([]));
-    const interval = setInterval(refreshQueue, POLL_MS);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, filter]);
 
@@ -167,7 +163,7 @@ export default function PharmacyPage() {
             {queueLoaded && queue.length === 0 && (
               <tr>
                 <td colSpan={5}>
-                  <EmptyState icon="✓" title={t("لا توجد وصفات في هذه القائمة", "No prescriptions in this list")}
+                  <EmptyState title={t("لا توجد وصفات في هذه القائمة", "No prescriptions in this list")}
                     description={t("جرّب تغيير الفلتر أعلى الجدول — الوصفات الجديدة تظهر تلقائياً.", "Try changing the filter above - new prescriptions appear automatically.")} />
                 </td>
               </tr>

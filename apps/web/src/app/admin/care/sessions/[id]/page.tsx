@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
 import { ErrorNote } from "@/components/ErrorNote";
 import { DialysisEvent, DialysisEventType, DialysisReading, Machine, SessionOverview } from "@/lib/types";
@@ -31,8 +32,6 @@ const getEventTypeLabels = (t: (arabic: string, english: string) => string): Rec
   SESSION_INTERRUPTED: t("توقفت الجلسة", "Session interrupted"),
   OTHER: t("أخرى", "Other"),
 });
-
-const POLL_MS = 15000;
 
 export default function SessionDetailPage() {
   const { t, formatDate, formatNumber } = useI18n();
@@ -69,10 +68,12 @@ export default function SessionDetailPage() {
     if (!user) return;
     refresh();
     apiFetch("/machines?status=AVAILABLE").then(setMachines).catch(() => setMachines([]));
-    const interval = setInterval(refresh, POLL_MS);
-    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, params.id]);
+
+  useLiveEvents((event) => {
+    if (event.entity === "session") refresh();
+  });
 
   async function submit(path: string, body: unknown, onDone?: () => void) {
     setBusy(true);

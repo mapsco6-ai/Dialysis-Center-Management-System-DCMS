@@ -28,11 +28,8 @@ function ensureSocket(): Socket | null {
     listeners.forEach((listener) => listener(payload));
   });
   // A pushed notification is only a nudge: the bell re-fetches its own list.
+  // socket.io reconnects on its own; pages keep the last REST snapshot until the next tag.
   socket.on("notification", () => notificationListeners.forEach((listener) => listener()));
-  socket.on("disconnect", () => {
-    // socket.io reconnects automatically; pages keep working over REST in
-    // the meantime (V1.1 keeps the 15s queue polling as the fallback).
-  });
   return socket;
 }
 

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
+import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -61,11 +62,6 @@ function toLocalDateInputValue(date: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Short-polling status board (docs/PROJECT-PHASES-PLAN.md Phase 3 acceptance
-// criterion: "Real-time أو Polling قصير"). Only polls when viewing today -
-// there's no reason to keep re-fetching a fixed historical/future date.
-const POLL_MS = 15000;
-
 export default function SchedulePage() {
   const { t, formatNumber } = useI18n();
   const scheduleTypeLabel = {
@@ -99,7 +95,7 @@ export default function SchedulePage() {
     if (reschedulingId && shifts.length === 0) apiFetch("/shifts").then(setShifts).catch(() => undefined);
   }, [reschedulingId, shifts.length]);
 
-  const isToday = date === toLocalDateInputValue(new Date());
+  const reloadQuiet = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     if (!user) return;
@@ -114,8 +110,6 @@ export default function SchedulePage() {
         .catch((err) => {
           if (cancelled) return;
           setEntries([]);
-          // Only surface failures on the visible (spinner) load - a transient
-          // background poll failure every 15s would spam toasts otherwise.
           if (showSpinner) {
             toast.error(err instanceof Error ? err.message : t("تعذر تحميل الجدول", "Unable to load the schedule"));
           }
@@ -125,13 +119,16 @@ export default function SchedulePage() {
         });
     }
 
+    reloadQuiet.current = () => load(false);
     load(true);
-    const interval = isToday ? setInterval(() => load(false), POLL_MS) : undefined;
     return () => {
       cancelled = true;
-      if (interval) clearInterval(interval);
     };
-  }, [user, date, isToday, reloadKey]);
+  }, [user, date, reloadKey, t]);
+
+  useLiveEvents((event) => {
+    if (event.entity === "schedule") reloadQuiet.current();
+  });
 
   async function handleAssignMachine(scheduleId: string) {
     setAssigning(scheduleId);
@@ -213,7 +210,7 @@ export default function SchedulePage() {
       {loading && <div className="mt-6"><SkeletonTable rows={4} columns={4} /></div>}
       {!loading && entries.length === 0 && (
         <div className="mt-6 rounded-lg border border-slate-200 bg-white">
-          <EmptyState icon="📅" title={t("لا توجد جلسات مجدولة لهذا اليوم", "No sessions scheduled for this day")}
+          <EmptyState title={t("لا توجد جلسات مجدولة لهذا اليوم", "No sessions scheduled for this day")}
             description={t("اختر تاريخاً آخر، أو أنشئ موعداً من خطة المريض.", "Pick another date, or create an appointment from a patient's plan.")} />
         </div>
       )}
