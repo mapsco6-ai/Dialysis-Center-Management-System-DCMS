@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { EventEmitter2 } from "@nestjs/event-emitter";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { emitNotification } from "../common/notify";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
 
@@ -21,6 +23,7 @@ export class LabOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // Groups every result from this request under one episodeCode so they
@@ -132,6 +135,17 @@ export class LabOrdersService {
         },
       });
 
+      return order;
+    }).then((order) => {
+      const tests = order.items.map((item) => item.labTest.name).join(", ");
+      emitNotification(this.eventEmitter, {
+        permission: "lab.queue.view",
+        excludeUserId: actor.id,
+        type: "LAB_ORDER_REQUESTED",
+        title: `New lab request: ${order.episodeCode}`,
+        body: `${order.patient.fullName} — ${tests}`,
+        link: "/admin/care/lab",
+      });
       return order;
     });
   }

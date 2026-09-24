@@ -20,7 +20,8 @@ const GROUPS: { key: NavGroup; ar: string; en: string }[] = [
   { key: "governance", ar: "الجودة والرقابة", en: "Quality & oversight" },
   { key: "people", ar: "الموظفون", en: "People" },
 ];
-type NavigationItem = { href: string; ar: string; en: string; icon: IconName; permissions?: string[]; group: NavGroup };
+type NavChild = { href: string; ar: string; en: string; permissions?: string[]; exact?: boolean };
+type NavigationItem = { href: string; ar: string; en: string; icon: IconName; permissions?: string[]; group: NavGroup; children?: NavChild[] };
 const navigation: NavigationItem[] = [
   { href: "/admin", ar: "لوحة المركز", en: "Dashboard", icon: "dashboard", group: "overview" },
   { href: "/admin/me/calendar", ar: "تقويمي", en: "My calendar", icon: "calendar", group: "overview" },
@@ -30,7 +31,10 @@ const navigation: NavigationItem[] = [
   { href: "/admin/care/reception", ar: "الاستقبال", en: "Reception", icon: "reception", group: "care", permissions: ["attendance.checkin"] },
   { href: "/admin/care/nursing", ar: "التمريض", en: "Nursing", icon: "nursing", group: "care", permissions: ["nursing.ward.view", "nursing.assign"] },
   { href: "/admin/care/doctor", ar: "الطبيب", en: "Doctor", icon: "doctor", group: "care", permissions: ["prescription.create", "prescription.modify", "medication.administer"] },
-  { href: "/admin/care/lab", ar: "المختبر", en: "Laboratory", icon: "lab", group: "care", permissions: ["lab.queue.view", "lab.result.create", "lab.catalog.manage"] },
+  { href: "/admin/care/lab", ar: "المختبر", en: "Laboratory", icon: "lab", group: "care", permissions: ["lab.queue.view", "lab.result.create", "lab.catalog.manage"], children: [
+    { href: "/admin/care/lab", ar: "طلب التحاليل", en: "Request investigation", permissions: ["lab.queue.view", "lab.result.create"], exact: true },
+    { href: "/admin/care/lab/tests", ar: "إضافة تحليل", en: "Add test", permissions: ["lab.catalog.manage"] },
+  ] },
   { href: "/admin/care/pharmacy", ar: "الصيدلية", en: "Pharmacy", icon: "pharmacy", group: "care", permissions: ["pharmacy.dispense"] },
   { href: "/admin/governance/reports", ar: "التقارير", en: "Reports", icon: "reports", group: "governance", permissions: ["patient.view", "scheduling.manage", "dialysis.session.view", "machine.view", "maintenance.manage", "inventory.view", "pharmacy.dispense", "lab.queue.view"] },
   { href: "/admin/facility/inventory", ar: "المخزون", en: "Inventory", icon: "inventory", group: "facility", permissions: ["inventory.view", "inventory.manage"] },
@@ -49,6 +53,14 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
   const { t, locale, setLocale, theme, setTheme } = useI18n();
   const [search, setSearch] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openNav, setOpenNav] = useState<string | null>(null);
+  useEffect(() => { setOpenNav(sessionStorage.getItem("dcms-open-nav")); }, []);
+  function toggleNav(href: string) {
+    const next = openNav === href ? null : href;
+    setOpenNav(next);
+    if (next) sessionStorage.setItem("dcms-open-nav", next);
+    else sessionStorage.removeItem("dcms-open-nav");
+  }
   const [shortcutHint, setShortcutHint] = useState("Ctrl K");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -88,16 +100,29 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
   // dashboard or a personal calendar - it holds no shifts, tasks or patients.
   const oversightOnly = user.permissions.length === 1 && user.permissions[0] === "oversight.view";
   const NO_PERMISSION_NEEDED_BUT_OPERATIONAL = ["/admin", "/admin/me/calendar"];
-  const allowed = navigation.filter((item) => (!NO_PERMISSION_NEEDED_BUT_OPERATIONAL.includes(item.href) || !oversightOnly) && (!item.permissions || item.permissions.some((p) => user.permissions.includes(p))));
-  const visible = allowed.filter((item) => `${item.ar} ${item.en}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
-  const isActive = (href: string) => href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-  const active = allowed.find((item) => isActive(item.href));
-  // Section the URL points at, even when this user may not open it.
-  const requested = navigation.find((item) => item.href !== "/admin" && isActive(item.href));
-  const forbidden = Boolean(requested && !allowed.includes(requested));
+  const canSee = (permissions?: string[]) => !permissions || permissions.some((p) => user.permissions.includes(p));
+  const q = search.trim().toLocaleLowerCase();
+  const visible = navigation.flatMap((item) => {
+    if (NO_PERMISSION_NEEDED_BUT_OPERATIONAL.includes(item.href) && oversightOnly) return [];
+    if (!item.children?.length) {
+      if (!canSee(item.permissions)) return [];
+      if (q && !`${item.ar} ${item.en}`.toLocaleLowerCase().includes(q)) return [];
+      return [item];
+    }
+    const kids = item.children.filter((child) => canSee(child.permissions));
+    if (!kids.length) return [];
+    const parentMatch = !q || `${item.ar} ${item.en}`.toLocaleLowerCase().includes(q);
+    const shown = kids.filter((child) => parentMatch || `${child.ar} ${child.en}`.toLocaleLowerCase().includes(q));
+    if (!shown.length) return [];
+    return [{ ...item, children: shown }];
+  });
+  const pathMatch = (href: string) => href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const targets = navigation.flatMap((item) => [...(item.children ?? []), item]).sort((a, b) => b.href.length - a.href.length);
+  const section = targets.find((target) => pathMatch(target.href));
+  const forbidden = Boolean(section && section.href !== "/admin" && !canSee(section.permissions));
   const title = pathname.startsWith("/admin/settings") ? t("الإعدادات", "Settings")
     : pathname.startsWith("/admin/care/sessions") ? t("جلسة الديلزة", "Dialysis session")
-    : active ? t(active.ar, active.en) : t("مساحة العمل", "Workspace");
+    : section ? t(section.ar, section.en) : t("مساحة العمل", "Workspace");
   // Browser tab / history / screen-reader title follows the section.
   useEffect(() => {
     document.title = `${title} — DCMS`;
@@ -142,8 +167,22 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
               if (!items.length) return null;
               return <div className="navigation-group" key={group}>
                 <p className="navigation-heading">{t(ar, en)}</p>
-                {items.map((item) => <Link key={item.href} href={item.href} className={`navigation-link ${isActive(item.href) ? "is-active" : ""}`}
-                  aria-current={isActive(item.href) ? "page" : undefined} onClick={() => { setMenuOpen(false); setSearch(""); }}>
+                {items.map((item) => item.children?.length ? (
+                  <div key={item.href}>
+                    <button type="button" className={`navigation-link navigation-parent ${!q && openNav !== item.href && pathMatch(item.href) ? "is-active" : ""}`}
+                      aria-expanded={openNav === item.href || Boolean(q)} onClick={() => toggleNav(item.href)}>
+                      <WorkspaceIcon name={item.icon} /><span>{t(item.ar, item.en)}</span>
+                    </button>
+                    {(openNav === item.href || q) && item.children.map((child) => {
+                      const active = child.exact ? pathname === child.href : pathMatch(child.href);
+                      return <Link key={child.href} href={child.href} className={`navigation-link navigation-sublink ${active ? "is-active" : ""}`}
+                        aria-current={active ? "page" : undefined} onClick={() => { setMenuOpen(false); setSearch(""); }}>
+                        <span>{t(child.ar, child.en)}</span>
+                      </Link>;
+                    })}
+                  </div>
+                ) : <Link key={item.href} href={item.href} className={`navigation-link ${pathMatch(item.href) ? "is-active" : ""}`}
+                  aria-current={pathMatch(item.href) ? "page" : undefined} onClick={() => { setMenuOpen(false); setSearch(""); }}>
                   <WorkspaceIcon name={item.icon} /><span>{t(item.ar, item.en)}</span>
                 </Link>)}
               </div>;

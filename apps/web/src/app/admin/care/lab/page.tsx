@@ -1,35 +1,67 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import Link from "next/link";
 import { Button, Card } from "@heroui/react";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
-import { ErrorNote } from "@/components/ErrorNote";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LabTrendView } from "@/components/LabTrendView";
 import { toast } from "@/components/Toaster";
-import { LabPanel, LabQueueItem, LabTest, LabTrend } from "@/lib/types";
+import { LabQueueItem, LabTrend } from "@/lib/types";
+import { WorkspaceIcon } from "@/components/WorkspaceIcon";
+
+gsap.registerPlugin(useGSAP);
 
 const NEXT_STATUS: Record<string, string | undefined> = {
   ORDERED: "SAMPLE_COLLECTED",
   SAMPLE_COLLECTED: "PROCESSING",
 };
 
+function groupQueueByPatient(items: LabQueueItem[]) {
+  const groups: { patientId: string; patient: { id: string; fullName: string; patientCode: string }; items: LabQueueItem[] }[] = [];
+  const indexByPatient = new Map<string, number>();
+  for (const item of items) {
+    const patient = item.labOrder.patient;
+    if (!patient) continue;
+    const patientId = item.labOrder.patientId;
+    let idx = indexByPatient.get(patientId);
+    if (idx === undefined) {
+      idx = groups.length;
+      indexByPatient.set(patientId, idx);
+      groups.push({ patientId, patient, items: [] });
+    }
+    groups[idx].items.push(item);
+  }
+  return groups;
+}
+
 export default function LabPage() {
-  const { t, formatDate } = useI18n();
+  const { t } = useI18n();
   const user = useCurrentUser();
   const [queue, setQueue] = useState<LabQueueItem[]>([]);
   const [queueLoaded, setQueueLoaded] = useState(false);
-  const [tests, setTests] = useState<LabTest[]>([]);
-  const [panels, setPanels] = useState<LabPanel[]>([]);
   const [busy, setBusy] = useState(false);
   const [resultFormId, setResultFormId] = useState<string | null>(null);
   const [trends, setTrends] = useState<Record<string, LabTrend>>({});
+  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(() => new Set());
+
+  const patientGroups = useMemo(() => groupQueueByPatient(queue), [queue]);
+
+  function togglePatientExpanded(patientId: string) {
+    setExpandedPatients((prev) => {
+      const next = new Set(prev);
+      if (next.has(patientId)) next.delete(patientId);
+      else next.add(patientId);
+      return next;
+    });
+  }
 
   function toggleResultForm(item: LabQueueItem) {
     const opening = resultFormId !== item.id;
@@ -51,8 +83,6 @@ export default function LabPage() {
   useEffect(() => {
     if (!user) return;
     refreshQueue();
-    apiFetch("/lab/tests").then(setTests).catch(() => setTests([]));
-    apiFetch("/lab/panels").then(setPanels).catch(() => setPanels([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -95,60 +125,137 @@ export default function LabPage() {
   }
 
   const canProcess = user.permissions.includes("lab.result.create");
-  const canManageCatalog = user.permissions.includes("lab.catalog.manage");
 
   return (
     <AdminShell user={user}>
-      <h1 className="text-xl font-semibold text-foreground">{t("المختبر — طابور الانتظار", "Laboratory — Work queue")}</h1>
+      <h1 className="text-xl font-semibold text-foreground">{t("طلب التحاليل", "Request investigation")}</h1>
 
       <Card className="mt-4 overflow-hidden border border-border bg-surface shadow-none">
         <Card.Content className="p-0">
+          {!queueLoaded && queue.length === 0 && <SkeletonTable rows={4} columns={5} />}
+          {patientGroups.map((group) => (
+            <PatientQueueGroup
+              key={group.patientId}
+              group={group}
+              open={expandedPatients.has(group.patientId)}
+              onToggle={() => togglePatientExpanded(group.patientId)}
+              canProcess={canProcess}
+              busy={busy}
+              resultFormId={resultFormId}
+              trends={trends}
+              onAdvance={advance}
+              onToggleResult={toggleResultForm}
+              onSubmitResult={submitResult}
+            />
+          ))}
+          {queueLoaded && queue.length === 0 && (
+            <EmptyState title={t("لا توجد طلبات معلّقة", "No pending requests")}
+              description={t("الطابور فارغ — ستظهر الطلبات الجديدة هنا لحظة وصولها.", "The queue is clear - new orders will appear here as they arrive.")} />
+          )}
+        </Card.Content>
+      </Card>
+
+    </AdminShell>
+  );
+}
+
+function PatientQueueGroup({
+  group, open, onToggle, canProcess, busy, resultFormId, trends, onAdvance, onToggleResult, onSubmitResult,
+}: {
+  group: { patientId: string; patient: { id: string; fullName: string; patientCode: string }; items: LabQueueItem[] };
+  open: boolean;
+  onToggle: () => void;
+  canProcess: boolean;
+  busy: boolean;
+  resultFormId: string | null;
+  trends: Record<string, LabTrend>;
+  onAdvance: (itemId: string, status: string) => void;
+  onToggleResult: (item: LabQueueItem) => void;
+  onSubmitResult: (e: FormEvent<HTMLFormElement>, itemId: string) => void;
+}) {
+  const { t, formatDate, formatNumber } = useI18n();
+  const root = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const chevron = useRef<HTMLSpanElement>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  const { contextSafe } = useGSAP(() => {
+    gsap.set(panel.current, { height: 0, autoAlpha: 0, overflow: "hidden" });
+    gsap.set(chevron.current, { rotation: 0 });
+  }, { scope: root });
+
+  const animate = contextSafe(() => {
+    const next = !openRef.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const d = reduce ? 0 : 0.32;
+    if (next) {
+      gsap.to(panel.current, { height: "auto", autoAlpha: 1, duration: d, ease: "power2.out", overwrite: true });
+      gsap.to(chevron.current, { rotation: 180, duration: d, ease: "power2.out", overwrite: true });
+      if (!reduce) {
+        gsap.fromTo(".lab-item", { y: 8, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.04, duration: 0.24, ease: "power2.out", overwrite: true });
+      }
+    } else {
+      gsap.to(panel.current, { height: 0, autoAlpha: 0, duration: reduce ? 0 : 0.22, ease: "power2.in", overwrite: true });
+      gsap.to(chevron.current, { rotation: 0, duration: reduce ? 0 : 0.22, ease: "power2.in", overwrite: true });
+    }
+  });
+
+  const count = group.items.length;
+  return (
+    <div ref={root} className="border-t border-border">
+      <div className="flex items-center gap-2 px-3 py-2">
+        <Button size="sm" variant="ghost" isIconOnly aria-expanded={open}
+          aria-label={open ? t("طي التحاليل", "Collapse investigations") : t("عرض التحاليل", "Show investigations")}
+          className="min-w-0 shrink-0" onPress={() => { animate(); onToggle(); }}>
+          <span ref={chevron} className="inline-flex">
+            <WorkspaceIcon name="chevron" width={16} height={16} />
+          </span>
+        </Button>
+        <Link href={`/admin/care/patients/${group.patientId}`} className="font-medium text-foreground hover:underline">
+          {group.patient.fullName}
+        </Link>
+        <span className="text-xs text-muted">{group.patient.patientCode}</span>
+        <span className="ms-auto text-xs text-muted">
+          {t(`${formatNumber(count)} تحليل معلّق`, `${formatNumber(count)} pending`)}
+        </span>
+      </div>
+      <div ref={panel}>
         <table className="w-full text-start text-sm">
-          <thead className="bg-surface-secondary text-muted">
+          <thead className="text-muted">
             <tr>
-              <th className="px-4 py-2 font-medium">{t("المريض", "Patient")}</th>
-              <th className="px-4 py-2 font-medium">{t("التحليل", "Test")}</th>
-              <th className="px-4 py-2 font-medium">{t("الحالة", "Status")}</th>
-              <th className="px-4 py-2 font-medium">{t("الطبيب الطالب", "Requesting doctor")}</th>
-              <th className="px-4 py-2 font-medium">{t("وقت الطلب", "Requested at")}</th>
-              <th className="px-4 py-2 font-medium"></th>
+              <th className="px-4 py-1 font-medium">{t("الطلب", "Order")}</th>
+              <th className="px-4 py-1 font-medium">{t("التحليل", "Test")}</th>
+              <th className="px-4 py-1 font-medium">{t("الحالة", "Status")}</th>
+              <th className="px-4 py-1 font-medium">{t("الطبيب الطالب", "Requesting doctor")}</th>
+              <th className="px-4 py-1 font-medium">{t("وقت الطلب", "Requested at")}</th>
+              <th className="px-4 py-1 font-medium"></th>
             </tr>
           </thead>
           <tbody>
-            {!queueLoaded && queue.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-0">
-                  <SkeletonTable rows={4} columns={6} />
-                </td>
-              </tr>
-            )}
-            {queue.map((item) => (
-              <tr key={item.id} className="border-t border-border">
-                <td className="px-4 py-2">
-                  <Link href={`/admin/care/patients/${item.labOrder.patientId}`} className="text-foreground hover:underline">
-                    {item.labOrder.patient?.fullName}
-                  </Link>
-                </td>
+            {group.items.map((item) => (
+              <tr key={item.id} className="lab-item border-t border-border">
+                <td className="px-4 py-2 text-xs text-muted">{item.labOrder.episodeCode}</td>
                 <td className="px-4 py-2 text-foreground">{item.labTest.name}</td>
                 <td className="px-4 py-2"><StatusBadge group="labOrderItem" value={item.status} /></td>
                 <td className="px-4 py-2 text-muted">{item.labOrder.orderedByDoctor?.fullName ?? "-"}</td>
                 <td className="px-4 py-2 text-muted">{formatDate(item.labOrder.orderedAt, { dateStyle: "medium", timeStyle: "short" })}</td>
                 <td className="px-4 py-2">
                   <div className="flex flex-wrap items-center gap-2">
-                  {canProcess && NEXT_STATUS[item.status] && (
-                    <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => advance(item.id, NEXT_STATUS[item.status]!)}>
-                      {t("نقل إلى", "Move to")} <StatusBadge group="labOrderItem" value={NEXT_STATUS[item.status]!} />
-                    </Button>
-                  )}
-                  {canProcess && item.status === "PROCESSING" && (
-                    <Button size="sm" variant="primary" onPress={() => toggleResultForm(item)}>
-                      {t("إدخال النتيجة", "Enter result")}
-                    </Button>
-                  )}
+                    {canProcess && NEXT_STATUS[item.status] && (
+                      <Button size="sm" variant="secondary" isDisabled={busy} onPress={() => onAdvance(item.id, NEXT_STATUS[item.status]!)}>
+                        {t("نقل إلى", "Move to")} <StatusBadge group="labOrderItem" value={NEXT_STATUS[item.status]!} />
+                      </Button>
+                    )}
+                    {canProcess && item.status === "PROCESSING" && (
+                      <Button size="sm" variant="primary" onPress={() => onToggleResult(item)}>
+                        {t("إدخال النتيجة", "Enter result")}
+                      </Button>
+                    )}
                   </div>
                   {resultFormId === item.id && (
                     <div className="mt-2 rounded-md bg-surface-secondary p-2">
-                      <form onSubmit={(e) => submitResult(e, item.id)} className="flex flex-wrap items-center gap-2">
+                      <form onSubmit={(e) => onSubmitResult(e, item.id)} className="flex flex-wrap items-center gap-2">
                         <input name="value" required placeholder={`${t("القيمة", "Value")}${item.labTest.unit ? ` (${item.labTest.unit})` : ""}`} className="w-28 rounded-md border border-border px-2 py-1 text-xs" />
                         <label className="flex items-center gap-1 text-xs text-danger">
                           <input type="checkbox" name="flagCritical" /> {t("نتيجة حرجة (تنبيه فوري)", "Critical result (immediate alert)")}
@@ -166,140 +273,10 @@ export default function LabPage() {
                 </td>
               </tr>
             ))}
-            {queueLoaded && queue.length === 0 && (
-              <tr>
-                <td colSpan={6}>
-                  <EmptyState title={t("لا توجد طلبات معلّقة", "No pending requests")}
-                    description={t("الطابور فارغ — ستظهر الطلبات الجديدة هنا لحظة وصولها.", "The queue is clear - new orders will appear here as they arrive.")} />
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
-        </Card.Content>
-      </Card>
-
-      {canManageCatalog && <CatalogManager tests={tests} panels={panels} onChanged={() => {
-        apiFetch("/lab/tests").then(setTests).catch(() => undefined);
-        apiFetch("/lab/panels").then(setPanels).catch(() => undefined);
-      }} />}
-    </AdminShell>
-  );
-}
-
-function CatalogManager({
-  tests,
-  panels,
-  onChanged,
-}: {
-  tests: LabTest[];
-  panels: LabPanel[];
-  onChanged: () => void;
-}) {
-  const { t, formatNumber } = useI18n();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
-
-  async function handleCreateTest(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    setBusy(true);
-    setError(null);
-    try {
-      await apiFetch("/lab/tests", {
-        method: "POST",
-        body: JSON.stringify({
-          code: form.get("code"),
-          name: form.get("name"),
-          unit: form.get("unit") || undefined,
-          referenceRangeLow: form.get("referenceRangeLow") ? Number(form.get("referenceRangeLow")) : undefined,
-          referenceRangeHigh: form.get("referenceRangeHigh") ? Number(form.get("referenceRangeHigh")) : undefined,
-        }),
-      });
-      (e.target as HTMLFormElement).reset();
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("تعذر إضافة التحليل", "Unable to add test"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleCreatePanel(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    if (selectedTestIds.length === 0) {
-      setError(t("اختر تحليلاً واحداً على الأقل للمجموعة", "Select at least one test for the panel"));
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await apiFetch("/lab/panels", {
-        method: "POST",
-        body: JSON.stringify({ name: form.get("name"), labTestIds: selectedTestIds }),
-      });
-      (e.target as HTMLFormElement).reset();
-      setSelectedTestIds([]);
-      onChanged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("تعذر إضافة المجموعة", "Unable to add panel"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function toggleTest(id: string) {
-    setSelectedTestIds((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : [...prev, id]));
-  }
-
-  return (
-    <div className="mt-6 grid gap-4 md:grid-cols-2">
-      <ErrorNote message={error} />
-      <Card className="border border-border bg-surface shadow-none">
-        <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("إضافة تحليل", "Add test")}</Card.Title></Card.Header>
-        <Card.Content>
-        <form onSubmit={handleCreateTest} className="space-y-2">
-          <input name="code" required placeholder={t("الرمز (مثال: HGB)", "Code (e.g. HGB)")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
-          <input name="name" required placeholder={t("الاسم", "Name")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
-          <input name="unit" placeholder={t("الوحدة (اختياري)", "Unit (optional)")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
-          <div className="flex gap-2">
-            <input name="referenceRangeLow" type="number" step="0.01" placeholder={t("الحد الأدنى الطبيعي", "Reference range minimum")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
-            <input name="referenceRangeHigh" type="number" step="0.01" placeholder={t("الحد الأعلى الطبيعي", "Reference range maximum")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
-          </div>
-          <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
-        </form>
-        <ul className="mt-3 space-y-1 text-xs text-muted">
-          {tests.map((entry) => (
-            <li key={entry.id}>{entry.code} — {entry.name} {entry.unit ? `(${entry.unit})` : ""}</li>
-          ))}
-        </ul>
-        </Card.Content>
-      </Card>
-
-      <Card className="border border-border bg-surface shadow-none">
-        <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("إضافة مجموعة تحاليل", "Add test panel")}</Card.Title></Card.Header>
-        <Card.Content>
-        <form onSubmit={handleCreatePanel} className="space-y-2">
-          <input name="name" required placeholder={t("اسم المجموعة", "Panel name")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
-          <div className="max-h-32 overflow-y-auto rounded-md border border-border p-2">
-            {tests.map((entry) => (
-              <label key={entry.id} className="flex items-center gap-2 py-0.5 text-xs">
-                <input type="checkbox" checked={selectedTestIds.includes(entry.id)} onChange={() => toggleTest(entry.id)} />
-                {entry.code} — {entry.name}
-              </label>
-            ))}
-          </div>
-          <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
-        </form>
-        <ul className="mt-3 space-y-1 text-xs text-muted">
-          {panels.map((p) => (
-            <li key={p.id}>{p.name} ({formatNumber(p.tests.length)} {t("تحليل)", "tests)")}</li>
-          ))}
-        </ul>
-        </Card.Content>
-      </Card>
+      </div>
     </div>
   );
 }
+

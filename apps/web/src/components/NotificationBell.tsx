@@ -1,34 +1,50 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useNotificationEvents } from "@/lib/useLiveEvents";
+import { useNotificationEvents, type SocketNotification } from "@/lib/useLiveEvents";
 import { Button } from "@heroui/react";
 import { WorkspaceIcon } from "./WorkspaceIcon";
 
-interface Notification { id: string; type: string; title: string; body: string | null; link: string | null; readAt: string | null; createdAt: string }
+type Notification = SocketNotification;
 
-// Bell in the top bar: unread badge, latest notifications, click to open the
-// related screen. Refreshes when the server pushes a notification.
+// Bell in the top bar. History comes from REST. A socket push inserts the row
+// immediately; a later list response keeps any push the request missed.
 export function NotificationBell() {
   const { t, formatDate, formatNumber } = useI18n();
   const router = useRouter();
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const itemsRef = useRef<Notification[]>([]);
+  const seen = useRef(new Set<string>());
 
   const load = useCallback(() => {
     apiFetch("/notifications?limit=10")
-      .then((r: { data: Notification[]; unread: number }) => { setItems(r.data); setUnread(r.unread); })
+      .then((r: { data: Notification[]; unread: number }) => {
+        const extra = itemsRef.current.filter((p) => !r.data.some((d) => d.id === p.id));
+        const next = [...extra, ...r.data].slice(0, 10);
+        itemsRef.current = next;
+        next.forEach((n) => seen.current.add(n.id));
+        setItems(next);
+        setUnread(r.unread + extra.filter((p) => !p.readAt).length);
+      })
       .catch(() => undefined);
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
-  useNotificationEvents(load);
+  useNotificationEvents((n) => {
+    if (!n?.id || seen.current.has(n.id)) return;
+    seen.current.add(n.id);
+    const next = [n, ...itemsRef.current].slice(0, 10);
+    itemsRef.current = next;
+    setItems(next);
+    if (!n.readAt) setUnread((count) => count + 1);
+  });
 
   async function openItem(n: Notification) {
     setOpen(false);

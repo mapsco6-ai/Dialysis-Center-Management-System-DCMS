@@ -10,8 +10,10 @@
     "check:tokens": "bash scripts/check-design-tokens.sh"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
     "@heroui/react": "^3.2.5",
     "@heroui/styles": "^3.2.5",
+    "gsap": "^3.15.0",
     "next": "^16.3.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

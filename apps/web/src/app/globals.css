@@ -148,6 +148,8 @@ html[lang="ar"] .navigation-heading { letter-spacing: 0; font-size: 10px; }
 .navigation-link:hover svg { color: var(--foreground); }
 .navigation-link.is-active { color: var(--accent-soft-foreground); background: var(--accent-soft); }
 .navigation-link.is-active svg { color: var(--accent); }
+.navigation-parent { width: 100%; text-align: start; background: transparent; cursor: pointer; font: inherit; color: inherit; }
+.navigation-sublink { min-height: 32px; padding-block: 6px; padding-inline-start: 37px; font-weight: 500; }
 .navigation-empty { padding: 16px 8px; color: var(--muted); font-size: 12px; }
 .sidebar-footer { padding: 10px 12px 17px; border-block-start: 1px solid var(--border); }
 .sidebar-theme { margin-block-start: 8px; display: flex; align-items: center; justify-content: space-between; padding-inline: 10px 4px; font-size: 12px; }

@@ -23,7 +23,7 @@ const LABELS: Record<string, [string, string]> = {
 export function WorkQueue() {
   const { t, formatNumber } = useI18n();
   const queue = useApi<{ items: { key: string; count: number; link: string }[] }>("/me/work-queue");
-  useNotificationEvents(queue.refresh);
+  useNotificationEvents(() => queue.refresh());
 
   const items = queue.data?.items ?? [];
   if (items.length === 0) return null;
