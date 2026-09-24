@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Button } from "@heroui/react";
+import { Button, Dropdown, Header, Label } from "@heroui/react";
 import { clearToken, apiFetch, ApiError } from "@/lib/api";
 import { clearCurrentUser } from "@/lib/useCurrentUser";
 import { toast } from "./Toaster";
@@ -226,13 +226,27 @@ export function AdminShell({ user, children }: { user: AuthenticatedUser; childr
             <Button variant="ghost" size="sm" className="language-button" onPress={() => setLocale(locale === "ar" ? "en" : "ar")}
               aria-label={locale === "ar" ? "Switch to English" : "التبديل إلى العربية"}><WorkspaceIcon name="language" width={16} height={16} /><span lang={locale === "ar" ? "en" : "ar"}>{locale === "ar" ? "English" : "العربية"}</span></Button>
             <span className="topbar-divider" />
-            <details className="account-menu">
-              <summary><span className="account-avatar" aria-hidden="true">{initials}</span><bdi className="account-name">{user.fullName}</bdi><WorkspaceIcon name="chevron" width={13} height={13} /></summary>
-              <div className="account-panel"><span className="account-username" dir="auto">{user.username}</span>
-                <Link href="/admin/settings">{t("إعدادات الحساب", "Account settings")}</Link>
-                <Button variant="ghost" size="sm" onPress={logout}><WorkspaceIcon name="logout" />{t("تسجيل الخروج", "Sign out")}</Button>
-              </div>
-            </details>
+            <Dropdown>
+              <Button variant="ghost" size="sm" className="account-trigger">
+                <span className="account-avatar" aria-hidden="true">{initials}</span>
+                <bdi className="account-name">{user.fullName}</bdi>
+                <WorkspaceIcon name="chevron" width={13} height={13} />
+              </Button>
+              <Dropdown.Popover placement="bottom end">
+                <Dropdown.Menu onAction={(key) => { if (key === "settings") router.push("/admin/settings"); if (key === "logout") logout(); }}>
+                  <Dropdown.Section>
+                    <Header><span className="account-username" dir="auto">{user.username}</span></Header>
+                    <Dropdown.Item id="settings" textValue={t("إعدادات الحساب", "Account settings")}>
+                      <Label>{t("إعدادات الحساب", "Account settings")}</Label>
+                    </Dropdown.Item>
+                    <Dropdown.Item id="logout" textValue={t("تسجيل الخروج", "Sign out")}>
+                      <WorkspaceIcon name="logout" width={14} height={14} />
+                      <Label>{t("تسجيل الخروج", "Sign out")}</Label>
+                    </Dropdown.Item>
+                  </Dropdown.Section>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
           </div>
         </header>
         <main id="workspace-main" tabIndex={-1} className={`workspace-content ${pathname === "/admin/settings" ? "settings-content" : ""}`}>
