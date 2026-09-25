@@ -2721,6 +2721,19 @@ paths:
         - Doctor - Prescriptions
       x-required-permissions:
         - patient.view
+  /api/v1/prescriptions/medications:
+    get:
+      operationId: PrescriptionsController_listMedications
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Prescriptions
+      x-required-permissions:
+        - prescription.create
   /api/v1/prescriptions/{id}/administrations:
     post:
       operationId: PrescriptionsController_administer

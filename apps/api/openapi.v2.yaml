@@ -4550,6 +4550,34 @@ paths:
       x-required-permissions:
         - patient.view
       x-v1-equivalent: GET /api/v1/patients/{patientId}/prescriptions
+  /api/v2/prescriptions/medications:
+    get:
+      operationId: PrescriptionsController_listMedicationsV2
+      parameters: []
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data: {}
+                  meta:
+                    type: object
+                    additionalProperties: true
+                    description: >-
+                      Pagination and collection metadata (total, page, limit,
+                      aggregates) when provided by the resource.
+      security:
+        - bearer: []
+      tags:
+        - Doctor - Prescriptions
+      x-required-permissions:
+        - prescription.create
+      x-v1-equivalent: GET /api/v1/prescriptions/medications
   /api/v2/prescriptions/{id}/administrations:
     post:
       operationId: PrescriptionsController_administerV2
