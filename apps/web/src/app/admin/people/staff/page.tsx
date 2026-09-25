@@ -169,7 +169,7 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
       </div>
 
       {member.passwordResetRequestedAt && !tempPassword && (
-        <p role="status" className="mt-3 rounded-md border border-warning bg-surface-secondary px-3 py-2 text-sm">
+        <p role="alert" className="mt-3 rounded-md border border-danger bg-surface-secondary px-3 py-2 text-sm text-danger">
           {t("طلب هذا المستخدم إعادة تعيين كلمة المرور في ", "This user requested a password reset on ")}{formatDate(member.passwordResetRequestedAt)}.{" "}
           {t("اضغط «إعادة تعيين كلمة المرور» للموافقة وسلّمه كلمة المرور المؤقتة.", "Click “Reset password” to approve, then hand them the temporary password.")}
         </p>
@@ -212,7 +212,7 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
               <Link className={secondaryButton} href={`/admin/governance/audit?actorId=${member.id}`}>{t("سجل نشاطه", "Activity log")}</Link>
             </div>
             {tempPassword && (
-              <p className="mt-2 rounded-md border border-warning bg-surface-secondary px-3 py-2 text-sm">
+              <p role="alert" className="mt-2 rounded-md border border-danger bg-surface-secondary px-3 py-2 text-sm text-danger">
                 {t("كلمة المرور المؤقتة (تظهر مرة واحدة): ", "Temporary password (shown once): ")}<bdi className="font-mono font-semibold">{tempPassword}</bdi>
               </p>
             )}
@@ -269,7 +269,7 @@ export default function StaffPage() {
     { key: "isActive", header: t("الحالة", "Status"), render: (m) => (
       <>
         {m.isActive ? t("نشط", "Active") : t("معطّل", "Deactivated")}
-        {m.passwordResetRequestedAt && <><br /><span className="text-xs font-medium text-warning">{t("طلب إعادة تعيين كلمة المرور", "Password reset requested")}</span></>}
+        {m.passwordResetRequestedAt && <><br /><span className="text-xs font-medium text-danger">{t("طلب إعادة تعيين كلمة المرور", "Password reset requested")}</span></>}
       </>
     ) },
     { key: "actions", header: "", render: (m) => (
