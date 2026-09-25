@@ -325,6 +325,20 @@ export class PharmacyService {
       titleAr: `تم الصرف: ${prescription.medicationName}`,
       link: `/admin/care/patients/${prescription.patientId}`,
     });
+    // Next link in the chain: the nurse now gives what was dispensed.
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: prescription.patientId },
+      select: { fullName: true },
+    });
+    emitNotification(this.eventEmitter, {
+      permission: "nursing.ward.view",
+      excludeUserId: actor.id,
+      type: "PRESCRIPTION_READY_TO_ADMINISTER",
+      title: `Ready to administer: ${prescription.medicationName}`,
+      titleAr: `جاهز للإعطاء: ${prescription.medicationName}`,
+      body: patient?.fullName,
+      link: "/admin/care/doctor",
+    });
     return dispensed;
   }
 

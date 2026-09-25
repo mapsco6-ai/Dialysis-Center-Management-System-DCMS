@@ -16,7 +16,10 @@ export class PrescriptionsService {
       where: { patientId },
       include: {
         doctor: { select: { id: true, fullName: true } },
-        administrations: { orderBy: { administeredAt: "desc" } },
+        administrations: {
+          include: { administeredBy: { select: { id: true, fullName: true } } },
+          orderBy: { administeredAt: "desc" },
+        },
         // Phase 10: so the same Medications view shows the full Prescribed
         // -> Dispensed -> Administered picture without a second fetch.
         dispenses: {
@@ -34,6 +37,20 @@ export class PrescriptionsService {
     });
   }
 
+  // What the doctor can prescribe: the pharmacy dispenses only an item whose
+  // name exactly matches medicationName (PharmacyService.dispense), so the
+  // picker offers catalog names instead of free text. Names only - the doctor
+  // has no inventory.view, so no costs or stock levels leak through here.
+  // ponytail: "Medication" category by convention; a real formulary flag when
+  // the catalog grows (docs review DCMS-064).
+  async listMedications() {
+    return this.prisma.inventoryItem.findMany({
+      where: { category: { equals: "Medication", mode: "insensitive" } },
+      select: { id: true, name: true, unit: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
   // Deliberately separate from the doctor-orders write path (docs/
   // MODULES-SPEC.md: "قاعدة Prescription ≠ Administration") - what was
   // ordered and what was actually given are always two independent facts.
@@ -42,13 +59,17 @@ export class PrescriptionsService {
     if (!prescription) {
       throw new NotFoundException("Prescription not found");
     }
-    // DISPENSED is a normal, administrable state - Prescribed -> Dispensed
-    // -> Administered is the whole point of the chain across Phases 8 and
-    // 10 (docs/PROJECT-PHASES-PLAN.md); requiring ACTIVE here made every
-    // dispensed medicine permanently un-administrable (DCMS-063). Only a
-    // STOPPED or MODIFIED (superseded) prescription is genuinely off-limits.
-    if (prescription.status !== "ACTIVE" && prescription.status !== "DISPENSED") {
-      throw new ConflictException(`Cannot administer a prescription that is ${prescription.status}`);
+    // Prescribed -> Dispensed -> Administered is a strict chain (docs/
+    // PROJECT-PHASES-PLAN.md Phases 8 and 10): the nurse gives only what the
+    // pharmacy has actually dispensed, so ACTIVE/DISPENSING are refused too,
+    // not just STOPPED/MODIFIED/REJECTED (DCMS-063 was the opposite bug -
+    // DISPENSED being refused).
+    if (prescription.status !== "DISPENSED") {
+      throw new ConflictException(
+        prescription.status === "ACTIVE" || prescription.status === "DISPENSING"
+          ? "This prescription has not been dispensed by the pharmacy yet"
+          : `Cannot administer a prescription that is ${prescription.status}`,
+      );
     }
     if (dto.sessionId) {
       const session = await this.prisma.dialysisSession.findUnique({ where: { id: dto.sessionId } });

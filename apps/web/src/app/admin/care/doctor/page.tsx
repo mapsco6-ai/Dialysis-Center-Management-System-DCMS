@@ -520,11 +520,15 @@ function MedicationsTab({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [medications, setMedications] = useState<{ id: string; name: string; unit: string }[]>([]);
   const [modifyingId, setModifyingId] = useState<string | null>(null);
   const [administeringId, setAdministeringId] = useState<string | null>(null);
 
-  const current = prescriptions.filter((p) => p.status === "ACTIVE");
-  const history = prescriptions.filter((p) => p.status !== "ACTIVE");
+  // Still in the Prescribed -> Dispensed -> Administered chain; everything
+  // else (stopped, superseded, rejected) is history.
+  const inChain = (p: Prescription) => p.status === "ACTIVE" || p.status === "DISPENSING" || p.status === "DISPENSED";
+  const current = prescriptions.filter(inChain);
+  const history = prescriptions.filter((p) => !inChain(p));
 
   function activeOrderId(p: Prescription) {
     return p.orders?.find((o) => o.status === "ACTIVE")?.id;
@@ -617,14 +621,30 @@ function MedicationsTab({
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-muted">{t("الأدوية الحالية (PRESCRIBED)", "Current prescriptions")}</h2>
           {canOrder && (
-            <button onClick={() => setShowAdd((v) => !v)} className="text-xs font-medium text-muted hover:underline">
+            <button
+              onClick={() => {
+                if (!showAdd) apiFetch("/prescriptions/medications").then(setMedications).catch(() => setMedications([]));
+                setShowAdd((v) => !v);
+              }}
+              className="text-xs font-medium text-muted hover:underline"
+            >
               {t("+ إضافة دواء", "+ Add medication")}
             </button>
           )}
         </div>
         {showAdd && (
           <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-md bg-surface-secondary p-3">
-            <input name="medicationName" required placeholder={t("اسم الدواء", "Medication name")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
+            <FilterSelect
+              name="medicationName"
+              required
+              className="w-full"
+              aria-label={t("اسم الدواء", "Medication name")}
+              placeholder={t("اختر الدواء...", "Select a medication...")}
+              options={medications.map((m) => ({ id: m.name, label: `${m.name} (${m.unit})` }))}
+            />
+            {medications.length === 0 && (
+              <p className="text-xs text-muted">{t("لا توجد أدوية في المخزون (التصنيف: Medication)", "No medications in inventory (category: Medication)")}</p>
+            )}
             <input name="dose" required placeholder={t("الجرعة", "Dose")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
             <input name="frequency" required placeholder={t("التكرار", "Frequency")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
             <input name="duration" placeholder={t("المدة (اختياري)", "Duration (optional)")} className="w-full rounded-md border border-border px-2 py-1 text-xs" />
@@ -638,7 +658,8 @@ function MedicationsTab({
             return (
               <li key={p.id} className="rounded-md border border-border p-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <span>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <StatusBadge group="prescription" value={p.status} />
                     <span className="font-medium text-foreground">{p.medicationName}</span> — {p.dose} / {p.frequency}
                     {p.duration ? ` / ${p.duration}` : ""}
                   </span>
@@ -653,7 +674,7 @@ function MedicationsTab({
                         {t("إيقاف", "Stop")}
                       </button>
                     )}
-                    {canAdminister && (
+                    {canAdminister && p.status === "DISPENSED" && (
                       <button onClick={() => setAdministeringId(administeringId === p.id ? null : p.id)} className="text-xs text-success hover:underline">
                         {t("تسجيل إعطاء", "Record administration")}
                       </button>

@@ -21,6 +21,12 @@ export class PrescriptionsController {
     return this.prescriptionsService.listForPatient(patientId);
   }
 
+  @Get("prescriptions/medications")
+  @RequirePermissions("prescription.create")
+  listMedications() {
+    return this.prescriptionsService.listMedications();
+  }
+
   @Post("prescriptions/:id/administrations")
   @RequirePermissions("medication.administer")
   administer(
