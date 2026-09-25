@@ -10,7 +10,7 @@ import { AdminShell } from "@/components/AdminShell";
 import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { toast } from "@/components/Toaster";
-import { MyCalendar, Task, TaskPriority, TaskStatus } from "@/lib/types";
+import { CalendarAppointment, CalendarItem, MyCalendar, Shift, Task, TaskPriority, TaskStatus } from "@/lib/types";
 
 function toLocalDateInputValue(date: Date) {
   const yyyy = date.getFullYear();
@@ -34,10 +34,33 @@ function addDays(date: Date, days: number) {
 
 const NEXT_TASK_STATUS: Partial<Record<TaskStatus, TaskStatus>> = { OPEN: "IN_PROGRESS", IN_PROGRESS: "DONE" };
 const PRIORITY_TONE: Record<TaskPriority, string> = { URGENT: "tone-urgent", HIGH: "tone-high", NORMAL: "tone-task", LOW: "tone-low" };
+const ITEM_HREF: Record<CalendarItem["kind"], string> = {
+  LAB_DRAW: "/admin/care/lab",
+  LAB_PENDING: "/admin/care/lab",
+  LAB_REVIEW: "/admin/care/doctor",
+  DISPENSE: "/admin/care/pharmacy",
+  MAINTENANCE: "/admin/facility/maintenance",
+  COVERAGE: "/admin/care/nursing",
+};
+
+// Session progress wins over the reception status once a session exists.
+function appointmentTone(a: CalendarAppointment) {
+  if (a.sessionStatus === "IN_DIALYSIS") return "tone-live";
+  if (a.sessionStatus === "INTERRUPTED" || a.status === "EMERGENCY") return "tone-urgent";
+  if (a.sessionStatus || a.status === "ARRIVED") return "tone-arrived";
+  if (a.status === "LATE") return "tone-high";
+  return "tone-appointment";
+}
+const FINISHED = ["POST_DIALYSIS", "COMPLETED", "DISCHARGED", "ABSENT", "CANCELLED", "RESCHEDULED"];
 const VISIBLE_PER_DAY = 3;
+const VISIBLE_PER_SLOT = 4;
+// Entries with no shift (tasks) share one trailing row on the week board.
+const NO_SHIFT = "none";
 
 type CalendarEntry = {
   key: string;
+  day: string;
+  shiftId?: string;
   tone: string;
   label: string;
   time: string;
@@ -45,27 +68,32 @@ type CalendarEntry = {
   href?: string;
   onClick?: () => void;
   done?: boolean;
+  // Shown in place of the time on board chips, where the row already says when.
+  meta?: string;
+  flag?: boolean;
 };
+
+type Slot = { day: string; shift: Shift; ward?: string; patients: number };
 
 export default function MyCalendarPage() {
   const { t, formatDate } = useI18n();
   const user = useCurrentUser();
-  const [view, setView] = useState<"month" | "week">("month");
+  const [view, setView] = useState<"month" | "week">("week");
   const [anchor, setAnchor] = useState(() => new Date());
   const [status, setStatus] = useState<"ALL" | TaskStatus>("ALL");
   const [priority, setPriority] = useState<"ALL" | TaskPriority>("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
-  // A month view shows whole weeks, so the range runs from the Sunday before
-  // the 1st to the Saturday after the last day - entries in the greyed-out
-  // leading and trailing cells are real and must be fetched too.
+  // Always fetch the anchor's whole month grid (Sunday before the 1st to the
+  // Saturday after the last day): the mini calendar needs every day's dots,
+  // and the anchor's week always falls inside that grid.
   const monthStart = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const gridStart = view === "month" ? startOfWeek(monthStart) : startOfWeek(anchor);
-  const dayCount = view === "month" ? 42 : 7;
-  const days = Array.from({ length: dayCount }, (_, i) => addDays(gridStart, i));
-  const from = toLocalDateInputValue(days[0]);
-  const to = toLocalDateInputValue(days[days.length - 1]);
+  const monthDays = Array.from({ length: 42 }, (_, i) => addDays(startOfWeek(monthStart), i));
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(anchor), i));
+  const days = view === "month" ? monthDays : weekDays;
+  const from = toLocalDateInputValue(monthDays[0]);
+  const to = toLocalDateInputValue(monthDays[41]);
   const { data, loading, refresh } = useApi<MyCalendar>(user ? `/me/calendar?from=${from}&to=${to}` : null);
 
   async function advanceTask(task: Task) {
@@ -83,45 +111,115 @@ export default function MyCalendarPage() {
     return <main className="p-8 text-muted">{t("جاري التحميل...", "Loading...")}</main>;
   }
 
-  const todayKey = toLocalDateInputValue(new Date());
+  const shiftLabel: Record<Shift["name"], string> = {
+    SHIFT_1: t("الشفت الأول", "Shift 1"),
+    SHIFT_2: t("الشفت الثاني", "Shift 2"),
+    SHIFT_3: t("الشفت الثالث", "Shift 3"),
+    SHIFT_4: t("الشفت الرابع", "Shift 4"),
+  };
+  const now = new Date();
+  const todayKey = toLocalDateInputValue(now);
+  const dayOf = (iso: string) => toLocalDateInputValue(new Date(iso));
+  const itemLabel: Record<CalendarItem["kind"], string> = {
+    LAB_DRAW: t("سحب عينة", "Sample draw"),
+    LAB_PENDING: t("نتيجة معلقة", "Result pending"),
+    LAB_REVIEW: t("نتائج للمراجعة", "Results to review"),
+    DISPENSE: t("صرف دواء", "Dispense"),
+    MAINTENANCE: t("صيانة", "Maintenance"),
+    COVERAGE: t("تغطية التمريض", "Nurse coverage"),
+  };
   const keepTask = (task: Task) =>
     (status === "ALL" || task.status === status) && (priority === "ALL" || task.priority === priority);
+  const taskEntry = (task: Task) => ({
+    tone: PRIORITY_TONE[task.priority],
+    label: task.title,
+    title: `${task.title}${task.patient ? ` · ${task.patient.fullName}` : ""}`,
+    done: task.status === "DONE" || task.status === "CANCELLED",
+    onClick: NEXT_TASK_STATUS[task.status] ? () => advanceTask(task) : undefined,
+  });
 
-  function entriesFor(day: Date): CalendarEntry[] {
-    const key = toLocalDateInputValue(day);
-    const shifts = (data?.shifts ?? [])
-      .filter((s) => toLocalDateInputValue(new Date(s.date)) === key)
-      .map<CalendarEntry>((s) => ({
-        key: `shift-${s.id}`,
-        tone: "tone-shift",
-        label: s.ward.name,
-        time: s.shift.dialysisStart,
-        title: `${s.ward.name} · ${s.shift.dialysisStart}–${s.shift.dialysisEnd}`,
-      }));
-    const tasks = (data?.tasks ?? [])
-      .filter((task) => task.dueAt && toLocalDateInputValue(new Date(task.dueAt)) === key)
-      .filter(keepTask)
-      .map<CalendarEntry>((task) => ({
-        key: `task-${task.id}`,
-        tone: PRIORITY_TONE[task.priority],
-        label: task.title,
-        time: formatDate(task.dueAt as string, { hour: "2-digit", minute: "2-digit" }),
-        title: `${task.title}${task.patient ? ` · ${task.patient.fullName}` : ""}`,
-        done: task.status === "DONE" || task.status === "CANCELLED",
-        onClick: NEXT_TASK_STATUS[task.status] ? () => advanceTask(task) : undefined,
-      }));
-    const appointments = (data?.appointments ?? [])
-      .filter((a) => toLocalDateInputValue(new Date(a.date)) === key)
-      .map<CalendarEntry>((a, i) => ({
-        key: `appt-${key}-${i}`,
-        tone: "tone-appointment",
-        label: a.patient.fullName,
-        time: a.shift.dialysisStart,
-        title: `${a.patient.fullName} · ${a.patient.patientCode}`,
-        href: `/admin/care/patients/${a.patient.id}`,
-      }));
-    return [...shifts, ...tasks, ...appointments].sort((a, b) => a.time.localeCompare(b.time));
+  const entries: CalendarEntry[] = [
+    ...(data?.shifts ?? []).map((s) => ({
+      key: `shift-${s.id}`,
+      day: dayOf(s.date),
+      shiftId: s.shift.id,
+      tone: "tone-shift",
+      label: s.ward.name,
+      time: s.shift.dialysisStart,
+      title: `${s.ward.name} · ${s.shift.dialysisStart}–${s.shift.dialysisEnd}`,
+    })),
+    ...(data?.tasks ?? []).filter((task) => task.dueAt).filter(keepTask).map((task) => ({
+      ...taskEntry(task),
+      key: `task-${task.id}`,
+      day: dayOf(task.dueAt as string),
+      time: formatDate(task.dueAt as string, { hour: "2-digit", minute: "2-digit" }),
+    })),
+    ...(data?.appointments ?? []).map((a) => ({
+      key: `appt-${a.scheduleId}`,
+      day: dayOf(a.date),
+      shiftId: a.shift.id,
+      tone: appointmentTone(a),
+      label: a.patient.fullName,
+      time: a.shift.dialysisStart,
+      meta: a.machineCode ?? undefined,
+      flag: a.alertCount > 0,
+      title: [
+        `${a.patient.fullName} · ${a.patient.patientCode}`,
+        a.machineCode && `${t("الجهاز", "Machine")} ${a.machineCode}`,
+        a.alertCount > 0 && `${a.alertCount} ${t("تنبيه نشط", "active alerts")}`,
+      ].filter(Boolean).join(" · "),
+      href: `/admin/care/patients/${a.patient.id}`,
+      done: FINISHED.includes(a.sessionStatus ?? a.status),
+    })),
+    ...(data?.items ?? []).map((item) => ({
+      key: `item-${item.id}`,
+      day: dayOf(item.date),
+      shiftId: item.shiftId ?? undefined,
+      tone: item.urgent ? "tone-urgent" : item.kind === "COVERAGE" ? "tone-shift" : "tone-task",
+      label: `${itemLabel[item.kind]} · ${item.patient?.fullName ?? item.detail}`,
+      time: "",
+      title: [itemLabel[item.kind], item.patient?.fullName, item.kind === "COVERAGE" ? `${t("ممرضون/مرضى", "nurses/patients")} ${item.detail}` : item.detail]
+        .filter(Boolean).join(" · "),
+      href: item.kind === "LAB_REVIEW" && item.patient ? `/admin/care/patients/${item.patient.id}` : ITEM_HREF[item.kind],
+    })),
+  ].sort((a, b) => a.time.localeCompare(b.time));
+  const entriesOn = (key: string) => entries.filter((e) => e.day === key);
+
+  // One row per shift the user has anything in, ordered by start time.
+  const shiftRows = [...new Map(
+    [...(data?.shifts ?? []), ...(data?.appointments ?? [])].map((x) => [x.shift.id, x.shift]),
+  ).values()].sort((a, b) => a.dialysisStart.localeCompare(b.dialysisStart));
+
+  // Week board shows working days only; today always stays so "now" is visible.
+  const weekKeys = weekDays.map(toLocalDateInputValue);
+  const boardDays = weekDays.filter((d, i) => weekKeys[i] === todayKey || entriesOn(weekKeys[i]).length > 0);
+  const rowOf = (e: CalendarEntry) => (shiftRows.some((s) => s.id === e.shiftId) ? (e.shiftId as string) : NO_SHIFT);
+  const weekEntries = entries.filter((e) => weekKeys.includes(e.day));
+  const rows = [
+    ...shiftRows.map((s) => ({ id: s.id, label: shiftLabel[s.name], time: `${s.dialysisStart}–${s.dialysisEnd}` })),
+    ...(weekEntries.some((e) => rowOf(e) === NO_SHIFT) ? [{ id: NO_SHIFT, label: t("خلال اليوم", "Anytime"), time: "" }] : []),
+  ];
+
+  // Next up: the first shift slot (own assignment or patient session) that
+  // hasn't ended yet. Only meaningful while the loaded month contains today.
+  const slots = new Map<string, Slot>();
+  for (const s of data?.shifts ?? []) {
+    slots.set(`${dayOf(s.date)}|${s.shift.id}`, { day: dayOf(s.date), shift: s.shift, ward: s.ward.name, patients: 0 });
   }
+  for (const a of data?.appointments ?? []) {
+    const key = `${dayOf(a.date)}|${a.shift.id}`;
+    const slot = slots.get(key) ?? { day: dayOf(a.date), shift: a.shift, patients: 0 };
+    slot.patients += 1;
+    slots.set(key, slot);
+  }
+  const nextSlot = from <= todayKey && todayKey <= to
+    ? [...slots.values()]
+        .filter((s) => new Date(`${s.day}T${s.shift.dialysisEnd}`) > now)
+        .sort((a, b) => `${a.day}${a.shift.dialysisStart}`.localeCompare(`${b.day}${b.shift.dialysisStart}`))[0]
+    : undefined;
+  const todayEntries = entriesOn(todayKey);
+  const todayPatients = todayEntries.filter((e) => e.key.startsWith("appt-")).length;
+  const todayTodo = todayEntries.filter((e) => (e.key.startsWith("task-") || e.key.startsWith("item-")) && !e.done).length;
 
   const undated = (data?.tasks ?? []).filter((task) => !task.dueAt).filter(keepTask);
   const periodLabel = view === "month"
@@ -132,6 +230,11 @@ export default function MyCalendarPage() {
     setAnchor((prev) => (view === "month"
       ? new Date(prev.getFullYear(), prev.getMonth() + direction, 1)
       : addDays(prev, 7 * direction)));
+  }
+
+  function openWeek(day: Date) {
+    setAnchor(day);
+    setView("week");
   }
 
   return (
@@ -178,8 +281,8 @@ export default function MyCalendarPage() {
             value={view}
             onChange={(id) => setView(id as "month" | "week")}
             options={[
-              { id: "month", label: t("عرض شهري", "Month view") },
               { id: "week", label: t("عرض أسبوعي", "Week view") },
+              { id: "month", label: t("عرض شهري", "Month view") },
             ]}
           />
           <FilterSelect
@@ -212,53 +315,172 @@ export default function MyCalendarPage() {
 
       {loading && <p className="mt-4 text-sm text-muted">{t("جاري التحميل...", "Loading...")}</p>}
 
-      <div className="cal-sheet">
-        <div className="cal-grid">
-          {days.slice(0, 7).map((day) => (
-            <div key={`head-${day.getDay()}`} className="cal-head">{formatDate(day, { weekday: "short" })}</div>
-          ))}
-          {days.map((day) => {
-            const key = toLocalDateInputValue(day);
-            const entries = entriesFor(day);
-            const isOpen = expanded === key;
-            const shown = isOpen ? entries : entries.slice(0, VISIBLE_PER_DAY);
-            const outside = view === "month" && day.getMonth() !== anchor.getMonth();
-            return (
-              <div key={key} className={`cal-cell${outside ? " is-outside" : ""}`}>
-                <span className={`cal-daynum${key === todayKey ? " is-today" : ""}`}>{day.getDate()}</span>
-                {shown.map((entry) => <CalendarEvent key={entry.key} entry={entry} />)}
-                {entries.length > VISIBLE_PER_DAY && (
-                  <button className="cal-more" onClick={() => setExpanded(isOpen ? null : key)}>
-                    {isOpen ? t("عرض أقل", "Show less") : `+${entries.length - VISIBLE_PER_DAY} ${t("أخرى", "more")}`}
+      <div className="cal-layout">
+        <aside className="cal-rail">
+          {nextSlot && (
+            <section className="cal-card cal-next">
+              <p className="cal-next-when">
+                {new Date(`${nextSlot.day}T${nextSlot.shift.dialysisStart}`) <= now
+                  ? t("جارية الآن", "Happening now")
+                  : nextSlot.day === todayKey
+                    ? t("التالي اليوم", "Next today")
+                    : `${t("التالي", "Next")} · ${formatDate(`${nextSlot.day}T00:00`, { weekday: "long", day: "numeric", month: "short" })}`}
+              </p>
+              <p className="cal-next-title">{shiftLabel[nextSlot.shift.name]}</p>
+              <p className="cal-next-meta">
+                {nextSlot.ward ? `${nextSlot.ward} · ` : ""}{nextSlot.shift.dialysisStart}–{nextSlot.shift.dialysisEnd}
+              </p>
+              {nextSlot.patients > 0 && (
+                <p className="cal-next-meta">{nextSlot.patients} {t("مرضى", "patients")}</p>
+              )}
+            </section>
+          )}
+
+          <section className="cal-card">
+            <p className="cal-card-title">{formatDate(monthStart, { month: "long", year: "numeric" })}</p>
+            <div className="cal-mini">
+              {weekDays.map((day) => (
+                <span key={`mini-head-${day.getDay()}`} className="cal-mini-head">{formatDate(day, { weekday: "narrow" })}</span>
+              ))}
+              {monthDays.map((day) => {
+                const key = toLocalDateInputValue(day);
+                const classes = [
+                  "cal-mini-day",
+                  day.getMonth() !== anchor.getMonth() && "is-outside",
+                  key === todayKey && "is-today",
+                  view === "week" && weekKeys.includes(key) && "is-selected",
+                  entriesOn(key).length > 0 && "has-entries",
+                ].filter(Boolean).join(" ");
+                return (
+                  <button key={key} type="button" className={classes} onClick={() => openWeek(day)}>
+                    {day.getDate()}
                   </button>
-                )}
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="cal-card">
+            <p className="cal-card-title">{t("اليوم", "Today")}</p>
+            <div className="cal-stats">
+              <div><b>{todayPatients}</b><span>{t("مرضى", "Patients")}</span></div>
+              <div><b>{todayTodo}</b><span>{t("مهام وأعمال", "To do")}</span></div>
+            </div>
+          </section>
+
+          <section className="cal-card cal-legend">
+            <span className="cal-chip tone-appointment">{t("جلسة مجدولة", "Scheduled session")}</span>
+            <span className="cal-chip tone-arrived">{t("وصل المريض", "Patient arrived")}</span>
+            <span className="cal-chip tone-live">{t("على الجهاز", "On machine")}</span>
+            <span className="cal-chip tone-high">{t("متأخر", "Late")}</span>
+            <span className="cal-chip tone-shift">{t("مناوبتي", "My shift")}</span>
+            <span className="cal-chip tone-urgent">{t("عاجل", "Urgent")}</span>
+            <span className="cal-chip tone-task">{t("مهمة / عمل", "Task / work")}</span>
+            <span className="cal-chip tone-appointment has-flag">{t("تنبيه سريري نشط", "Active clinical alert")}</span>
+            <span className="cal-chip tone-appointment is-done"><span className="cal-event-label">{t("منجز / غائب", "Done / absent")}</span></span>
+          </section>
+        </aside>
+
+        <div className="min-w-0">
+          {view === "week" ? (
+            rows.length === 0 ? (
+              <div className="cal-sheet cal-empty">{t("لا توجد مناوبات أو مواعيد أو مهام هذا الأسبوع.", "No shifts, sessions, or tasks this week.")}</div>
+            ) : (
+              <div
+                className="cal-sheet cal-board"
+                style={{
+                  gridTemplateColumns: `auto repeat(${boardDays.length}, minmax(0, 1fr))`,
+                  gridTemplateRows: `auto repeat(${rows.length}, auto)`,
+                }}
+              >
+                <div className="cal-daycol cal-board-labels" aria-hidden="true">
+                  <div className="cal-head" />
+                  {rows.map((row) => (
+                    <div key={row.id} className="cal-rowlabel">
+                      {row.label}
+                      {row.time && <small>{row.time}</small>}
+                    </div>
+                  ))}
+                </div>
+                {boardDays.map((day) => {
+                  const key = toLocalDateInputValue(day);
+                  const dayEntries = entriesOn(key);
+                  return (
+                    <div key={key} className={`cal-daycol${key === todayKey ? " is-today" : ""}`}>
+                      <div className="cal-head">
+                        {formatDate(day, { weekday: "short" })}
+                        <span className={`cal-daynum${key === todayKey ? " is-today" : ""}`}>{day.getDate()}</span>
+                      </div>
+                      {rows.map((row) => {
+                        const slotKey = `${key}|${row.id}`;
+                        const inSlot = dayEntries.filter((e) => rowOf(e) === row.id);
+                        const isOpen = expanded === slotKey;
+                        return (
+                          <div key={row.id} className="cal-slot">
+                            {inSlot.length > 0 && <span className="cal-slot-label">{row.label} {row.time}</span>}
+                            {(isOpen ? inSlot : inSlot.slice(0, VISIBLE_PER_SLOT)).map((entry) => (
+                              <CalendarEvent key={entry.key} entry={entry} chip />
+                            ))}
+                            {inSlot.length > VISIBLE_PER_SLOT && (
+                              <button className="cal-more" onClick={() => setExpanded(isOpen ? null : slotKey)}>
+                                {isOpen ? t("عرض أقل", "Show less") : `+${inSlot.length - VISIBLE_PER_SLOT} ${t("أخرى", "more")}`}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            )
+          ) : (
+            <div className="cal-sheet">
+              <div className="cal-grid">
+                {days.slice(0, 7).map((day) => (
+                  <div key={`head-${day.getDay()}`} className="cal-head">{formatDate(day, { weekday: "short" })}</div>
+                ))}
+                {days.map((day) => {
+                  const key = toLocalDateInputValue(day);
+                  const dayEntries = entriesOn(key);
+                  const isOpen = expanded === key;
+                  const shown = isOpen ? dayEntries : dayEntries.slice(0, VISIBLE_PER_DAY);
+                  const outside = day.getMonth() !== anchor.getMonth();
+                  return (
+                    <div key={key} className={`cal-cell${outside ? " is-outside" : ""}`}>
+                      <button
+                        type="button"
+                        className={`cal-daynum${key === todayKey ? " is-today" : ""}`}
+                        onClick={() => openWeek(day)}
+                        aria-label={formatDate(day, { dateStyle: "full" })}
+                      >
+                        {day.getDate()}
+                      </button>
+                      {shown.map((entry) => <CalendarEvent key={entry.key} entry={entry} />)}
+                      {dayEntries.length > VISIBLE_PER_DAY && (
+                        <button className="cal-more" onClick={() => setExpanded(isOpen ? null : key)}>
+                          {isOpen ? t("عرض أقل", "Show less") : `+${dayEntries.length - VISIBLE_PER_DAY} ${t("أخرى", "more")}`}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {undated.length > 0 && (
+            <section className="mt-5 rounded-lg border border-border bg-surface p-4">
+              <h2>{t("مهام بدون موعد محدد", "Tasks with no due date")}</h2>
+              <div className="mt-3 grid gap-1">
+                {undated.map((task) => (
+                  <CalendarEvent key={task.id} entry={{ ...taskEntry(task), key: task.id, day: "", time: "" }} />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
-
-      {undated.length > 0 && (
-        <section className="mt-5 rounded-lg border border-border bg-surface p-4">
-          <h2>{t("مهام بدون موعد محدد", "Tasks with no due date")}</h2>
-          <div className="mt-3 grid gap-1">
-            {undated.map((task) => (
-              <CalendarEvent
-                key={task.id}
-                entry={{
-                  key: task.id,
-                  tone: PRIORITY_TONE[task.priority],
-                  label: task.title,
-                  time: "",
-                  title: task.title,
-                  done: task.status === "DONE" || task.status === "CANCELLED",
-                  onClick: NEXT_TASK_STATUS[task.status] ? () => advanceTask(task) : undefined,
-                }}
-              />
-            ))}
-          </div>
-        </section>
-      )}
     </AdminShell>
   );
 }
@@ -271,12 +493,13 @@ function Arrow({ dir }: { dir: "start" | "end" }) {
   );
 }
 
-function CalendarEvent({ entry }: { entry: CalendarEntry }) {
-  const className = `cal-event ${entry.tone}${entry.done ? " is-done" : ""}`;
+function CalendarEvent({ entry, chip }: { entry: CalendarEntry; chip?: boolean }) {
+  const className = `cal-event${chip ? " cal-chip" : ""} ${entry.tone}${entry.done ? " is-done" : ""}${entry.flag ? " has-flag" : ""}`;
+  const aside = chip && entry.meta ? entry.meta : entry.time;
   const body = (
     <>
       <span className="cal-event-label">{entry.label}</span>
-      {entry.time && <span className="cal-event-time">{entry.time}</span>}
+      {aside && <span className="cal-event-time">{aside}</span>}
     </>
   );
   if (entry.href) {

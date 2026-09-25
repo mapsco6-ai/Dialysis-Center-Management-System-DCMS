@@ -611,10 +611,24 @@ export interface CalendarShift {
 }
 
 export interface CalendarAppointment {
+  scheduleId: string;
   date: string;
   patient: { id: string; fullName: string; patientCode: string };
   shift: Shift;
-  status?: ScheduleStatus;
+  status: ScheduleStatus;
+  sessionStatus: DialysisSessionStatus | null;
+  machineCode: string | null;
+  alertCount: number;
+}
+
+export interface CalendarItem {
+  id: string;
+  kind: "LAB_DRAW" | "LAB_PENDING" | "LAB_REVIEW" | "DISPENSE" | "MAINTENANCE" | "COVERAGE";
+  date: string;
+  shiftId: string | null;
+  detail: string;
+  patient: { id: string; fullName: string; patientCode: string } | null;
+  urgent: boolean;
 }
 
 export interface MyCalendar {
@@ -623,6 +637,7 @@ export interface MyCalendar {
   shifts: CalendarShift[];
   tasks: Task[];
   appointments: CalendarAppointment[];
+  items: CalendarItem[];
 }
 
 export interface MaintenanceTicketStatusHistoryEntry {
