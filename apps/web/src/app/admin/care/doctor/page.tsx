@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
 import { LabTrendView } from "@/components/LabTrendView";
@@ -313,11 +314,17 @@ function OverviewTab({
               </button>
             ) : (
               <form onSubmit={handleAlert} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
-                <select name="severity" className="rounded-md border border-border px-2 py-1 text-xs">
-                  <option value="CRITICAL">{clinicalLabels.CRITICAL}</option>
-                  <option value="IMPORTANT">{clinicalLabels.IMPORTANT}</option>
-                  <option value="INFORMATION">{clinicalLabels.INFORMATION}</option>
-                </select>
+                <FilterSelect
+                  name="severity"
+                  defaultValue="CRITICAL"
+                  className="min-w-[10rem]"
+                  aria-label={t("الخطورة", "Severity")}
+                  options={[
+                    { id: "CRITICAL", label: clinicalLabels.CRITICAL },
+                    { id: "IMPORTANT", label: clinicalLabels.IMPORTANT },
+                    { id: "INFORMATION", label: clinicalLabels.INFORMATION },
+                  ]}
+                />
                 <input name="category" required placeholder={t("التصنيف", "Category")} className="w-28 rounded-md border border-border px-2 py-1 text-xs" />
                 <input name="message" required placeholder={t("الرسالة", "Message")} className="w-48 rounded-md border border-border px-2 py-1 text-xs" />
                 <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
@@ -431,12 +438,17 @@ function LabsTab({
               </label>
             </div>
             {mode === "panel" ? (
-              <select name="labPanelId" required className="w-full rounded-md border border-border px-2 py-1 text-xs">
-                <option value="">{t("اختر المجموعة...", "Select a panel...")}</option>
-                {labPanels.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} ({formatNumber(p.tests.length)} {t("تحليل)", "tests)")}</option>
-                ))}
-              </select>
+              <FilterSelect
+                name="labPanelId"
+                required
+                className="w-full"
+                aria-label={t("مجموعة التحاليل", "Test panel")}
+                placeholder={t("اختر المجموعة...", "Select a panel...")}
+                options={labPanels.map((p) => ({
+                  id: p.id,
+                  label: `${p.name} (${formatNumber(p.tests.length)} ${t("تحليل)", "tests)")}`,
+                }))}
+              />
             ) : (
               <div className="max-h-32 overflow-y-auto rounded-md border border-border p-2">
                 {labTests.map((entry) => (
@@ -475,12 +487,14 @@ function LabsTab({
 
       <section className="rounded-lg border border-border bg-surface p-4">
         <h2 className="mb-2 text-sm font-semibold text-muted">{t("اتجاه القيمة عبر الزمن (Trend)", "Result trend over time")}</h2>
-        <select value={trendTestId} onChange={(e) => loadTrend(e.target.value)} className="rounded-md border border-border px-2 py-1 text-xs">
-          <option value="">{t("اختر تحليلاً...", "Select a test...")}</option>
-          {labTests.map((entry) => (
-            <option key={entry.id} value={entry.id}>{entry.name}</option>
-          ))}
-        </select>
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("التحليل", "Test")}
+          value={trendTestId}
+          onChange={loadTrend}
+          placeholder={t("اختر تحليلاً...", "Select a test...")}
+          options={labTests.map((entry) => ({ id: entry.id, label: entry.name }))}
+        />
         {trend && <LabTrendView trend={trend} testName={labTests.find((tst) => tst.id === trendTestId)?.name ?? ""} />}
       </section>
     </div>
@@ -769,11 +783,13 @@ function OrdersTab({
       </div>
       {showAdd && (
         <form onSubmit={handleAdd} className="mt-2 space-y-2 rounded-md bg-surface-secondary p-3">
-          <select value={orderType} onChange={(e) => setOrderType(e.target.value as DoctorOrderType)} className="w-full rounded-md border border-border px-2 py-1 text-xs">
-            {nonMedicationTypes.map((entry) => (
-              <option key={entry} value={entry}>{orderTypeLabel[entry]}</option>
-            ))}
-          </select>
+          <FilterSelect
+            className="w-full"
+            aria-label={t("نوع الأمر", "Order type")}
+            value={orderType}
+            onChange={(id) => setOrderType(id as DoctorOrderType)}
+            options={nonMedicationTypes.map((entry) => ({ id: entry, label: orderTypeLabel[entry] }))}
+          />
           <textarea name="detail" required placeholder={t("التفاصيل", "Details")} className="w-full rounded-md border border-border px-2 py-1 text-xs" rows={2} />
           <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-accent-foreground disabled:opacity-50">{t("حفظ", "Save")}</button>
         </form>

@@ -2,6 +2,7 @@
 
 import { Description, Label, Switch, Tabs } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useI18n } from "@/lib/i18n";
 import { FormEvent, useEffect, useState } from "react";
@@ -28,7 +29,17 @@ function LanguageSettings() {
   return <>
     <SettingsSection title={t("لغة النظام", "System language")} description={t("اختر اللغة المستخدمة في القوائم والنماذج والتقارير المعروضة.", "Choose the language for navigation, forms and on-screen reports.")}>
       <div className="preference-row"><div><label htmlFor="interface-language" className="preference-label">{t("لغة الواجهة", "Interface language")}</label><p className="preference-description">{t("تُطبّق مباشرة على جميع أقسام النظام.", "Applies immediately across your workspace.")}</p></div>
-        <select id="interface-language" value={locale} onChange={(event) => setLocale(event.target.value === "en" ? "en" : "ar")} className="preference-select"><option value="ar" lang="ar">العربية</option><option value="en" lang="en">English</option></select>
+        <FilterSelect
+          id="interface-language"
+          className="preference-select"
+          aria-label={t("لغة الواجهة", "Interface language")}
+          value={locale}
+          onChange={(value) => setLocale(value === "en" ? "en" : "ar")}
+          options={[
+            { id: "ar", label: "العربية" },
+            { id: "en", label: "English" },
+          ]}
+        />
       </div>
       <div className="preference-row"><div><span className="preference-label">{t("اتجاه العرض", "Layout direction")}</span><p className="preference-description">{t("يتبع اللغة المختارة تلقائياً.", "Automatically follows your selected language.")}</p></div><span className="preference-value">{t("من اليمين إلى اليسار", "Left to right")}</span></div>
     </SettingsSection>

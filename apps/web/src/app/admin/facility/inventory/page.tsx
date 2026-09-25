@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -267,6 +268,7 @@ function BatchesTab({
   const [batches, setBatches] = useState<InventoryBatch[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [receiveFormKey, setReceiveFormKey] = useState(0);
 
   function refreshBatches(itemId: string) {
     if (!itemId) {
@@ -293,6 +295,7 @@ function BatchesTab({
         }),
       });
       (e.target as HTMLFormElement).reset();
+      setReceiveFormKey((k) => k + 1);
       refreshBatches(selectedItemId);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("تعذر استلام الدفعة", "Unable to receive the batch"));
@@ -305,19 +308,17 @@ function BatchesTab({
     <div>
       <div className="flex items-center gap-2">
         <label className="text-sm text-muted">{t("المادة:", "Item:")}</label>
-        <select
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("المادة", "Item")}
           value={selectedItemId}
-          onChange={(e) => {
-            setSelectedItemId(e.target.value);
-            refreshBatches(e.target.value);
+          onChange={(itemId) => {
+            setSelectedItemId(itemId);
+            refreshBatches(itemId);
           }}
-          className="rounded-md border border-border px-3 py-1.5 text-sm"
-        >
-          <option value="">{t("اختر مادة تتطلب دفعات...", "Select an item with batch tracking...")}</option>
-          {batchItems.map((i) => (
-            <option key={i.id} value={i.id}>{i.name}</option>
-          ))}
-        </select>
+          placeholder={t("اختر مادة تتطلب دفعات...", "Select an item with batch tracking...")}
+          options={batchItems.map((i) => ({ id: i.id, label: i.name }))}
+        />
       </div>
 
       <ErrorNote message={error} className="mt-3" />
@@ -325,13 +326,15 @@ function BatchesTab({
       {selectedItemId && (
         <>
           {user.permissions.includes("inventory.batch.manage") && (
-            <form onSubmit={handleReceive} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-4">
-              <select name="locationId" required className="rounded-md border border-border px-2 py-1.5 text-sm">
-                <option value="">{t("الموقع...", "Location...")}</option>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>{locationLabel[l.type]}</option>
-                ))}
-              </select>
+            <form key={receiveFormKey} onSubmit={handleReceive} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-4">
+              <FilterSelect
+                name="locationId"
+                required
+                className="min-w-[10rem]"
+                aria-label={t("الموقع", "Location")}
+                placeholder={t("الموقع...", "Location...")}
+                options={locations.map((l) => ({ id: l.id, label: locationLabel[l.type] }))}
+              />
               <input name="batchNumber" required placeholder={t("رقم الدفعة", "Batch number")} className="w-32 rounded-md border border-border px-2 py-1.5 text-sm" />
               <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-border px-2 py-1.5 text-sm" />
               <input name="expiryDate" type="date" required className="rounded-md border border-border px-2 py-1.5 text-sm" />
@@ -397,6 +400,7 @@ function TransfersTab({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestFormKey, setRequestFormKey] = useState(0);
 
   function refresh() {
     const params = statusFilter ? `?status=${statusFilter}` : "";
@@ -425,6 +429,7 @@ function TransfersTab({
         }),
       });
       (e.target as HTMLFormElement).reset();
+      setRequestFormKey((k) => k + 1);
       setShowRequestForm(false);
       refresh();
       onChanged();
@@ -468,12 +473,16 @@ function TransfersTab({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StockTransferStatus | "")} className="rounded-md border border-border px-3 py-1.5 text-sm">
-          <option value="">{t("كل الحالات", "All statuses")}</option>
-          {Object.entries(transferStatusLabel).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("فلتر الحالة", "Status filter")}
+          value={statusFilter}
+          onChange={(id) => setStatusFilter(id as StockTransferStatus | "")}
+          options={[
+            { id: "", label: t("كل الحالات", "All statuses") },
+            ...Object.entries(transferStatusLabel).map(([id, label]) => ({ id, label })),
+          ]}
+        />
         {user.permissions.includes("inventory.transfer.request") && (
           <Button size="sm" variant="primary" onPress={() => setShowRequestForm((v) => !v)}>
             {t("+ طلب تحويل", "+ Request transfer")}
@@ -484,25 +493,31 @@ function TransfersTab({
       <ErrorNote message={error} className="mt-3" />
 
       {showRequestForm && (
-        <form onSubmit={handleRequest} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-4">
-          <select name="itemId" required className="rounded-md border border-border px-2 py-1.5 text-sm">
-            <option value="">{t("المادة...", "Item...")}</option>
-            {items.map((i) => (
-              <option key={i.id} value={i.id}>{i.name}</option>
-            ))}
-          </select>
-          <select name="fromLocationId" required className="rounded-md border border-border px-2 py-1.5 text-sm">
-            <option value="">{t("من موقع...", "From location...")}</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{locationLabel[l.type]}</option>
-            ))}
-          </select>
-          <select name="toLocationId" required className="rounded-md border border-border px-2 py-1.5 text-sm">
-            <option value="">{t("إلى موقع...", "To location...")}</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>{locationLabel[l.type]}</option>
-            ))}
-          </select>
+        <form key={requestFormKey} onSubmit={handleRequest} className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface p-4">
+          <FilterSelect
+            name="itemId"
+            required
+            className="min-w-[10rem]"
+            aria-label={t("المادة", "Item")}
+            placeholder={t("المادة...", "Item...")}
+            options={items.map((i) => ({ id: i.id, label: i.name }))}
+          />
+          <FilterSelect
+            name="fromLocationId"
+            required
+            className="min-w-[10rem]"
+            aria-label={t("من موقع", "From location")}
+            placeholder={t("من موقع...", "From location...")}
+            options={locations.map((l) => ({ id: l.id, label: locationLabel[l.type] }))}
+          />
+          <FilterSelect
+            name="toLocationId"
+            required
+            className="min-w-[10rem]"
+            aria-label={t("إلى موقع", "To location")}
+            placeholder={t("إلى موقع...", "To location...")}
+            options={locations.map((l) => ({ id: l.id, label: locationLabel[l.type] }))}
+          />
           <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-border px-2 py-1.5 text-sm" />
           <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-40 rounded-md border border-border px-2 py-1.5 text-sm" />
           <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground disabled:opacity-50">

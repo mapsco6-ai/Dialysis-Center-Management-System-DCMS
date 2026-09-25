@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
@@ -85,12 +86,18 @@ export default function PharmacyPage() {
     <AdminShell user={user}>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-foreground">{t("الصيدلية — طابور الوصفات", "Pharmacy — Prescription queue")}</h1>
-        <select value={filter} onChange={(e) => setFilter(e.target.value as PrescriptionStatus | "")} className="rounded-md border border-border px-3 py-1.5 text-sm" aria-label={t("فلتر الحالة", "Status filter")}>
-          <option value="">{t("الحالية (بانتظار/قيد الصرف)", "Current (awaiting / dispensing)")}</option>
-          <option value="DISPENSED">{t("تم الصرف", "Dispensed")}</option>
-          <option value="STOPPED">{t("أُوقفت", "Stopped")}</option>
-          <option value="MODIFIED">{t("عُدِّلت", "Modified")}</option>
-        </select>
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("فلتر الحالة", "Status filter")}
+          value={filter}
+          onChange={(id) => setFilter(id as PrescriptionStatus | "")}
+          options={[
+            { id: "", label: t("الحالية (بانتظار/قيد الصرف)", "Current (awaiting / dispensing)") },
+            { id: "DISPENSED", label: t("تم الصرف", "Dispensed") },
+            { id: "STOPPED", label: t("أُوقفت", "Stopped") },
+            { id: "MODIFIED", label: t("عُدِّلت", "Modified") },
+          ]}
+        />
       </div>
 
       <Card className="mt-4 overflow-hidden border border-border bg-surface shadow-none">
@@ -138,12 +145,14 @@ export default function PharmacyPage() {
                   </div>
                   {dispenseFormId === p.id && (
                     <form onSubmit={(e) => submitDispense(e, p.id)} className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
-                      <select name="itemId" required className="rounded-md border border-border px-2 py-1 text-xs" aria-label={t("المادة", "Item")}>
-                        <option value="">{t("اختر المادة...", "Select an item...")}</option>
-                        {items.map((i) => (
-                          <option key={i.id} value={i.id}>{i.name}</option>
-                        ))}
-                      </select>
+                      <FilterSelect
+                        name="itemId"
+                        required
+                        className="min-w-[10rem]"
+                        aria-label={t("المادة", "Item")}
+                        placeholder={t("اختر المادة...", "Select an item...")}
+                        options={items.map((i) => ({ id: i.id, label: i.name }))}
+                      />
                       <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-20 rounded-md border border-border px-2 py-1 text-xs" />
                       <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("تأكيد الصرف", "Confirm dispensing")}</button>
                     </form>
@@ -178,6 +187,7 @@ function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onCha
   const { t, formatNumber } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [formKey, setFormKey] = useState(0);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -194,6 +204,7 @@ function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onCha
         }),
       });
       (e.target as HTMLFormElement).reset();
+      setFormKey((k) => k + 1);
       onChanged();
       toast.success(t("تم التحويل إلى مخزون الصيدلية", "Stock transferred to the pharmacy"));
     } catch (err) {
@@ -208,13 +219,18 @@ function StockTransferForm({ items, onChanged }: { items: InventoryItem[]; onCha
       <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("تغذية مخزون الصيدلية (تحويل من المخزن الرئيسي)", "Replenish pharmacy stock (transfer from main warehouse)")}</Card.Title></Card.Header>
       <Card.Content>
       <ErrorNote message={error} className="mb-2" />
-      <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
-        <select name="itemId" required className="rounded-md border border-border px-2 py-1 text-xs" aria-label={t("المادة", "Item")}>
-          <option value="">{t("اختر المادة...", "Select an item...")}</option>
-          {items.map((i) => (
-            <option key={i.id} value={i.id}>{i.name} {t("(متوفر بالمخزن:", "(Available in warehouse:")} {formatNumber(Number(i.quantityInStock))})</option>
-          ))}
-        </select>
+      <form key={formKey} onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
+        <FilterSelect
+          name="itemId"
+          required
+          className="min-w-[10rem]"
+          aria-label={t("المادة", "Item")}
+          placeholder={t("اختر المادة...", "Select an item...")}
+          options={items.map((i) => ({
+            id: i.id,
+            label: `${i.name} ${t("(متوفر بالمخزن:", "(Available in warehouse:")} ${formatNumber(Number(i.quantityInStock))})`,
+          }))}
+        />
         <input name="quantity" type="number" step="0.01" required placeholder={t("الكمية", "Quantity")} className="w-24 rounded-md border border-border px-2 py-1 text-xs" />
         <input name="reason" placeholder={t("السبب (اختياري)", "Reason (optional)")} className="w-40 rounded-md border border-border px-2 py-1 text-xs" />
         <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{t("تحويل", "Transfer")}</button>

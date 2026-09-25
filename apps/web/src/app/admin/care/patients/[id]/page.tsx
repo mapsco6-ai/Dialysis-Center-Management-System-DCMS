@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { TIMELINE_LABELS } from "@/lib/timelineLabels";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import {
   DialysisPlanEntry,
@@ -260,11 +261,18 @@ export default function PatientProfilePage() {
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs font-medium">
               {t("الخطورة", "Severity")}
-              <select name="severity" required className="border border-border">
-                <option value="CRITICAL">{severityLabel.CRITICAL}</option>
-                <option value="IMPORTANT">{severityLabel.IMPORTANT}</option>
-                <option value="INFORMATION">{severityLabel.INFORMATION}</option>
-              </select>
+              <FilterSelect
+                name="severity"
+                required
+                defaultValue="CRITICAL"
+                className="min-w-[10rem]"
+                aria-label={t("الخطورة", "Severity")}
+                options={[
+                  { id: "CRITICAL", label: severityLabel.CRITICAL },
+                  { id: "IMPORTANT", label: severityLabel.IMPORTANT },
+                  { id: "INFORMATION", label: severityLabel.INFORMATION },
+                ]}
+              />
             </label>
             <label className="flex flex-col gap-1 text-xs font-medium">
               {t("التصنيف", "Category")}
@@ -397,24 +405,23 @@ export default function PatientProfilePage() {
                   <div className="mt-4 space-y-2">
                     {planDraft.map((entry, index) => (
                       <div key={index} className="flex flex-wrap items-center gap-2">
-                        <select
+                        <FilterSelect
+                          className="min-w-[10rem]"
+                          aria-label={t("اليوم", "Weekday")}
                           value={entry.weekday}
-                          onChange={(e) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, weekday: e.target.value as Weekday } : row)))}
-                          className="border border-border text-sm"
-                        >
-                          {WEEKDAYS.map((day) => <option key={day} value={day}>{WEEKDAY_LABELS[day]}</option>)}
-                        </select>
-                        <select
+                          onChange={(weekday) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, weekday: weekday as Weekday } : row)))}
+                          options={WEEKDAYS.map((day) => ({ id: day, label: WEEKDAY_LABELS[day] }))}
+                        />
+                        <FilterSelect
+                          className="min-w-[10rem]"
+                          aria-label={t("الوردية", "Shift")}
                           value={entry.shiftId}
-                          onChange={(e) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, shiftId: e.target.value } : row)))}
-                          className="border border-border text-sm"
-                        >
-                          {shifts.map((shift) => (
-                            <option key={shift.id} value={shift.id}>
-                              {shiftLabel[shift.name] ?? shift.name} ({shift.dialysisStart}-{shift.dialysisEnd})
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(shiftId) => setPlanDraft((prev) => prev.map((row, i) => (i === index ? { ...row, shiftId } : row)))}
+                          options={shifts.map((shift) => ({
+                            id: shift.id,
+                            label: `${shiftLabel[shift.name] ?? shift.name} (${shift.dialysisStart}-${shift.dialysisEnd})`,
+                          }))}
+                        />
                         <button onClick={() => setPlanDraft((prev) => prev.filter((_, i) => i !== index))} className="text-xs font-semibold text-danger hover:underline">
                           {t("حذف", "Remove")}
                         </button>
@@ -464,13 +471,13 @@ export default function PatientProfilePage() {
                   <div className="mt-4 space-y-2">
                     {supplyProfileDraft.map((entry, index) => (
                       <div key={index} className="flex flex-wrap items-center gap-2">
-                        <select
+                        <FilterSelect
+                          className="min-w-[10rem]"
+                          aria-label={t("المادة", "Item")}
                           value={entry.itemId}
-                          onChange={(e) => setSupplyProfileDraft((prev) => prev.map((row, i) => (i === index ? { ...row, itemId: e.target.value } : row)))}
-                          className="border border-border text-sm"
-                        >
-                          {inventoryItems.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>)}
-                        </select>
+                          onChange={(itemId) => setSupplyProfileDraft((prev) => prev.map((row, i) => (i === index ? { ...row, itemId } : row)))}
+                          options={inventoryItems.map((item) => ({ id: item.id, label: `${item.name} (${item.unit})` }))}
+                        />
                         <input
                           type="number"
                           step="0.01"

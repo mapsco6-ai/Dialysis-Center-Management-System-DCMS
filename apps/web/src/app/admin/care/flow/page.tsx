@@ -12,6 +12,7 @@ import { AdminShell } from "@/components/AdminShell";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorNote } from "@/components/ErrorNote";
 import { SkeletonTable } from "@/components/Skeleton";
+import { FilterSelect } from "@/components/FilterSelect";
 import { StatusBadge } from "@/components/StatusBadge";
 
 const STEPS = ["arrival", "pre", "supplies", "machine", "dialysis", "discharge"] as const;
@@ -81,10 +82,16 @@ export default function FlowPage() {
         <h1 className="text-xl font-semibold text-foreground">{t("رحلة المرضى اليوم", "Today’s patient flow")}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {(shifts.data?.length ?? 0) > 0 && (
-            <select className="rounded-md border border-border px-2 py-1 text-sm" value={shiftId} onChange={(e) => setShiftId(e.target.value)} aria-label={t("الوردية", "Shift")}>
-              <option value="">{t("كل الورديات", "All shifts")}</option>
-              {shifts.data!.map((s) => <option key={s.id} value={s.id}>{shiftName(s.name)}</option>)}
-            </select>
+            <FilterSelect
+              className="min-w-[10rem]"
+              aria-label={t("الوردية", "Shift")}
+              value={shiftId}
+              onChange={setShiftId}
+              options={[
+                { id: "", label: t("كل الورديات", "All shifts") },
+                ...shifts.data!.map((s) => ({ id: s.id, label: shiftName(s.name) })),
+              ]}
+            />
           )}
           <Button size="sm" variant={onlyAttention ? "danger" : "secondary"} aria-pressed={onlyAttention} onPress={() => setOnlyAttention(!onlyAttention)}>
             {t("تحتاج تدخلاً", "Needs attention")} ({formatNumber(data?.needsAttention ?? 0)})

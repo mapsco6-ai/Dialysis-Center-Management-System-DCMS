@@ -334,12 +334,18 @@ function AddTaskForm({ userId, onDone }: { userId: string; onDone: () => void })
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium">
           {t("الأولوية", "Priority")}
-          <select name="priority" defaultValue="NORMAL" className="border border-border">
-            <option value="URGENT">{t("عاجلة", "Urgent")}</option>
-            <option value="HIGH">{t("عالية", "High")}</option>
-            <option value="NORMAL">{t("عادية", "Normal")}</option>
-            <option value="LOW">{t("منخفضة", "Low")}</option>
-          </select>
+          <FilterSelect
+            name="priority"
+            defaultValue="NORMAL"
+            className="min-w-[10rem]"
+            aria-label={t("الأولوية", "Priority")}
+            options={[
+              { id: "URGENT", label: t("عاجلة", "Urgent") },
+              { id: "HIGH", label: t("عالية", "High") },
+              { id: "NORMAL", label: t("عادية", "Normal") },
+              { id: "LOW", label: t("منخفضة", "Low") },
+            ]}
+          />
         </label>
         <button type="submit" disabled={saving} className="bg-accent px-4 py-2 text-sm font-medium text-accent-foreground">
           {saving ? t("جاري الحفظ...", "Saving...") : t("حفظ", "Save")}

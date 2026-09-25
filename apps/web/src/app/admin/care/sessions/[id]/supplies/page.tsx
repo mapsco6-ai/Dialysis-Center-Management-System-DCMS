@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button, Card } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SessionSuppliesResponse } from "@/lib/types";
@@ -146,20 +147,19 @@ export default function SessionSuppliesPage() {
 
                 {substitutingFor === row.itemId && (
                   <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-2">
-                    <select
+                    <FilterSelect
+                      className="min-w-[10rem]"
+                      aria-label={t("البديل", "Substitute")}
                       value={substituteItemId}
-                      onChange={(e) => setSubstituteItemId(e.target.value)}
-                      className="rounded-md border border-border px-2 py-1 text-xs"
-                    >
-                      <option value="">{t("اختر البديل...", "Select a substitute...")}</option>
-                      {catalog
+                      onChange={setSubstituteItemId}
+                      placeholder={t("اختر البديل...", "Select a substitute...")}
+                      options={catalog
                         .filter((c) => c.id !== row.itemId)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} {t("(متوفر:", "(Available:")} {formatNumber(Number(c.quantityInStock))})
-                          </option>
-                        ))}
-                    </select>
+                        .map((c) => ({
+                          id: c.id,
+                          label: `${c.name} ${t("(متوفر:", "(Available:")} ${formatNumber(Number(c.quantityInStock))})`,
+                        }))}
+                    />
                     <input
                       type="number"
                       step="0.01"

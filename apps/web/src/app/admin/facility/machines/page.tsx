@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
 import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Machine, MachineStatus, MachineUsageApprovalRequest, Ward } from "@/lib/types";
@@ -175,14 +176,14 @@ export default function MachinesPage() {
       {showMachineForm && (
         <form onSubmit={handleCreateMachine} className="mt-4 max-w-lg space-y-2 rounded-lg border border-border bg-surface p-4">
           <input name="machineCode" required placeholder={t("رمز الجهاز", "Machine code")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-          <select name="wardId" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
-            <option value="">{t("اختر الردهة...", "Select a ward...")}</option>
-            {wards.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            name="wardId"
+            required
+            className="w-full"
+            aria-label={t("الردهة", "Ward")}
+            placeholder={t("اختر الردهة...", "Select a ward...")}
+            options={wards.map((w) => ({ id: w.id, label: w.name }))}
+          />
           <input name="serialNumber" placeholder={t("الرقم التسلسلي", "Serial number")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
           <input name="manufacturer" placeholder={t("الشركة المصنعة", "Manufacturer")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
           <input name="model" placeholder={t("الموديل", "Model")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
@@ -266,17 +267,13 @@ export default function MachinesPage() {
                         <>
                           {changingStatusId === m.id ? (
                             <div className="flex flex-wrap items-center gap-1">
-                              <select
+                              <FilterSelect
+                                className="min-w-[10rem]"
+                                aria-label={t("الحالة", "Status")}
                                 value={statusChoice}
-                                onChange={(e) => setStatusChoice(e.target.value as MachineStatus)}
-                                className="rounded-md border border-border px-2 py-1 text-xs"
-                              >
-                                {GENERIC_STATUSES.map((s) => (
-                                  <option key={s} value={s}>
-                                    {statusLabel[s]}
-                                  </option>
-                                ))}
-                              </select>
+                                onChange={(id) => setStatusChoice(id as MachineStatus)}
+                                options={GENERIC_STATUSES.map((s) => ({ id: s, label: statusLabel[s] }))}
+                              />
                               <input
                                 placeholder={t("السبب", "Reason")}
                                 value={statusReason}

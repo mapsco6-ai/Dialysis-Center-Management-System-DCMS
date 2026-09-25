@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
   AuthenticatedUser,
@@ -166,14 +167,16 @@ function ReportIncidentTab() {
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted">{t("الجهاز (اختياري)", "Machine (optional)")}</label>
-        <select value={machineId} onChange={(e) => setMachineId(e.target.value)} className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
-          <option value="">{t("-- بدون --", "-- None --")}</option>
-          {machines.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.machineCode}
-            </option>
-          ))}
-        </select>
+        <FilterSelect
+          className="w-full"
+          aria-label={t("الجهاز (اختياري)", "Machine (optional)")}
+          value={machineId}
+          onChange={setMachineId}
+          options={[
+            { id: "", label: t("-- بدون --", "-- None --") },
+            ...machines.map((m) => ({ id: m.id, label: m.machineCode })),
+          ]}
+        />
       </div>
       <div>
         <label className="mb-1 block text-xs text-muted">{t("رقم الجلسة (اختياري)", "Session ID (optional)")}</label>
@@ -187,27 +190,23 @@ function ReportIncidentTab() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1 block text-xs text-muted">{t("النوع", "Type")}</label>
-          <select value={type} onChange={(e) => setType(e.target.value as IncidentType)} className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
-            {Object.entries(typeLabel).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            className="w-full"
+            aria-label={t("النوع", "Type")}
+            value={type}
+            onChange={(id) => setType(id as IncidentType)}
+            options={Object.entries(typeLabel).map(([id, label]) => ({ id, label }))}
+          />
         </div>
         <div>
           <label className="mb-1 block text-xs text-muted">{t("الشدة", "Severity")}</label>
-          <select
+          <FilterSelect
+            className="w-full"
+            aria-label={t("الشدة", "Severity")}
             value={severity}
-            onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}
-            className="w-full rounded-md border border-border px-3 py-1.5 text-sm"
-          >
-            {Object.entries(severityLabel).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+            onChange={(id) => setSeverity(id as IncidentSeverity)}
+            options={Object.entries(severityLabel).map(([id, label]) => ({ id, label }))}
+          />
         </div>
       </div>
       <div>
@@ -293,36 +292,42 @@ function IncidentListTab({ user }: { user: AuthenticatedUser }) {
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-surface p-4 text-xs text-muted">
         <label className="flex flex-col gap-1">
           {t("النوع", "Type")}
-          <select value={type} onChange={(e) => setType(e.target.value)} className="rounded border border-border px-2 py-1">
-            <option value="">{t("الكل", "All")}</option>
-            {Object.entries(typeLabel).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("النوع", "Type")}
+            value={type}
+            onChange={setType}
+            options={[
+              { id: "", label: t("الكل", "All") },
+              ...Object.entries(typeLabel).map(([id, label]) => ({ id, label })),
+            ]}
+          />
         </label>
         <label className="flex flex-col gap-1">
           {t("الشدة", "Severity")}
-          <select value={severity} onChange={(e) => setSeverity(e.target.value)} className="rounded border border-border px-2 py-1">
-            <option value="">{t("الكل", "All")}</option>
-            {Object.entries(severityLabel).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الشدة", "Severity")}
+            value={severity}
+            onChange={setSeverity}
+            options={[
+              { id: "", label: t("الكل", "All") },
+              ...Object.entries(severityLabel).map(([id, label]) => ({ id, label })),
+            ]}
+          />
         </label>
         <label className="flex flex-col gap-1">
           {t("الحالة", "Status")}
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded border border-border px-2 py-1">
-            <option value="">{t("الكل", "All")}</option>
-            {Object.entries(statusLabel).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الحالة", "Status")}
+            value={status}
+            onChange={setStatus}
+            options={[
+              { id: "", label: t("الكل", "All") },
+              ...Object.entries(statusLabel).map(([id, label]) => ({ id, label })),
+            ]}
+          />
         </label>
         <label className="flex flex-col gap-1">
           {t("من", "From")}

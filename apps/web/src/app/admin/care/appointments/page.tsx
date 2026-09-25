@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
 import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { EmptyState } from "@/components/EmptyState";
 import { SkeletonTable } from "@/components/Skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -40,10 +41,15 @@ function RescheduleForm({ entry, shifts, shiftLabel, onDone, onCancel }: { entry
     <form onSubmit={submit} className="mt-1 flex flex-col gap-1 rounded-md border border-border bg-surface-secondary p-2">
       <div className="flex gap-1">
         <input required type="date" className={field} value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} aria-label={t("التاريخ الجديد", "New date")} />
-        <select required className={field} value={form.shiftId} onChange={(e) => setForm({ ...form, shiftId: e.target.value })} aria-label={t("الوردية", "Shift")}>
-          <option value="">{t("الوردية…", "Shift…")}</option>
-          {shifts.map((s) => <option key={s.id} value={s.id}>{shiftLabel[s.name] ?? s.name}</option>)}
-        </select>
+        <FilterSelect
+          required
+          className="min-w-[10rem]"
+          aria-label={t("الوردية", "Shift")}
+          value={form.shiftId}
+          onChange={(shiftId) => setForm({ ...form, shiftId })}
+          placeholder={t("الوردية…", "Shift…")}
+          options={shifts.map((s) => ({ id: s.id, label: shiftLabel[s.name] ?? s.name }))}
+        />
       </div>
       <input required className={field} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder={t("سبب النقل", "Reason")} />
       <div className="flex gap-2">

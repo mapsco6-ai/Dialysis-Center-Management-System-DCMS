@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DialysisEvent, DialysisEventType, DialysisReading, Machine, SessionOverview } from "@/lib/types";
@@ -413,21 +414,25 @@ function AmendReadingForm({
 function EventForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: unknown) => void }) {
   const { t } = useI18n();
   const eventTypeLabel = getEventTypeLabels(t);
+  const defaultEventType = Object.keys(eventTypeLabel)[0] as DialysisEventType;
+  const [formKey, setFormKey] = useState(0);
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     onSubmit({ type: form.get("type"), note: form.get("note") || undefined });
     e.currentTarget.reset();
+    setFormKey((k) => k + 1);
   }
   return (
-    <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-3">
-      <select name="type" required className="rounded-md border border-border px-2 py-1 text-xs">
-        {Object.entries(eventTypeLabel).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
-      </select>
+    <form key={formKey} onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-center gap-2 rounded-md bg-surface-secondary p-3">
+      <FilterSelect
+        name="type"
+        required
+        defaultValue={defaultEventType}
+        className="min-w-[10rem]"
+        aria-label={t("نوع الحدث", "Event type")}
+        options={Object.entries(eventTypeLabel).map(([id, label]) => ({ id, label }))}
+      />
       <input name="note" placeholder={t("ملاحظة", "Note")} className="w-48 rounded-md border border-border px-2 py-1 text-xs" />
       <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">
         {t("تسجيل حدث", "Record event")}
@@ -454,14 +459,14 @@ function ReassignMachineForm({
   return (
     <form onSubmit={handleSubmit} className="mt-4 max-w-lg space-y-2 rounded-lg border border-danger bg-surface-secondary p-4">
       <h2 className="text-sm font-semibold text-danger">{t("إعادة تعيين جهاز (عطل أثناء الجلسة)", "Reassign machine (fault during session)")}</h2>
-      <select name="newMachineId" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
-        <option value="">{t("اختر الجهاز الجديد...", "Select a replacement machine...")}</option>
-        {machines.map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.machineCode}
-          </option>
-        ))}
-      </select>
+      <FilterSelect
+        name="newMachineId"
+        required
+        className="w-full"
+        aria-label={t("الجهاز الجديد", "Replacement machine")}
+        placeholder={t("اختر الجهاز الجديد...", "Select a replacement machine...")}
+        options={machines.map((m) => ({ id: m.id, label: m.machineCode }))}
+      />
       <input name="reason" required placeholder={t("سبب العطل", "Reason for fault")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
       <button type="submit" disabled={busy} className="rounded-md bg-danger px-3 py-1.5 text-xs font-medium text-white  disabled:opacity-50">
         {t("إعادة التعيين", "Reassign")}

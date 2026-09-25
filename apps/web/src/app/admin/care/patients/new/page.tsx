@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { toast } from "@/components/Toaster";
 
@@ -77,13 +78,18 @@ export default function NewPatientPage() {
           </div>
           <div>
             <label htmlFor="gender" className={labelClass}>{t("الجنس *", "Sex *")}</label>
-            <select id="gender" name="gender" required className={inputClass} defaultValue="">
-              <option value="" disabled>
-                {t("اختر...", "Select...")}
-              </option>
-              <option value="MALE">{t("ذكر", "Male")}</option>
-              <option value="FEMALE">{t("أنثى", "Female")}</option>
-            </select>
+            <FilterSelect
+              id="gender"
+              name="gender"
+              required
+              className={inputClass}
+              aria-label={t("الجنس *", "Sex *")}
+              placeholder={t("اختر...", "Select...")}
+              options={[
+                { id: "MALE", label: t("ذكر", "Male") },
+                { id: "FEMALE", label: t("أنثى", "Female") },
+              ]}
+            />
           </div>
           <div>
             <label htmlFor="dateOfBirth" className={labelClass}>{t("تاريخ الميلاد *", "Date of birth *")}</label>
@@ -111,12 +117,19 @@ export default function NewPatientPage() {
           </div>
           <div>
             <label htmlFor="vascularAccessType" className={labelClass}>{t("نوع الوصول الوعائي", "Vascular access type")}</label>
-            <select id="vascularAccessType" name="vascularAccessType" className={inputClass} defaultValue="">
-              <option value="">{t("غير محدد", "Not specified")}</option>
-              <option value="FISTULA">{t("ناسور", "Fistula")}</option>
-              <option value="CATHETER">{t("قسطرة", "Catheter")}</option>
-              <option value="GRAFT">{t("وصلة وعائية", "Graft")}</option>
-            </select>
+            <FilterSelect
+              id="vascularAccessType"
+              name="vascularAccessType"
+              defaultValue=""
+              className={inputClass}
+              aria-label={t("نوع الوصول الوعائي", "Vascular access type")}
+              options={[
+                { id: "", label: t("غير محدد", "Not specified") },
+                { id: "FISTULA", label: t("ناسور", "Fistula") },
+                { id: "CATHETER", label: t("قسطرة", "Catheter") },
+                { id: "GRAFT", label: t("وصلة وعائية", "Graft") },
+              ]}
+            />
           </div>
           <div>
             <label htmlFor="vascularAccessLocation" className={labelClass}>{t("موقع الوصول الوعائي", "Vascular access location")}</label>

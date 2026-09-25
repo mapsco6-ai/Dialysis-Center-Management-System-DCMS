@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { PaginatedTable, type TableColumn } from "@/components/PaginatedTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "@/components/Toaster";
@@ -129,12 +130,20 @@ export default function EntriesPage() {
           <Card.Content className="p-4">
         <form onSubmit={submit} className="grid gap-2">
           <div className="flex flex-wrap gap-2">
-            <select className={fieldClass} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as EntryType })} aria-label={t("النوع", "Type")}>
-              {TYPES.map((type) => <option key={type} value={type}>{typeLabel[type]}</option>)}
-            </select>
-            <select className={fieldClass} value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })} aria-label={t("الأهمية", "Severity")}>
-              {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <FilterSelect
+              className="min-w-[10rem]"
+              aria-label={t("النوع", "Type")}
+              value={form.type}
+              onChange={(type) => setForm({ ...form, type: type as EntryType })}
+              options={TYPES.map((type) => ({ id: type, label: typeLabel[type] }))}
+            />
+            <FilterSelect
+              className="min-w-[10rem]"
+              aria-label={t("الأهمية", "Severity")}
+              value={form.severity}
+              onChange={(severity) => setForm({ ...form, severity })}
+              options={["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((s) => ({ id: s, label: s }))}
+            />
             <input required className={`${fieldClass} min-w-[14rem] flex-1`} placeholder={t("العنوان", "Title")} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             <Button type="button" size="sm" variant="secondary" onPress={loadShiftSummary}>{t("تعبئة من نشاط اليوم", "Fill from today’s activity")}</Button>
           </div>
@@ -154,10 +163,16 @@ export default function EntriesPage() {
             {v === "mine" ? t("سجلاتي", "My entries") : t("كل السجلات للمراجعة", "All entries (review)")}
           </Button>
         ))}
-        <select className={fieldClass} value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label={t("فلترة حسب النوع", "Filter by type")}>
-          <option value="">{t("كل الأنواع", "All types")}</option>
-          {TYPES.map((type) => <option key={type} value={type}>{typeLabel[type]}</option>)}
-        </select>
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("فلترة حسب النوع", "Filter by type")}
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            { id: "", label: t("كل الأنواع", "All types") },
+            ...TYPES.map((type) => ({ id: type, label: typeLabel[type] })),
+          ]}
+        />
       </div>
 
       {selected && (

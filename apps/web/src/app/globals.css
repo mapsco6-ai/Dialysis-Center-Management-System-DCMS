@@ -4,106 +4,23 @@
 /* HeroUI v3 styles - must come after Tailwind (.agents/skills/heroui-react) */
 @import "@heroui/styles";
 
-/* Token values are taken verbatim from the project's design system reference
-   (dialysis-design-system-v4.html) - its Nova organisms, not approximations. */
-:root, .light, [data-theme="light"] {
-  color-scheme: light;
-  --background: #f6f8fb;          /* --nova-surface */
-  --foreground: #171b23;          /* --neutral-950 */
-  --heading: #102a56;             /* --color-text-strong (navy) */
-  --surface: #ffffff;             /* --card */
-  --surface-foreground: var(--foreground);
-  --surface-secondary: #f3f5f9;   /* nova-table th */
-  --surface-tertiary: #eef1f6;
-  --muted: #69717d;               /* --neutral-600 */
-  --muted-strong: #343c47;        /* --neutral-800, nova-table td */
-  --muted-soft: #8a929d;          /* nova-table th text */
-  --disabled: #a7adb6;            /* --neutral-400 */
-  --border: #e4e8ef;              /* nova-table-shell */
-  --border-soft: #edf0f5;         /* nova panel edge */
-  --separator: var(--border);
-  --accent: #2f80ed;              /* --violet-500 */
-  --accent-hover: #1f6fd6;        /* --violet-600 */
-  --accent-foreground: #ffffff;
-  --accent-soft: #eaf2ff;         /* nova-nav.active */
-  --accent-soft-foreground: #1e5fb9;
-  --focus: var(--accent);
-  --focus-ring: 0 0 0 3px rgba(47, 128, 237, .18);
-  --row-hover: #fafcff;           /* nova-table tr:hover */
-  --default: var(--surface-secondary);
-  --default-foreground: var(--foreground);
-  --field-background: var(--surface);
-  --field-foreground: var(--foreground);
-  --field-border: #d7d7de;
-  --field-placeholder: var(--muted-soft);
-  /* --radius-sm/control/card/xl from the reference's radius scale. */
-  --radius-sm: 6px;
-  --radius: 8px;
-  --card-radius: 11px;
-  --radius-xl: 14px;
-  --control-height: 44px;
-  --shadow-card: 0 8px 24px rgba(29, 50, 84, .07);
-  --shadow-raised: 0 9px 25px rgba(25, 48, 84, .08);
-  --shadow-overlay: 0 18px 46px rgba(17, 17, 21, .10);
-  --workspace-sidebar: #ffffff;
-  --color-slate-50: #fafbfd;
-  --color-slate-100: #f2f4f7;
-  --color-slate-200: var(--border);
-  --color-slate-300: #cfd4dd;
-  --color-slate-400: var(--disabled);
-  --color-slate-500: var(--muted);
-  --color-slate-600: #5b636f;
-  --color-slate-700: var(--muted-strong);
-  --color-slate-800: var(--foreground);
-  --color-slate-900: var(--heading);
-}
-
-/* The reference's own .darkmode values. Depth on dark comes from borders,
-   not shadows - the shadow tokens collapse to a hairline ring here. */
-.dark, [data-theme="dark"] {
-  color-scheme: dark;
-  --background: #111217;          /* darkmode .side-main */
-  --foreground: #f7f7fb;          /* darkmode --ink */
+/* Layout-only aliases. Color, radius, and shadow come from @heroui/styles. */
+:root {
   --heading: var(--foreground);
-  --surface: #17171d;             /* darkmode --card / nova organisms */
-  --surface-foreground: var(--foreground);
-  --surface-secondary: #202128;   /* darkmode .nova-table th */
-  --surface-tertiary: #262730;
-  --muted: #a7a8b0;               /* darkmode --muted */
-  --muted-strong: #d9dbe2;        /* darkmode .nova-table td */
-  --muted-soft: #8f939c;
-  --disabled: #6c707a;
-  --border: #2b2c34;              /* darkmode --line */
-  --border-soft: #292a31;
-  --separator: var(--border);
-  --accent: #559dff;              /* --violet-400, lifted for dark contrast */
-  --accent-hover: #82b9ff;        /* --violet-300 */
-  --accent-foreground: #0d0d11;
-  --accent-soft: #14294a;
-  --accent-soft-foreground: #9ec8ff;
-  --focus: var(--accent);
-  --focus-ring: 0 0 0 3px rgba(85, 157, 255, .22);
-  --row-hover: #1f2026;           /* darkmode .nova-table tr:hover */
-  --default: var(--surface-secondary);
-  --default-foreground: var(--foreground);
-  --field-background: #15151a;    /* darkmode .input */
-  --field-foreground: var(--foreground);
-  --field-border: #3a3b43;
-  --field-placeholder: var(--muted-soft);
-  --shadow-card: 0 0 0 1px rgba(255, 255, 255, .05);
-  --shadow-raised: 0 0 0 1px rgba(255, 255, 255, .08);
-  --shadow-overlay: 0 0 0 1px rgba(255, 255, 255, .08), 0 18px 46px #00000073;
-  --workspace-sidebar: #17171d;
-  --color-slate-50: var(--surface-secondary);
-  --color-slate-100: var(--surface-tertiary);
-  --color-slate-200: var(--border);
-  --color-slate-300: #3f414b;
-  --color-slate-400: var(--disabled);
-  --color-slate-500: var(--muted);
-  --color-slate-600: #bcbfc7;
-  --color-slate-700: var(--muted-strong);
-  --color-slate-800: var(--foreground);
-  --color-slate-900: var(--foreground);
+  --muted-strong: var(--foreground);
+  --muted-soft: var(--muted);
+  --disabled: var(--muted);
+  --border-soft: var(--separator);
+  --radius-sm: calc(var(--radius) * 0.75);
+  --card-radius: var(--field-radius);
+  --radius-xl: calc(var(--radius) * 2);
+  --control-height: 2.25rem;
+  --focus-ring: 0 0 0 3px color-mix(in oklch, var(--focus) 28%, transparent);
+  --row-hover: var(--surface-hover);
+  --shadow-card: var(--surface-shadow);
+  --shadow-raised: var(--overlay-shadow);
+  --shadow-overlay: var(--overlay-shadow);
+  --workspace-sidebar: var(--surface);
 }
 
 html { min-height: 100%; background: var(--background); }
@@ -141,7 +58,7 @@ input, select, textarea { accent-color: var(--accent); }
 .navigation-heading { margin: 0 9px 7px; font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted-soft); }
 html[lang="ar"] .navigation-heading { letter-spacing: 0; font-size: 10px; }
 /* .nova-nav: a plain filled pill when active - no leading bar, no border. */
-.navigation-link { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 9px 10px; margin-block: 2px; border: 1px solid transparent; border-radius: 7px; font-size: 12px; font-weight: 600; color: #3f4651; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms cubic-bezier(0.23, 1, 0.32, 1); }
+.navigation-link { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 9px 10px; margin-block: 2px; border: 1px solid transparent; border-radius: var(--radius); font-size: 12px; font-weight: 500; color: var(--muted); transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 [data-theme="dark"] .navigation-link { color: var(--muted); }
 .navigation-link svg { flex-shrink: 0; width: 17px; height: 17px; color: var(--muted-soft); transition: color 160ms; }
 .navigation-link:hover { background: var(--surface-secondary); color: var(--foreground); }
@@ -166,7 +83,7 @@ html[lang="ar"] .navigation-heading { letter-spacing: 0; font-size: 10px; }
 .language-button { font-size: 11px; gap: 7px; color: var(--muted); }
 .topbar-divider { width: 1px; height: 20px; background: var(--border); }
 .account-trigger { height: auto; min-height: 0; gap: 9px; padding-inline: 2px; }
-.account-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(135deg, #ff7a6f, #4fb7ff); color: #fff; border: 0; font-size: 10px; font-weight: 800; }
+.account-avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--accent-foreground); border: 0; font-size: 10px; font-weight: 700; }
 .account-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 600; }
 .account-username { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
 .workspace-content { max-width: 1600px; margin-inline: auto; padding: 30px; min-width: 0; }
@@ -193,23 +110,19 @@ html[lang="ar"] .navigation-heading { letter-spacing: 0; font-size: 10px; }
 .workspace-content tbody tr { transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 .workspace-content tbody tr:hover { background: var(--row-hover); }
 
-/* .btn-primary: the pages write it as bg-slate-800/900, which the workspace
-   remaps to the accent. Nova lifts 1px and darkens on hover - no glow. */
-.workspace-content :is(.bg-slate-800, .bg-slate-900) { background: var(--accent); color: var(--accent-foreground); border-radius: var(--radius); font-weight: 700; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
-.workspace-content :is(.bg-slate-800, .bg-slate-900):hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+.workspace-content :is(.bg-slate-800, .bg-slate-900) { background: var(--accent); color: var(--accent-foreground); border-radius: 999px; font-weight: 500; }
+.workspace-content :is(.bg-slate-800, .bg-slate-900):hover:not(:disabled) { background: var(--accent-hover); }
 .workspace-content :is(.bg-slate-800, .bg-slate-900):active:not(:disabled) { transform: scale(0.97); }
-.workspace-content :is(.bg-slate-800, .bg-slate-900):disabled { background: var(--surface-tertiary); color: var(--disabled); transform: none; }
-.workspace-content .shadow-sm { box-shadow: var(--shadow-card); }
+.workspace-content :is(.bg-slate-800, .bg-slate-900):disabled { background: var(--default); color: var(--muted); transform: none; }
+.workspace-content .shadow-sm { box-shadow: var(--surface-shadow); }
 
-/* .input: inset control - its own border and background tokens, 44px tall,
-   and the reference's 3px focus ring. */
-.workspace-content :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not(.input) { border-color: var(--field-border); background: var(--field-background); color: var(--field-foreground); border-radius: var(--radius); min-height: var(--control-height); padding-inline: 14px; transition: border-color 160ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 160ms cubic-bezier(0.23, 1, 0.32, 1); }
-.workspace-content :is(input, select, textarea):focus { border-color: var(--accent); outline: none; box-shadow: var(--focus-ring); }
-.workspace-content :is(input, select, textarea):disabled { background: var(--surface-tertiary); color: var(--disabled); }
-.workspace-content textarea { padding-block: 11px; }
-/* Nova's control tiers: 34px table/pagination, 38px icon, 44px primary. */
-.workspace-content button:not(.button) { min-height: 34px; border-radius: var(--radius); font-weight: 700; }
-.workspace-content :is(.bg-slate-800, .bg-slate-900, button[type="submit"]):not(.button) { min-height: 40px; }
+.workspace-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), textarea) { border-width: var(--field-border-width); border-color: var(--field-border); background: var(--field-background); color: var(--field-foreground); border-radius: var(--field-radius); box-shadow: var(--field-shadow); min-height: var(--control-height); padding-inline: 0.75rem; }
+.workspace-content :is(input, textarea):focus { border-color: var(--field-border-focus); outline: none; box-shadow: var(--field-shadow), var(--focus-ring); }
+.workspace-content :is(input, textarea):disabled { opacity: var(--disabled-opacity); }
+.workspace-content textarea { padding-block: 0.5rem; }
+.workspace-content button:not(.button) { min-height: 2rem; border-radius: 999px; font-weight: 500; border: 0; cursor: pointer; }
+.workspace-content button[type="submit"]:not(.button):not([class*="bg-"]) { min-height: 2.25rem; padding-inline: 1rem; background: var(--accent); color: var(--accent-foreground); }
+.workspace-content button[type="submit"]:not(.button):not([class*="bg-"]):hover:not(:disabled) { background: var(--accent-hover); }
 .workspace-content :is(input[type="checkbox"], input[type="radio"]) { width: 16px; height: 16px; accent-color: var(--accent); }
 .mobile-menu-button { display: none; }
 

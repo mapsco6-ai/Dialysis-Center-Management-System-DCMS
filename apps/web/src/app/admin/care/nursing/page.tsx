@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { useLiveEvents } from "@/lib/useLiveEvents";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ErrorNote } from "@/components/ErrorNote";
 import { NursingAssignment, Patient, Shift, Ward, WardDashboard } from "@/lib/types";
@@ -133,17 +134,23 @@ export default function NursingPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-foreground">{t("التمريض - لوحة الردهة", "Nursing — Ward dashboard")}</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <select value={wardId} onChange={(e) => setWardId(e.target.value)} className="rounded-md border border-border px-3 py-2 text-sm" aria-label={t("الردهة", "Ward")}>
-            {wards.map((w) => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
-          <select value={shiftId} onChange={(e) => setShiftId(e.target.value)} className="rounded-md border border-border px-3 py-2 text-sm" aria-label={t("الوجبة", "Shift")}>
-            <option value="">{t("كل الوجبات", "All shifts")}</option>
-            {shifts.map((s) => (
-              <option key={s.id} value={s.id}>{shiftLabels[s.name] ?? s.name}</option>
-            ))}
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الردهة", "Ward")}
+            value={wardId}
+            onChange={setWardId}
+            options={wards.map((w) => ({ id: w.id, label: w.name }))}
+          />
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الوجبة", "Shift")}
+            value={shiftId}
+            onChange={setShiftId}
+            options={[
+              { id: "", label: t("كل الوجبات", "All shifts") },
+              ...shifts.map((s) => ({ id: s.id, label: shiftLabels[s.name] ?? s.name })),
+            ]}
+          />
           <Button size="sm" variant="secondary" onPress={() => setDate(toLocalDateInputValue(new Date()))}>
             {t("اليوم", "Today")}
           </Button>
@@ -365,18 +372,22 @@ function AssignmentManager({
       <ErrorNote message={error} className="mb-2" />
       <form onSubmit={handleSubmit} className="space-y-2">
         <div className="flex flex-wrap gap-2">
-          <select value={formShiftId} onChange={(e) => setFormShiftId(e.target.value)} className="rounded-md border border-border px-3 py-1.5 text-sm" aria-label={t("الوجبة", "Shift")}>
-            <option value="">{t("اختر الوجبة...", "Select a shift...")}</option>
-            {shifts.map((s) => (
-              <option key={s.id} value={s.id}>{shiftLabels[s.name] ?? s.name}</option>
-            ))}
-          </select>
-          <select value={nurseId} onChange={(e) => setNurseId(e.target.value)} className="rounded-md border border-border px-3 py-1.5 text-sm" aria-label={t("الممرض", "Nurse")}>
-            <option value="">{t("اختر الممرض...", "Select a nurse...")}</option>
-            {nurses.map((n) => (
-              <option key={n.id} value={n.id}>{n.fullName}</option>
-            ))}
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الوجبة", "Shift")}
+            value={formShiftId}
+            onChange={setFormShiftId}
+            placeholder={t("اختر الوجبة...", "Select a shift...")}
+            options={shifts.map((s) => ({ id: s.id, label: shiftLabels[s.name] ?? s.name }))}
+          />
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الممرض", "Nurse")}
+            value={nurseId}
+            onChange={setNurseId}
+            placeholder={t("اختر الممرض...", "Select a nurse...")}
+            options={nurses.map((n) => ({ id: n.id, label: n.fullName }))}
+          />
         </div>
         <div className="max-h-40 overflow-y-auto rounded-md border border-border p-2">
           {patients.map((p) => (

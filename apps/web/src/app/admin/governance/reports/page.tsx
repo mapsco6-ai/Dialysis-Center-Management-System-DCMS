@@ -6,6 +6,7 @@ import { downloadBlob } from "@/lib/download";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { AuthenticatedUser, Machine, Patient } from "@/lib/types";
 
 function todayIso(): string {
@@ -190,11 +191,17 @@ function DialysisReportsPanel() {
         </label>
         <label className="flex items-center gap-1">
           {t("التجميع:", "Group by:")}
-          <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as typeof groupBy)} className="rounded border border-border px-2 py-1">
-            <option value="day">{t("يومي", "Daily")}</option>
-            <option value="week">{t("أسبوعي", "Weekly")}</option>
-            <option value="month">{t("شهري", "Monthly")}</option>
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("التجميع", "Group by")}
+            value={groupBy}
+            onChange={(id) => setGroupBy(id as typeof groupBy)}
+            options={[
+              { id: "day", label: t("يومي", "Daily") },
+              { id: "week", label: t("أسبوعي", "Weekly") },
+              { id: "month", label: t("شهري", "Monthly") },
+            ]}
+          />
         </label>
       </div>
       <ReportRow
@@ -228,14 +235,14 @@ function MachineReportsPanel() {
         </label>
         <label className="flex items-center gap-1">
           {t("الجهاز:", "Machine:")}
-          <select value={machineId} onChange={(e) => setMachineId(e.target.value)} className="rounded border border-border px-2 py-1">
-            <option value="">{t("-- اختر --", "-- Select --")}</option>
-            {machines.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.machineCode}
-              </option>
-            ))}
-          </select>
+          <FilterSelect
+            className="min-w-[10rem]"
+            aria-label={t("الجهاز", "Machine")}
+            value={machineId}
+            onChange={setMachineId}
+            placeholder={t("-- اختر --", "-- Select --")}
+            options={machines.map((m) => ({ id: m.id, label: m.machineCode }))}
+          />
         </label>
       </div>
       <div className="space-y-2">

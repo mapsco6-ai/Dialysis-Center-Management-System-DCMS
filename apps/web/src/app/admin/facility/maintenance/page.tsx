@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button } from "@heroui/react";
 import { AdminShell } from "@/components/AdminShell";
+import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -119,6 +120,7 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [assigneeId, setAssigneeId] = useState("");
   const [staff, setStaff] = useState<{ id: string; fullName: string }[]>([]);
+  const [reportFormKey, setReportFormKey] = useState(0);
 
   function refresh() {
     const params = statusFilter ? `?status=${statusFilter}` : "";
@@ -143,6 +145,7 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
     try {
       await apiFetch("/maintenance-tickets", { method: "POST", body: form });
       (e.target as HTMLFormElement).reset();
+      setReportFormKey((k) => k + 1);
       setShowReportForm(false);
       refresh();
     } catch (err) {
@@ -219,12 +222,16 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
   return (
     <div>
       <div className="flex items-center justify-between">
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as MaintenanceTicketStatus | "")} className="rounded-md border border-border px-3 py-1.5 text-sm">
-          <option value="">{t("كل الحالات", "All statuses")}</option>
-          {Object.entries(statusLabel).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("فلتر الحالة", "Status filter")}
+          value={statusFilter}
+          onChange={(id) => setStatusFilter(id as MaintenanceTicketStatus | "")}
+          options={[
+            { id: "", label: t("كل الحالات", "All statuses") },
+            ...Object.entries(statusLabel).map(([id, label]) => ({ id, label })),
+          ]}
+        />
         {user.permissions.includes("machine.fault.report") && (
           <Button size="sm" variant="danger" onPress={() => setShowReportForm((v) => !v)}>
             {t("+ بلاغ عطل", "+ Report fault")}
@@ -235,20 +242,24 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
       <ErrorNote message={error} className="mt-3" />
 
       {showReportForm && (
-        <form onSubmit={handleReport} className="mt-4 max-w-lg space-y-2 rounded-lg border border-border bg-surface p-4">
-          <select name="machineId" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
-            <option value="">{t("اختر الجهاز...", "Select a machine...")}</option>
-            {machines.filter((m) => m.status !== "OUT_OF_SERVICE").map((m) => (
-              <option key={m.id} value={m.id}>{m.machineCode}</option>
-            ))}
-          </select>
+        <form key={reportFormKey} onSubmit={handleReport} className="mt-4 max-w-lg space-y-2 rounded-lg border border-border bg-surface p-4">
+          <FilterSelect
+            name="machineId"
+            required
+            className="w-full"
+            aria-label={t("الجهاز", "Machine")}
+            placeholder={t("اختر الجهاز...", "Select a machine...")}
+            options={machines.filter((m) => m.status !== "OUT_OF_SERVICE").map((m) => ({ id: m.id, label: m.machineCode }))}
+          />
           <textarea name="problem" required placeholder={t("وصف المشكلة", "Problem description")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" rows={3} />
-          <select name="severity" required className="w-full rounded-md border border-border px-3 py-1.5 text-sm">
-            <option value="">{t("درجة الخطورة...", "Severity...")}</option>
-            {Object.entries(severityLabel).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
+          <FilterSelect
+            name="severity"
+            required
+            className="w-full"
+            aria-label={t("درجة الخطورة", "Severity")}
+            placeholder={t("درجة الخطورة...", "Severity...")}
+            options={Object.entries(severityLabel).map(([id, label]) => ({ id, label }))}
+          />
           <div>
             <label className="block text-xs text-muted">{t("صورة (اختياري)", "Photo (optional)")}</label>
             <input type="file" name="attachment" accept="image/*" className="mt-1 w-full text-sm" />
@@ -288,12 +299,14 @@ function TicketsTab({ user, machines }: { user: { permissions: string[] }; machi
                     {entry.status === "OPEN" && (
                       assigningId === entry.id ? (
                         <div className="flex items-center gap-1">
-                          <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className="rounded-md border border-border px-2 py-1 text-xs">
-                            <option value="">{t("اختر فني...", "Select a technician...")}</option>
-                            {staff.map((s) => (
-                              <option key={s.id} value={s.id}>{s.fullName}</option>
-                            ))}
-                          </select>
+                          <FilterSelect
+                            className="min-w-[10rem]"
+                            aria-label={t("الفني", "Technician")}
+                            value={assigneeId}
+                            onChange={setAssigneeId}
+                            placeholder={t("اختر فني...", "Select a technician...")}
+                            options={staff.map((s) => ({ id: s.id, label: s.fullName }))}
+                          />
                           <Button size="sm" variant="primary" isDisabled={busy} onPress={() => handleAssign(entry.id)}>{t("إسناد", "Assign")}</Button>
                           <Button size="sm" variant="ghost" onPress={() => setAssigningId(null)}>{t("إلغاء", "Cancel")}</Button>
                         </div>
@@ -390,21 +403,19 @@ function TimelineTab({ machines }: { machines: Machine[] }) {
     <div>
       <div className="flex items-center gap-2">
         <label className="text-sm text-muted">{t("الجهاز:", "Machine:")}</label>
-        <select
+        <FilterSelect
+          className="min-w-[10rem]"
+          aria-label={t("الجهاز", "Machine")}
           value={machineId}
-          onChange={(e) => {
-            setMachineId(e.target.value);
+          onChange={(id) => {
+            setMachineId(id);
             setDowntime(null);
-            if (e.target.value) loadTimeline(e.target.value);
+            if (id) loadTimeline(id);
             else setEvents([]);
           }}
-          className="rounded-md border border-border px-3 py-1.5 text-sm"
-        >
-          <option value="">{t("اختر جهازاً...", "Select a machine...")}</option>
-          {machines.map((m) => (
-            <option key={m.id} value={m.id}>{m.machineCode}</option>
-          ))}
-        </select>
+          placeholder={t("اختر جهازاً...", "Select a machine...")}
+          options={machines.map((m) => ({ id: m.id, label: m.machineCode }))}
+        />
       </div>
 
       {machineId && (
