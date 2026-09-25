@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { CSSProperties, FormEvent, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
@@ -53,9 +53,7 @@ function appointmentTone(a: CalendarAppointment) {
 }
 const FINISHED = ["POST_DIALYSIS", "COMPLETED", "DISCHARGED", "ABSENT", "CANCELLED", "RESCHEDULED"];
 const VISIBLE_PER_DAY = 3;
-const VISIBLE_PER_SLOT = 4;
-// Entries with no shift (tasks) share one trailing row on the week board.
-const NO_SHIFT = "none";
+const VISIBLE_PER_WEEK_DAY = 10;
 
 type CalendarEntry = {
   key: string;
@@ -68,8 +66,6 @@ type CalendarEntry = {
   href?: string;
   onClick?: () => void;
   done?: boolean;
-  // Shown in place of the time on board chips, where the row already says when.
-  meta?: string;
   flag?: boolean;
 };
 
@@ -161,7 +157,6 @@ export default function MyCalendarPage() {
       tone: appointmentTone(a),
       label: a.patient.fullName,
       time: a.shift.dialysisStart,
-      meta: a.machineCode ?? undefined,
       flag: a.alertCount > 0,
       title: [
         `${a.patient.fullName} · ${a.patient.patientCode}`,
@@ -185,20 +180,13 @@ export default function MyCalendarPage() {
   ].sort((a, b) => a.time.localeCompare(b.time));
   const entriesOn = (key: string) => entries.filter((e) => e.day === key);
 
-  // One row per shift the user has anything in, ordered by start time.
-  const shiftRows = [...new Map(
-    [...(data?.shifts ?? []), ...(data?.appointments ?? [])].map((x) => [x.shift.id, x.shift]),
-  ).values()].sort((a, b) => a.dialysisStart.localeCompare(b.dialysisStart));
-
-  // Week board shows working days only; today always stays so "now" is visible.
   const weekKeys = weekDays.map(toLocalDateInputValue);
-  const boardDays = weekDays.filter((d, i) => weekKeys[i] === todayKey || entriesOn(weekKeys[i]).length > 0);
-  const rowOf = (e: CalendarEntry) => (shiftRows.some((s) => s.id === e.shiftId) ? (e.shiftId as string) : NO_SHIFT);
-  const weekEntries = entries.filter((e) => weekKeys.includes(e.day));
-  const rows = [
-    ...shiftRows.map((s) => ({ id: s.id, label: shiftLabel[s.name], time: `${s.dialysisStart}–${s.dialysisEnd}` })),
-    ...(weekEntries.some((e) => rowOf(e) === NO_SHIFT) ? [{ id: NO_SHIFT, label: t("خلال اليوم", "Anytime"), time: "" }] : []),
-  ];
+  // Only days with something on them (plus today); month view skips the
+  // neighbouring months' days that pad the grid.
+  const shownDays = days.filter((d) => {
+    const key = toLocalDateInputValue(d);
+    return (view === "week" || d.getMonth() === anchor.getMonth()) && (key === todayKey || entriesOn(key).length > 0);
+  });
 
   // Next up: the first shift slot (own assignment or patient session) that
   // hasn't ended yet. Only meaningful while the loaded month contains today.
@@ -382,84 +370,37 @@ export default function MyCalendarPage() {
         </aside>
 
         <div className="min-w-0">
-          {view === "week" ? (
-            rows.length === 0 ? (
-              <div className="cal-sheet cal-empty">{t("لا توجد مناوبات أو مواعيد أو مهام هذا الأسبوع.", "No shifts, sessions, or tasks this week.")}</div>
-            ) : (
-              <div
-                className="cal-sheet cal-board"
-                style={{
-                  gridTemplateColumns: `auto repeat(${boardDays.length}, minmax(0, 1fr))`,
-                  gridTemplateRows: `auto repeat(${rows.length}, auto)`,
-                }}
-              >
-                <div className="cal-daycol cal-board-labels" aria-hidden="true">
-                  <div className="cal-head" />
-                  {rows.map((row) => (
-                    <div key={row.id} className="cal-rowlabel">
-                      {row.label}
-                      {row.time && <small>{row.time}</small>}
-                    </div>
-                  ))}
-                </div>
-                {boardDays.map((day) => {
-                  const key = toLocalDateInputValue(day);
-                  const dayEntries = entriesOn(key);
-                  return (
-                    <div key={key} className={`cal-daycol${key === todayKey ? " is-today" : ""}`}>
-                      <div className="cal-head">
-                        {formatDate(day, { weekday: "short" })}
-                        <span className={`cal-daynum${key === todayKey ? " is-today" : ""}`}>{day.getDate()}</span>
-                      </div>
-                      {rows.map((row) => {
-                        const slotKey = `${key}|${row.id}`;
-                        const inSlot = dayEntries.filter((e) => rowOf(e) === row.id);
-                        const isOpen = expanded === slotKey;
-                        return (
-                          <div key={row.id} className="cal-slot">
-                            {inSlot.length > 0 && <span className="cal-slot-label">{row.label} {row.time}</span>}
-                            {(isOpen ? inSlot : inSlot.slice(0, VISIBLE_PER_SLOT)).map((entry) => (
-                              <CalendarEvent key={entry.key} entry={entry} chip />
-                            ))}
-                            {inSlot.length > VISIBLE_PER_SLOT && (
-                              <button className="cal-more" onClick={() => setExpanded(isOpen ? null : slotKey)}>
-                                {isOpen ? t("عرض أقل", "Show less") : `+${inSlot.length - VISIBLE_PER_SLOT} ${t("أخرى", "more")}`}
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            )
+          {shownDays.length === 0 ? (
+            <div className="cal-sheet cal-empty">{t("لا توجد مناوبات أو مواعيد أو مهام في هذه الفترة.", "No shifts, sessions, or tasks in this period.")}</div>
           ) : (
             <div className="cal-sheet">
-              <div className="cal-grid">
-                {days.slice(0, 7).map((day) => (
-                  <div key={`head-${day.getDay()}`} className="cal-head">{formatDate(day, { weekday: "short" })}</div>
-                ))}
-                {days.map((day) => {
+              <div
+                className={`cal-grid${view === "week" ? " is-week" : ""}`}
+                style={{ "--cols": view === "week" ? shownDays.length : 7 } as CSSProperties}
+              >
+                {shownDays.map((day) => {
                   const key = toLocalDateInputValue(day);
                   const dayEntries = entriesOn(key);
                   const isOpen = expanded === key;
-                  const shown = isOpen ? dayEntries : dayEntries.slice(0, VISIBLE_PER_DAY);
-                  const outside = day.getMonth() !== anchor.getMonth();
+                  const limit = view === "week" ? VISIBLE_PER_WEEK_DAY : VISIBLE_PER_DAY;
+                  const shown = isOpen ? dayEntries : dayEntries.slice(0, limit);
                   return (
-                    <div key={key} className={`cal-cell${outside ? " is-outside" : ""}`}>
-                      <button
-                        type="button"
-                        className={`cal-daynum${key === todayKey ? " is-today" : ""}`}
-                        onClick={() => openWeek(day)}
-                        aria-label={formatDate(day, { dateStyle: "full" })}
-                      >
-                        {day.getDate()}
-                      </button>
+                    <div key={key} className="cal-cell">
+                      <div className="cal-cellhead">
+                        {formatDate(day, { weekday: "short" })}
+                        <button
+                          type="button"
+                          className={`cal-daynum${key === todayKey ? " is-today" : ""}`}
+                          onClick={() => openWeek(day)}
+                          aria-label={formatDate(day, { dateStyle: "full" })}
+                        >
+                          {day.getDate()}
+                        </button>
+                      </div>
                       {shown.map((entry) => <CalendarEvent key={entry.key} entry={entry} />)}
-                      {dayEntries.length > VISIBLE_PER_DAY && (
+                      {dayEntries.length > limit && (
                         <button className="cal-more" onClick={() => setExpanded(isOpen ? null : key)}>
-                          {isOpen ? t("عرض أقل", "Show less") : `+${dayEntries.length - VISIBLE_PER_DAY} ${t("أخرى", "more")}`}
+                          {isOpen ? t("عرض أقل", "Show less") : `+${dayEntries.length - limit} ${t("أخرى", "more")}`}
                         </button>
                       )}
                     </div>
@@ -493,13 +434,12 @@ function Arrow({ dir }: { dir: "start" | "end" }) {
   );
 }
 
-function CalendarEvent({ entry, chip }: { entry: CalendarEntry; chip?: boolean }) {
-  const className = `cal-event${chip ? " cal-chip" : ""} ${entry.tone}${entry.done ? " is-done" : ""}${entry.flag ? " has-flag" : ""}`;
-  const aside = chip && entry.meta ? entry.meta : entry.time;
+function CalendarEvent({ entry }: { entry: CalendarEntry }) {
+  const className = `cal-event ${entry.tone}${entry.done ? " is-done" : ""}${entry.flag ? " has-flag" : ""}`;
   const body = (
     <>
       <span className="cal-event-label">{entry.label}</span>
-      {aside && <span className="cal-event-time">{aside}</span>}
+      {entry.time && <span className="cal-event-time">{entry.time}</span>}
     </>
   );
   if (entry.href) {
