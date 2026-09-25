@@ -1911,6 +1911,9 @@ model Notification {
   type      String
   title     String
   body      String?
+  // Arabic versions; the bell shows them in the Arabic UI, else title/body.
+  titleAr   String?
+  bodyAr    String?
   link      String?
   readAt    DateTime?
   createdAt DateTime  @default(now())

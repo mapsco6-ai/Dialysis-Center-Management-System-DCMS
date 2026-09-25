@@ -13,7 +13,9 @@ type Notification = SocketNotification;
 // Bell in the top bar. History comes from REST. A socket push inserts the row
 // immediately; a later list response keeps any push the request missed.
 export function NotificationBell() {
-  const { t, formatDate, formatNumber } = useI18n();
+  const { t, locale, formatDate, formatNumber } = useI18n();
+  const titleOf = (n: Notification) => (locale === "ar" && n.titleAr) || n.title;
+  const bodyOf = (n: Notification) => (locale === "ar" && n.bodyAr) || n.body;
   const router = useRouter();
   const [items, setItems] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -83,10 +85,10 @@ export function NotificationBell() {
               </Dropdown.Item>
             )}
             {items.map((n) => (
-              <Dropdown.Item key={n.id} id={n.id} textValue={n.title} className={n.readAt ? "text-muted" : "font-medium"}>
+              <Dropdown.Item key={n.id} id={n.id} textValue={titleOf(n)} className={n.readAt ? "text-muted" : "font-medium"}>
                 <div className="flex min-w-0 flex-col">
-                  <Label>{n.title}</Label>
-                  {n.body && <Description className="truncate">{n.body}</Description>}
+                  <Label>{titleOf(n)}</Label>
+                  {bodyOf(n) && <Description className="truncate">{bodyOf(n)}</Description>}
                   <span className="text-[10px] font-normal text-muted">{formatDate(n.createdAt, { dateStyle: "short", timeStyle: "short" })}</span>
                 </div>
               </Dropdown.Item>

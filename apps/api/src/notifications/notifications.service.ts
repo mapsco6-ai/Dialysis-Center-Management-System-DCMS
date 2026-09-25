@@ -32,7 +32,7 @@ export class NotificationsService {
 
       for (const userId of recipients) {
         const notification = await this.prisma.notification.create({
-          data: { userId, type: event.type, title: event.title, body: event.body, link: event.link },
+          data: { userId, type: event.type, title: event.title, body: event.body, titleAr: event.titleAr, bodyAr: event.bodyAr, link: event.link },
         });
         this.eventEmitter.emit("notification.created", { userId, notification });
       }

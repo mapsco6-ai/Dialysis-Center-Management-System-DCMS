@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { IncidentStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import { emitNotification } from "../common/notify";
+import { emitNotification, word } from "../common/notify";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { CreateIncidentDto } from "./dto/create-incident.dto";
@@ -141,7 +141,8 @@ export class IncidentsService {
         permission: "incident.review",
         excludeUserId: actor.id,
         type: "INCIDENT_REPORTED",
-        title: `${dto.severity} incident: ${dto.type}`,
+        title: `${word(dto.severity, "en")} severity ${word(dto.type, "en")}`,
+        titleAr: `حادثة (${word(dto.type, "ar")}) - خطورة ${word(dto.severity, "ar")}`,
         body: dto.description,
         link: "/admin/governance/quality",
       });

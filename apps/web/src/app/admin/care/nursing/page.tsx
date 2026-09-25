@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button, Card } from "@heroui/react";
+
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -367,7 +368,7 @@ function AssignmentManager({
 
   return (
     <Card className="mt-6 border border-border bg-surface shadow-none">
-      <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("توزيع الممرضين (HEAD_NURSE)", "Nurse assignments (head nurse)")}</Card.Title></Card.Header>
+      <Card.Header><Card.Title className="text-sm font-semibold text-muted">{t("توزيع الممرضين (رئيس التمريض)", "Nurse assignments (head nurse)")}</Card.Title></Card.Header>
       <Card.Content>
       <ErrorNote message={error} className="mb-2" />
       <form onSubmit={handleSubmit} className="space-y-2">

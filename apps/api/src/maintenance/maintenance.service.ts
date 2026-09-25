@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { MachineStatus, MaintenanceTicket, MaintenanceTicketStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import { emitNotification } from "../common/notify";
+import { emitNotification, word } from "../common/notify";
 import { AuditService } from "../audit/audit.service";
 import { MachinesService } from "../machines/machines.service";
 import { MinioService } from "../storage/minio.service";
@@ -140,7 +140,8 @@ export class MaintenanceService {
           permission: "maintenance.manage",
           excludeUserId: actor.id,
           type: "MACHINE_FAULT",
-          title: `Machine fault (${dto.severity}): ${machine.machineCode}`,
+          title: `Machine fault (${word(dto.severity, "en")}): ${machine.machineCode}`,
+          titleAr: `عطل جهاز (${word(dto.severity, "ar")}): ${machine.machineCode}`,
           body: dto.problem,
           link: "/admin/facility/maintenance",
         });

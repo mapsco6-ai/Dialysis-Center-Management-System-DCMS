@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { CenterMark, WorkspaceIcon } from "@/components/WorkspaceIcon";
 
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetUsername, setResetUsername] = useState("");
-  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "notFound" | "error">("idle");
 
   async function handleResetRequest(event: FormEvent) {
     event.preventDefault();
@@ -26,8 +26,8 @@ export default function LoginPage() {
     try {
       await apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify({ username: resetUsername }) });
       setResetState("sent");
-    } catch {
-      setResetState("error");
+    } catch (error) {
+      setResetState(error instanceof ApiError && error.status === 404 ? "notFound" : "error");
     }
   }
 
@@ -130,8 +130,9 @@ export default function LoginPage() {
                 <>
                   <label className="login-field">
                     <span>{t("اسم المستخدم لإعادة تعيين كلمة المرور", "Username to reset")}</span>
-                    <input value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} required autoComplete="username" dir="auto" placeholder={t("أدخل اسم المستخدم", "Enter your username")} />
+                    <input value={resetUsername} onChange={(e) => { setResetUsername(e.target.value); if (resetState === "notFound") setResetState("idle"); }} required autoComplete="username" dir="auto" placeholder={t("أدخل اسم المستخدم", "Enter your username")} />
                   </label>
+                  {resetState === "notFound" && <p role="alert" className="login-error">{t("اسم المستخدم غير موجود. تحقق منه وحاول مجدداً.", "Username not found. Check it and try again.")}</p>}
                   {resetState === "error" && <p role="alert" className="login-error">{t("تعذر إرسال الطلب. حاول مجدداً.", "Could not send the request. Try again.")}</p>}
                   <button type="submit" disabled={resetState === "sending"} className="login-submit-btn w-full">
                     {resetState === "sending" ? t("جاري الإرسال...", "Sending...") : t("إرسال الطلب", "Send request")}

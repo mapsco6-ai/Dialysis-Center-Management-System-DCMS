@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Button, Card } from "@heroui/react";
 import { apiFetch } from "@/lib/api";
+import { ACTION_LABELS, labelOf } from "@/lib/labels";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -72,7 +73,7 @@ export default function EntriesPage() {
         `${t("جلسات مُمرَّضة", "Sessions nursed")}: ${s.sessionsNursed}`,
         `${t("قراءات مُدخلة", "Readings entered")}: ${s.readingsEntered}`,
         `${t("أحداث مسجّلة", "Events recorded")}: ${s.eventsRecorded}`,
-        ...s.actions.map((a: { action: string; count: number }) => `- ${a.action}: ${a.count}`),
+        ...s.actions.map((a: { action: string; count: number }) => `- ${labelOf(ACTION_LABELS, a.action, t)}: ${a.count}`),
         "",
         t("ملاحظاتي:", "My notes:"),
       ];

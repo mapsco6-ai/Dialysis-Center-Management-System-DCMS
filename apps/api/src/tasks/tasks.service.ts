@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma, TaskStatus } from "@prisma/client";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import { emitNotification } from "../common/notify";
+import { emitNotification, word } from "../common/notify";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -121,7 +121,8 @@ export class TasksService {
         excludeUserId: user.id,
         type: "TASK_ASSIGNED",
         title: task.title,
-        body: `Routed to ${task.assignedToRole?.name}`,
+        body: `Routed to ${word(task.assignedToRole?.name, "en")}`,
+        bodyAr: `مُسندة إلى ${word(task.assignedToRole?.name, "ar")}`,
         link: "/admin/me/calendar",
       });
     }

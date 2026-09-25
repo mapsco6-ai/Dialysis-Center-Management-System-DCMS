@@ -22,9 +22,15 @@ describe("AuthService.requestPasswordReset", () => {
   it.each([
     ["unknown username", null],
     ["inactive account", { ...active, isActive: false }],
-    ["request already pending", { ...active, passwordResetRequestedAt: new Date() }],
-  ])("does nothing for %s", async (_label, user) => {
+  ])("rejects %s", async (_label, user) => {
     const { service, prisma, eventEmitter } = makeService(user);
+    await expect(service.requestPasswordReset("nurse1")).rejects.toThrow("User not found");
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(eventEmitter.emit).not.toHaveBeenCalled();
+  });
+
+  it("does not re-notify while a request is pending", async () => {
+    const { service, prisma, eventEmitter } = makeService({ ...active, passwordResetRequestedAt: new Date() });
     await service.requestPasswordReset("nurse1");
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(eventEmitter.emit).not.toHaveBeenCalled();

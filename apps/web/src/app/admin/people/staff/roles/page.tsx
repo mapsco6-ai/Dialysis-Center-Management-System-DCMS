@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { labelOf, MODULE_LABELS, PERMISSION_LABELS, ROLE_LABELS } from "@/lib/labels";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -46,7 +47,7 @@ export default function RolesMatrixPage() {
   async function save(role: Role) {
     try {
       await apiFetch(`/roles/${role.id}/permissions`, { method: "PATCH", body: JSON.stringify({ permissionKeys: [...draft[role.id]] }) });
-      toast.success(t(`تم حفظ صلاحيات ${role.name}`, `Saved permissions for ${role.name}`));
+      toast.success(t(`تم حفظ صلاحيات ${labelOf(ROLE_LABELS, role.name, t)}`, `Saved permissions for ${labelOf(ROLE_LABELS, role.name, t)}`));
       roles.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("تعذر الحفظ", "Could not save"));
@@ -65,7 +66,7 @@ export default function RolesMatrixPage() {
   }
 
   async function remove(role: Role) {
-    if (!window.confirm(t(`حذف الدور ${role.name}؟`, `Delete role ${role.name}?`))) return;
+    if (!window.confirm(t(`حذف الدور ${labelOf(ROLE_LABELS, role.name, t)}؟`, `Delete role ${labelOf(ROLE_LABELS, role.name, t)}?`))) return;
     try {
       await apiFetch(`/roles/${role.id}`, { method: "DELETE" });
       roles.refresh();
@@ -97,7 +98,7 @@ export default function RolesMatrixPage() {
               <th className="px-3 py-2 text-start font-medium">{t("الصلاحية", "Permission")}</th>
               {list.map((role) => (
                 <th key={role.id} className="px-2 py-2 font-medium">
-                  <div>{role.name}</div>
+                  <div>{labelOf(ROLE_LABELS, role.name, t)}</div>
                   {canEdit && changed(role) && <button type="button" onClick={() => save(role)} className="mt-1 rounded-md bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">{t("حفظ", "Save")}</button>}
                   {canEdit && !["SUPER_ADMIN"].includes(role.name) && role.permissions.length === 0 && <button type="button" onClick={() => remove(role)} className="mt-1 block text-[10px] text-danger underline">{t("حذف", "Delete")}</button>}
                 </th>
@@ -116,15 +117,16 @@ export default function RolesMatrixPage() {
 }
 
 function FragmentRows({ group, roles, draft, canEdit, onToggle }: { group: PermissionGroup; roles: Role[]; draft: Record<string, Set<string>>; canEdit: boolean; onToggle: (role: Role, key: string) => void }) {
+  const { t } = useI18n();
   return (
     <>
-      <tr className="bg-surface-secondary"><th colSpan={roles.length + 1} className="px-3 py-1 text-start text-[11px] uppercase tracking-wide text-muted">{group.module}</th></tr>
+      <tr className="bg-surface-secondary"><th colSpan={roles.length + 1} className="px-3 py-1 text-start text-[11px] uppercase tracking-wide text-muted">{labelOf(MODULE_LABELS, group.module, t)}</th></tr>
       {group.permissions.map((permission) => (
         <tr key={permission.key} className="border-t border-border">
-          <td className="px-3 py-1" title={permission.description ?? undefined}><span className="font-mono">{permission.key}</span></td>
+          <td className="px-3 py-1">{labelOf(PERMISSION_LABELS, permission.key, t)}<br /><span className="font-mono text-[10px] text-muted" dir="ltr">{permission.key}</span></td>
           {roles.map((role) => (
             <td key={role.id} className="px-2 py-1 text-center">
-              <input type="checkbox" aria-label={`${role.name}: ${permission.key}`} checked={draft[role.id]?.has(permission.key) ?? false}
+              <input type="checkbox" aria-label={`${labelOf(ROLE_LABELS, role.name, t)}: ${labelOf(PERMISSION_LABELS, permission.key, t)}`} checked={draft[role.id]?.has(permission.key) ?? false}
                 disabled={!canEdit || role.name === "SUPER_ADMIN"} onChange={() => onToggle(role, permission.key)} />
             </td>
           ))}

@@ -142,6 +142,7 @@ export class DoctorOrdersService {
           permission: "pharmacy.dispense",
           type: "NEW_PRESCRIPTION",
           title: `New prescription: ${prescription.medicationName}`,
+          titleAr: `وصفة جديدة: ${prescription.medicationName}`,
           link: "/admin/care/pharmacy",
         });
         prescriptionId = prescription.id;
@@ -213,6 +214,7 @@ export class DoctorOrdersService {
           excludeUserId: actor.id,
           type: "NURSING_INSTRUCTION",
           title: `Nursing instruction: ${patient.fullName}`,
+          titleAr: `تعليمات تمريضية: ${patient.fullName}`,
           body: String(dto.payload.instruction),
           link: "/admin/care/nursing",
         });
@@ -223,6 +225,7 @@ export class DoctorOrdersService {
           excludeUserId: actor.id,
           type: "EXTRA_SESSION_REQUEST",
           title: `Extra session requested: ${patient.fullName}`,
+          titleAr: `طلب جلسة إضافية: ${patient.fullName}`,
           body: String(dto.payload.details),
           link: "/admin/care/appointments",
         });

@@ -649,7 +649,7 @@ function MedicationsTab({
                       </button>
                     )}
                     {canModify && orderId && (
-                      <button onClick={() => handleStop(orderId, "أوقفه الطبيب")} className="text-xs text-danger hover:underline">
+                      <button onClick={() => handleStop(orderId, t("أوقفه الطبيب", "Stopped by doctor"))} className="text-xs text-danger hover:underline">
                         {t("إيقاف", "Stop")}
                       </button>
                     )}

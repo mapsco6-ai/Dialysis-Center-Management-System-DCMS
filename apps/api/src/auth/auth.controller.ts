@@ -36,8 +36,8 @@ export class AuthController {
     return result;
   }
 
-  // Public: queues a reset request for an admin. Same answer whether or not
-  // the username exists, so it can't be used to discover accounts.
+  // Public: queues a reset request for an admin; 404 for an unknown or
+  // inactive username.
   @Post("forgot-password")
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {

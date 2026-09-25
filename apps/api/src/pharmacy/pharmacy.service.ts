@@ -155,6 +155,7 @@ export class PharmacyService {
       userIds: [prescription.doctorId],
       type: "PRESCRIPTION_REJECTED",
       title: `Pharmacy rejected: ${prescription.medicationName}`,
+      titleAr: `رفضت الصيدلية: ${prescription.medicationName}`,
       body: reason,
       link: `/admin/care/patients/${prescription.patientId}`,
     });
@@ -321,6 +322,7 @@ export class PharmacyService {
       excludeUserId: actor.id,
       type: "PRESCRIPTION_DISPENSED",
       title: `Dispensed: ${prescription.medicationName}`,
+      titleAr: `تم الصرف: ${prescription.medicationName}`,
       link: `/admin/care/patients/${prescription.patientId}`,
     });
     return dispensed;

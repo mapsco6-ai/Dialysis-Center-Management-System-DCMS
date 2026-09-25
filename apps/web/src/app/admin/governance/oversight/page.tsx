@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ACTION_LABELS, labelOf, MODULE_LABELS, ROLE_LABELS } from "@/lib/labels";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -46,7 +47,7 @@ export default function OversightPage() {
   const { t, locale, formatDate, formatNumber } = useI18n();
   const user = useCurrentUser();
   const label = (key: string) => {
-    const hit = LABELS[key];
+    const hit = LABELS[key] ?? ROLE_LABELS[key];
     return hit ? (locale === "ar" ? hit[0] : hit[1]) : key.replaceAll("_", " ");
   };
 
@@ -104,8 +105,8 @@ export default function OversightPage() {
 
   const columns: TableColumn<TimelineRow>[] = [
     { key: "performedAt", header: t("الوقت", "Time"), render: (r) => formatDate(r.performedAt, { dateStyle: "short", timeStyle: "short" }) },
-    { key: "sourceModule", header: t("القسم", "Section"), render: (r) => r.sourceModule },
-    { key: "type", header: t("الحدث", "Event"), render: (r) => <span className="font-mono text-xs">{r.type}</span> },
+    { key: "sourceModule", header: t("القسم", "Section"), render: (r) => labelOf(MODULE_LABELS, r.sourceModule, t) },
+    { key: "type", header: t("الحدث", "Event"), render: (r) => labelOf(ACTION_LABELS, r.type, t) },
     { key: "patientCode", header: t("رمز المريض", "Patient code"), render: (r) => <bdi>{r.patientCode}</bdi> },
     { key: "performedBy", header: t("بواسطة", "By"), render: (r) => r.performedBy ?? "-" },
     { key: "payload", header: t("التفاصيل", "Details"), render: (r) => r.payload ? <details><summary className="cursor-pointer text-xs text-muted">{t("عرض", "View")}</summary><pre className="mt-1 max-w-xs overflow-x-auto whitespace-pre-wrap text-xs" dir="ltr">{JSON.stringify(r.payload, null, 1)}</pre></details> : "-" },

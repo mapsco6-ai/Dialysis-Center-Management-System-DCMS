@@ -83,6 +83,7 @@ export class LabResultsService {
           userIds: [item.labOrder.orderedByDoctorId],
           type: "LAB_SAMPLE_REJECTED",
           title: `Sample rejected: ${item.labTest.name}`,
+          titleAr: `رُفضت العينة: ${item.labTest.name}`,
           body: dto.reason,
           link: `/admin/care/patients/${item.labOrder.patientId}`,
         });
@@ -180,6 +181,7 @@ export class LabResultsService {
           excludeUserId: actor.id,
           type: "LAB_CRITICAL_RESULT",
           title: `Critical result: ${item.labTest.name}`,
+          titleAr: `نتيجة حرجة: ${item.labTest.name}`,
           body: `${dto.value}`,
           link: `/admin/care/patients/${item.labOrder.patientId}`,
         });
@@ -209,6 +211,7 @@ export class LabResultsService {
           excludeUserId: actor.id,
           type: "LAB_RESULT_READY",
           title: `Result ready: ${item.labTest.name}`,
+          titleAr: `النتيجة جاهزة: ${item.labTest.name}`,
           body: `${dto.value}`,
           link: `/admin/care/patients/${item.labOrder.patientId}`,
         });
@@ -283,6 +286,7 @@ export class LabResultsService {
         excludeUserId: actor.id,
         type: "LAB_RESULT_AMENDED",
         title: `Result amended: ${item.labTest.name}`,
+        titleAr: `تم تصحيح النتيجة: ${item.labTest.name}`,
         body: `${dto.value}`,
         link: `/admin/care/patients/${item.labOrder.patientId}`,
       });

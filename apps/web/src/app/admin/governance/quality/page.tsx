@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch, apiFetchBlob, ApiError } from "@/lib/api";
 import { downloadBlob } from "@/lib/download";
+import { ACTION_LABELS, ENTITY_TYPE_LABELS, labelOf } from "@/lib/labels";
 import { useI18n } from "@/lib/i18n";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button } from "@heroui/react";
@@ -480,8 +481,8 @@ function ClinicalAuditTab() {
                       <td className="px-3 py-2">{formatDate(r.timestamp, { dateStyle: "short", timeStyle: "short" })}</td>
                       <td className="px-3 py-2">{r.source === "AUDIT_LOG" ? t("سجل تدقيق", "Audit log") : t("الجدول الزمني", "Timeline")}</td>
                       <td className="px-3 py-2">{r.actor}</td>
-                      <td className="px-3 py-2">{r.action}</td>
-                      <td className="px-3 py-2">{r.entityType}</td>
+                      <td className="px-3 py-2">{labelOf(ACTION_LABELS, r.action, t)}</td>
+                      <td className="px-3 py-2">{labelOf(ENTITY_TYPE_LABELS, r.entityType, t)}</td>
                     </tr>
                   ))
                 )}

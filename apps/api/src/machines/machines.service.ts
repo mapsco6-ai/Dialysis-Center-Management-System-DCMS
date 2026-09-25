@@ -114,6 +114,8 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
           type: "APPROVAL_EXPIRED",
           title: "Machine approval request expired",
           body: "Nobody decided in time; the machine was released. Request again if still needed.",
+          titleAr: "انتهت مهلة طلب موافقة الجهاز",
+          bodyAr: "لم يُتخذ قرار في الوقت المحدد وتم تحرير الجهاز. أعد الطلب إذا لزم الأمر.",
           link: "/admin/facility/machines",
         });
       }
@@ -523,6 +525,7 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
         excludeUserId: actor.id,
         type: "MACHINE_APPROVAL_REQUESTED",
         title: `Machine approval: ${machine.machineCode}`,
+        titleAr: `طلب موافقة جهاز: ${machine.machineCode}`,
         body: reason,
         link: "/admin/facility/machines",
       });

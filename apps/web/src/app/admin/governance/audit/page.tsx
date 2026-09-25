@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiFetchBlob } from "@/lib/api";
 import { downloadBlob } from "@/lib/download";
+import { ACTION_LABELS, ENTITY_TYPE_LABELS, labelOf, ROLE_LABELS } from "@/lib/labels";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -61,9 +62,9 @@ export default function AuditPage() {
 
   const columns: TableColumn<AuditRow>[] = [
     { key: "createdAt", header: t("الوقت", "Time"), render: (r) => formatDate(r.createdAt, { dateStyle: "short", timeStyle: "medium" }) },
-    { key: "actor", header: t("الموظف", "Employee"), render: (r) => <>{r.actor.fullName}<br /><span className="text-xs text-muted">{r.actorRole}</span></> },
-    { key: "action", header: t("الإجراء", "Action"), render: (r) => <span className="font-mono text-xs">{r.action}</span> },
-    { key: "entityType", header: t("الكيان", "Entity"), render: (r) => <>{r.entityType}<br /><span className="font-mono text-xs text-muted">{r.entityId.slice(0, 8)}</span></> },
+    { key: "actor", header: t("الموظف", "Employee"), render: (r) => <>{r.actor.fullName}<br /><span className="text-xs text-muted">{labelOf(ROLE_LABELS, r.actorRole, t)}</span></> },
+    { key: "action", header: t("الإجراء", "Action"), render: (r) => labelOf(ACTION_LABELS, r.action, t) },
+    { key: "entityType", header: t("الكيان", "Entity"), render: (r) => <>{labelOf(ENTITY_TYPE_LABELS, r.entityType, t)}<br /><span className="font-mono text-xs text-muted">{r.entityId.slice(0, 8)}</span></> },
     { key: "reason", header: t("السبب", "Reason"), render: (r) => r.reason ?? "-" },
   ];
 

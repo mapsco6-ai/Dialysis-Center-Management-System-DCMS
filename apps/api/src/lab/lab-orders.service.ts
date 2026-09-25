@@ -143,6 +143,7 @@ export class LabOrdersService {
         excludeUserId: actor.id,
         type: "LAB_ORDER_REQUESTED",
         title: `New lab request: ${order.episodeCode}`,
+        titleAr: `طلب مختبر جديد: ${order.episodeCode}`,
         body: `${order.patient.fullName} — ${tests}`,
         link: "/admin/care/lab",
       });

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { labelOf, PERMISSION_LABELS, ROLE_LABELS } from "@/lib/labels";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/useApi";
 import { useCurrentUser } from "@/lib/useCurrentUser";
@@ -74,7 +75,7 @@ function CreateStaff({ roleNames, onDone }: { roleNames: string[]; onDone: () =>
         value={form.role}
         onChange={(role) => setForm({ ...form, role })}
         placeholder={t("اختر الدور…", "Choose role…")}
-        options={roleNames.map((name) => ({ id: name, label: name }))}
+        options={roleNames.map((name) => ({ id: name, label: labelOf(ROLE_LABELS, name, t) }))}
       />
       <div className="sm:col-span-2 lg:col-span-3"><button type="submit" disabled={busy} className={primaryButton}>{t("إضافة الموظف", "Add staff member")}</button></div>
     </form>
@@ -182,7 +183,7 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
               {roleNames.map((name) => (
                 <label key={name} className="flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs">
                   <input type="checkbox" checked={roles.includes(name)} onChange={(e) => setRoles(e.target.checked ? [...roles, name] : roles.filter((r) => r !== name))} />
-                  {name}
+                  {labelOf(ROLE_LABELS, name, t)}
                 </label>
               ))}
             </div>
@@ -220,7 +221,7 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
       )}
 
       <h3 className="mt-4 text-sm font-semibold text-muted">{t("الصلاحيات الفعلية", "Effective permissions")}</h3>
-      <p className="mt-1 text-xs leading-6 text-muted" dir="ltr">{detail.data?.permissions.join(" · ") || "…"}</p>
+      <p className="mt-1 text-xs leading-6 text-muted">{detail.data?.permissions.map((key) => labelOf(PERMISSION_LABELS, key, t)).join(" · ") || "…"}</p>
     </div>
   );
 }
@@ -262,7 +263,7 @@ export default function StaffPage() {
 
   const columns: TableColumn<StaffMember>[] = [
     { key: "fullName", header: t("الموظف", "Staff member"), render: (m) => <><span className="font-medium">{m.fullName}</span><br /><span className="text-xs text-muted">{m.username}{m.employeeNo ? ` · ${m.employeeNo}` : ""}</span></> },
-    { key: "roles", header: t("الأدوار", "Roles"), render: (m) => m.roles.join("، ") },
+    { key: "roles", header: t("الأدوار", "Roles"), render: (m) => m.roles.map((r) => labelOf(ROLE_LABELS, r, t)).join(t("، ", ", ")) },
     { key: "jobTitle", header: t("المسمى", "Title"), render: (m) => m.jobTitle ?? "-" },
     { key: "lastLoginAt", header: t("آخر دخول", "Last sign-in"), render: (m) => (m.lastLoginAt ? formatDate(m.lastLoginAt) : "-") },
     { key: "isActive", header: t("الحالة", "Status"), render: (m) => (
@@ -300,12 +301,12 @@ export default function StaffPage() {
             value={taskRoleId}
             onChange={setTaskRoleId}
             placeholder={t("اختر الدور…", "Choose role…")}
-            options={(routableRoles.data ?? []).map((r) => ({ id: r.id, label: r.name }))}
+            options={(routableRoles.data ?? []).map((r) => ({ id: r.id, label: labelOf(ROLE_LABELS, r.name, t) }))}
           />
           {taskRoleId && (
             <TaskForm
               target={{ assignedToRoleId: taskRoleId }}
-              targetLabel={routableRoles.data?.find((r) => r.id === taskRoleId)?.name ?? ""}
+              targetLabel={labelOf(ROLE_LABELS, routableRoles.data?.find((r) => r.id === taskRoleId)?.name ?? "", t)}
               onDone={() => { setRoutingToRole(false); setTaskRoleId(""); }}
               onCancel={() => setTaskRoleId("")}
             />
@@ -331,7 +332,7 @@ export default function StaffPage() {
           onChange={setRole}
           options={[
             { id: "", label: t("كل الأدوار", "All roles") },
-            ...roleNames.map((name) => ({ id: name, label: name })),
+            ...roleNames.map((name) => ({ id: name, label: labelOf(ROLE_LABELS, name, t) })),
           ]}
         />
       </div>
