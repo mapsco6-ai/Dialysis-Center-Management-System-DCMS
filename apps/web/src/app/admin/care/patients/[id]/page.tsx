@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/lib/useCurrentUser";
 import { AdminShell } from "@/components/AdminShell";
 import { FilterSelect } from "@/components/FilterSelect";
 import { ErrorNote } from "@/components/ErrorNote";
+import { toast } from "@/components/Toaster";
 import {
   DialysisPlanEntry,
   InventoryItem,
@@ -352,7 +353,22 @@ export default function PatientProfilePage() {
                 <dl className="pt-details">
                   <Detail label={t("الاسم الكامل", "Full name")} value={patient.fullName} />
                   <Detail label={t("رمز المريض", "Patient code")} value={patient.patientCode} />
-                  <Detail label={t("الباركود", "Barcode")} value={patient.barcode} />
+                  <Detail
+                    label={t("الباركود", "Barcode")}
+                    value={
+                      <button
+                        type="button"
+                        className="cursor-copy hover:text-accent"
+                        title={t("انقر للنسخ", "Click to copy")}
+                        onClick={() => navigator.clipboard.writeText(patient.barcode).then(
+                          () => toast.success(t("تم نسخ الباركود", "Barcode copied")),
+                          () => toast.error(t("تعذر نسخ الباركود", "Unable to copy the barcode")),
+                        )}
+                      >
+                        {patient.barcode}
+                      </button>
+                    }
+                  />
                   <Detail label={t("تاريخ الميلاد", "Date of birth")} value={formatDate(patient.dateOfBirth, { timeZone: "UTC" })} />
                   <Detail label={t("الجنس", "Gender")} value={patient.gender === "MALE" ? t("ذكر", "Male") : t("أنثى", "Female")} />
                   <Detail label={t("الهاتف", "Phone")} value={patient.phone} />
