@@ -16,6 +16,20 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetState, setResetState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  async function handleResetRequest(event: FormEvent) {
+    event.preventDefault();
+    setResetState("sending");
+    try {
+      await apiFetch("/auth/forgot-password", { method: "POST", body: JSON.stringify({ username: resetUsername }) });
+      setResetState("sent");
+    } catch {
+      setResetState("error");
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -89,7 +103,9 @@ export default function LoginPage() {
                 <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
                 {t("تذكّر حسابي", "Remember my account")}
               </label>
-              <span className="login-forgot">{t("نسيت كلمة المرور؟", "Forgot password?")}</span>
+              <button type="button" className="login-forgot" aria-expanded={forgotOpen} onClick={() => { setForgotOpen((v) => !v); setResetUsername(username); setResetState("idle"); }}>
+                {t("نسيت كلمة المرور؟", "Forgot password?")}
+              </button>
             </div>
 
             {hasError && <p role="alert" className="login-error">{t("تعذر تسجيل الدخول. تحقق من بياناتك واتصالك ثم حاول مجدداً.", "Unable to sign in. Check your credentials and connection, then try again.")}</p>}
@@ -103,6 +119,27 @@ export default function LoginPage() {
               {loading ? t("جاري الدخول...", "Signing in...") : t("تسجيل الدخول", "Login")}
             </button>
           </form>
+
+          {forgotOpen && (
+            <form onSubmit={handleResetRequest} className="login-form mt-4 rounded-lg border border-border p-4">
+              {resetState === "sent" ? (
+                <p role="status" className="text-sm">
+                  {t("تم إرسال طلبك إلى مسؤول النظام. سيزوّدك بكلمة مرور مؤقتة بعد الموافقة.", "Your request was sent to the system administrator. They will give you a temporary password once approved.")}
+                </p>
+              ) : (
+                <>
+                  <label className="login-field">
+                    <span>{t("اسم المستخدم لإعادة تعيين كلمة المرور", "Username to reset")}</span>
+                    <input value={resetUsername} onChange={(e) => setResetUsername(e.target.value)} required autoComplete="username" dir="auto" placeholder={t("أدخل اسم المستخدم", "Enter your username")} />
+                  </label>
+                  {resetState === "error" && <p role="alert" className="login-error">{t("تعذر إرسال الطلب. حاول مجدداً.", "Could not send the request. Try again.")}</p>}
+                  <button type="submit" disabled={resetState === "sending"} className="login-submit-btn w-full">
+                    {resetState === "sending" ? t("جاري الإرسال...", "Sending...") : t("إرسال الطلب", "Send request")}
+                  </button>
+                </>
+              )}
+            </form>
+          )}
 
           <p className="login-help"><WorkspaceIcon name="shield" width={14} height={14} />{t("ليس لديك حساب؟ تواصل مع مسؤول النظام في مركزك لإنشائه.", "Don't have an account? Contact your center's system administrator.")}</p>
         </section>

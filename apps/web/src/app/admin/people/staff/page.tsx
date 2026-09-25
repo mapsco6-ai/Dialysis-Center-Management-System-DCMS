@@ -27,6 +27,7 @@ interface StaffMember {
   jobTitle: string | null;
   department: string | null;
   expiresAt: string | null;
+  passwordResetRequestedAt: string | null;
   roles: string[];
 }
 
@@ -138,7 +139,7 @@ function TaskForm({ target, targetLabel, onDone, onCancel }: { target: { assigne
 }
 
 function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member: StaffMember; roleNames: string[]; canEdit: boolean; onChanged: () => void; onClose: () => void }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const detail = useApi<{ permissions: string[]; roles: string[] }>(`/users/${member.id}`);
   const [roles, setRoles] = useState<string[]>(member.roles);
   const [reason, setReason] = useState("");
@@ -165,6 +166,13 @@ function StaffPanel({ member, roleNames, canEdit, onChanged, onClose }: { member
         </div>
         <button className={secondaryButton} onClick={onClose}>{t("إغلاق", "Close")}</button>
       </div>
+
+      {member.passwordResetRequestedAt && !tempPassword && (
+        <p role="status" className="mt-3 rounded-md border border-warning bg-surface-secondary px-3 py-2 text-sm">
+          {t("طلب هذا المستخدم إعادة تعيين كلمة المرور في ", "This user requested a password reset on ")}{formatDate(member.passwordResetRequestedAt)}.{" "}
+          {t("اضغط «إعادة تعيين كلمة المرور» للموافقة وسلّمه كلمة المرور المؤقتة.", "Click “Reset password” to approve, then hand them the temporary password.")}
+        </p>
+      )}
 
       {canEdit && (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -235,6 +243,11 @@ export default function StaffPage() {
     return () => clearTimeout(handle);
   }, [queryInput]);
   useEffect(() => setPage(1), [query, role]);
+  // Opened from a password-reset-request notification (?user=<id>).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("user");
+    if (id) apiFetch(`/users/${id}`).then(setSelected).catch(() => {});
+  }, []);
 
   const list = useApi<Paginated<StaffMember>>(
     user ? `/users?page=${page}&limit=${PAGE_SIZE}${query ? `&search=${encodeURIComponent(query)}` : ""}${role ? `&role=${role}` : ""}` : null,
@@ -252,7 +265,12 @@ export default function StaffPage() {
     { key: "roles", header: t("الأدوار", "Roles"), render: (m) => m.roles.join("، ") },
     { key: "jobTitle", header: t("المسمى", "Title"), render: (m) => m.jobTitle ?? "-" },
     { key: "lastLoginAt", header: t("آخر دخول", "Last sign-in"), render: (m) => (m.lastLoginAt ? formatDate(m.lastLoginAt) : "-") },
-    { key: "isActive", header: t("الحالة", "Status"), render: (m) => (m.isActive ? t("نشط", "Active") : t("معطّل", "Deactivated")) },
+    { key: "isActive", header: t("الحالة", "Status"), render: (m) => (
+      <>
+        {m.isActive ? t("نشط", "Active") : t("معطّل", "Deactivated")}
+        {m.passwordResetRequestedAt && <><br /><span className="text-xs font-medium text-warning">{t("طلب إعادة تعيين كلمة المرور", "Password reset requested")}</span></>}
+      </>
+    ) },
     { key: "actions", header: "", render: (m) => (
       <div className="flex gap-2">
         <button className={secondaryButton} onClick={() => setSelected(m)}>{t("إدارة", "Manage")}</button>

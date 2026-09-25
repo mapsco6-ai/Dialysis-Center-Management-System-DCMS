@@ -24,6 +24,7 @@ const PUBLIC_USER_SELECT = {
   licenseNo: true,
   department: true,
   mustChangePassword: true,
+  passwordResetRequestedAt: true,
   expiresAt: true,
   roles: { select: { role: { select: { name: true } } } },
 } as const;
@@ -241,7 +242,7 @@ export class UsersService {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id },
-        data: { passwordHash, mustChangePassword: true, passwordChangedAt: new Date(), tokenVersion: { increment: 1 } },
+        data: { passwordHash, mustChangePassword: true, passwordChangedAt: new Date(), passwordResetRequestedAt: null, tokenVersion: { increment: 1 } },
       });
       await this.auditService.log({ ...this.auditActor(actor), action: "USER_PASSWORD_RESET", entityId: id }, tx);
     });

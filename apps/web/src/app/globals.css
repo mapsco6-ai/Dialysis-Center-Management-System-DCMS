@@ -192,7 +192,7 @@ span.preference-value { display: inline-flex; align-items: center; padding: 5px 
 
 .login-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block-start: -4px; }
 .login-remember { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); }
-.login-forgot { font-size: 11.5px; color: var(--muted); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; cursor: default; }
+.login-forgot { font-size: 11.5px; color: var(--muted); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; cursor: pointer; background: none; border: 0; padding: 0; }
 /* .btn-primary: 44px, 8px radius, 800 weight, darken + 1px lift on hover. */
 .login-submit-btn { min-height: 44px; border-radius: var(--radius); font-size: 13px; font-weight: 800; margin-block-start: 4px; border: 0; background: var(--accent); color: var(--accent-foreground); cursor: pointer; transition: background 160ms cubic-bezier(0.23, 1, 0.32, 1), transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 .login-submit-btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }

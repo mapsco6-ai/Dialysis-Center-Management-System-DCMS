@@ -37,6 +37,9 @@ model User {
   department         String?
   mustChangePassword Boolean   @default(false)
   passwordChangedAt  DateTime?
+  // Set when the user asks for a reset from the login page; an admin clears
+  // it by resetting the password (users.service resetPassword).
+  passwordResetRequestedAt DateTime?
   // Time-limited accounts (e.g. external inspectors); rejected after this.
   expiresAt          DateTime?
   createdAt          DateTime  @default(now())

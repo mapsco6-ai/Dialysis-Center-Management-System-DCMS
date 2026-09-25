@@ -3,6 +3,7 @@ import type { Response } from "express";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
@@ -33,6 +34,15 @@ export class AuthController {
     const result = await this.authService.login(dto.username, dto.password);
     res.cookie(TOKEN_COOKIE, result.accessToken, { ...cookieOptions(), maxAge: cookieMaxAgeMs() });
     return result;
+  }
+
+  // Public: queues a reset request for an admin. Same answer whether or not
+  // the username exists, so it can't be used to discover accounts.
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.requestPasswordReset(dto.username);
+    return { success: true };
   }
 
   // Bumps tokenVersion, which immediately invalidates every outstanding JWT

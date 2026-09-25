@@ -1,5 +1,7 @@
 import { ConflictException, HttpException, HttpStatus, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { EventEmitter2 } from "@nestjs/event-emitter";
+import { emitNotification } from "../common/notify";
 import * as argon2 from "argon2";
 import { PrismaService } from "../prisma/prisma.service";
 import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "./auth.utils";
@@ -14,7 +16,26 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly rateLimiter: LoginRateLimiterService,
     private readonly settings: SettingsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  // One pending request per account; repeats while pending don't re-notify,
+  // so the public endpoint can't be used to spam admins.
+  async requestPasswordReset(username: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { username: username.trim() },
+      select: { id: true, fullName: true, username: true, isActive: true, passwordResetRequestedAt: true },
+    });
+    if (!user || !user.isActive || user.passwordResetRequestedAt) return;
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordResetRequestedAt: new Date() } });
+    emitNotification(this.eventEmitter, {
+      permission: "user.reset_password",
+      excludeUserId: user.id,
+      type: "PASSWORD_RESET_REQUEST",
+      title: `Password reset requested: ${user.fullName} (${user.username})`,
+      link: `/admin/people/staff?user=${user.id}`,
+    });
+  }
 
   async login(username: string, password: string) {
     const retryAfterSeconds = await this.rateLimiter.getRetryAfterSeconds(username);
