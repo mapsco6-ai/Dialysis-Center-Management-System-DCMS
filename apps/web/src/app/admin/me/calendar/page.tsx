@@ -181,12 +181,10 @@ export default function MyCalendarPage() {
   const entriesOn = (key: string) => entries.filter((e) => e.day === key);
 
   const weekKeys = weekDays.map(toLocalDateInputValue);
-  // Only days with something on them (plus today); month view skips the
-  // neighbouring months' days that pad the grid.
-  const shownDays = days.filter((d) => {
-    const key = toLocalDateInputValue(d);
-    return (view === "week" || d.getMonth() === anchor.getMonth()) && (key === todayKey || entriesOn(key).length > 0);
-  });
+  // Only days with something on them; month view skips the neighbouring
+  // months' days that pad the grid.
+  const shownDays = days.filter((d) =>
+    (view === "week" || d.getMonth() === anchor.getMonth()) && entriesOn(toLocalDateInputValue(d)).length > 0);
 
   // Next up: the first shift slot (own assignment or patient session) that
   // hasn't ended yet. Only meaningful while the loaded month contains today.
@@ -371,7 +369,9 @@ export default function MyCalendarPage() {
 
         <div className="min-w-0">
           {shownDays.length === 0 ? (
-            <div className="cal-sheet cal-empty">{t("لا توجد مناوبات أو مواعيد أو مهام في هذه الفترة.", "No shifts, sessions, or tasks in this period.")}</div>
+            <div className="cal-sheet cal-empty">{view === "week"
+              ? t("لا توجد مناوبات أو مواعيد أو مهام هذا الأسبوع.", "No shifts, sessions, or tasks this week.")
+              : t("لا توجد مناوبات أو مواعيد أو مهام هذا الشهر.", "No shifts, sessions, or tasks this month.")}</div>
           ) : (
             <div className="cal-sheet">
               <div
