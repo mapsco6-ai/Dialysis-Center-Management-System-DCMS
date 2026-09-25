@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
@@ -20,6 +21,10 @@ const getEventTypeLabels = (t: (arabic: string, english: string) => string): Rec
   MEDICATION_GIVEN: t("إعطاء دواء", "Medication administered"),
   PHYSICIAN_CALLED: t("تم استدعاء الطبيب", "Physician called"),
   SESSION_INTERRUPTED: t("توقفت الجلسة", "Session interrupted"),
+  CRAMPS: t("تشنجات عضلية", "Cramps"),
+  BLEEDING: t("نزيف", "Bleeding"),
+  CHEST_PAIN: t("ألم في الصدر", "Chest pain"),
+  CLOTTING: t("تخثر", "Clotting"),
   OTHER: t("أخرى", "Other"),
 });
 
@@ -35,6 +40,8 @@ export default function SessionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [amendingId, setAmendingId] = useState<string | null>(null);
+  const [editingVitals, setEditingVitals] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [verifiedActor, setVerifiedActor] = useState<{ id: string; fullName: string; proofToken: string } | null>(null);
 
   function withVerifiedActor(body: unknown) {
@@ -67,12 +74,33 @@ export default function SessionDetailPage() {
   async function submit(path: string, body: unknown, onDone?: () => void) {
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       await apiFetch(`/appointments/${params.id}/session${path}`, { method: path === "/pre-dialysis" || path === "/machine" ? "PUT" : "POST", body: JSON.stringify(body) });
       refresh();
       onDone?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("تعذر تنفيذ العملية", "Unable to complete action"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function assignMachine() {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await apiFetch(`/appointments/${params.id}/session/machine`, { method: "POST", body: JSON.stringify({}) });
+      if (result.approval) {
+        setNotice(t(
+          `تم إنشاء طلب موافقة لجهاز ${result.machine?.machineCode ?? ""} - بانتظار القرار`,
+          `Approval requested for machine ${result.machine?.machineCode ?? ""} — awaiting a decision`,
+        ));
+      }
+      refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("تعذر تعيين الجهاز", "Unable to assign machine"));
     } finally {
       setBusy(false);
     }
@@ -97,6 +125,37 @@ export default function SessionDetailPage() {
   const canEvent = user.permissions.includes("dialysis.event.create");
   const canEnd = user.permissions.includes("dialysis.end");
   const canReassign = user.permissions.includes("dialysis.start") || user.permissions.includes("machine.assign");
+  const canAssign = user.permissions.includes("machine.assign");
+  const live = session && (session.status === "IN_DIALYSIS" || session.status === "INTERRUPTED");
+  // Checked in but not on the machine yet - the only window a session can be cancelled in.
+  const preStart =
+    (overview.status === "ARRIVED" || overview.status === "LATE") &&
+    (!session || ["PRE_DIALYSIS", "SUPPLIES_READY", "WAITING_MACHINE", "ASSIGNED"].includes(session.status));
+
+  const eventsSection = (
+    <section className="mt-4 rounded-lg border border-border bg-surface p-6">
+      <h2 className="mb-3 text-sm font-semibold text-muted">{t("أحداث الجلسة", "Session events")}</h2>
+      <ul className="space-y-1 text-sm">
+        {events.map((e) => (
+          <li key={e.id} className="border-b border-border-soft py-1">
+            <span className="font-medium text-foreground">[{eventTypeLabel[e.type] ?? e.type}]</span>{" "}
+            {formatDate(e.recordedAt, { hour: "2-digit", minute: "2-digit" })} {e.note ? `— ${e.note}` : ""}
+          </li>
+        ))}
+        {events.length === 0 && <li className="text-muted">{t("لا توجد أحداث بعد", "No events yet")}</li>}
+      </ul>
+      {canEvent && (
+        <EventForm
+          busy={busy}
+          onSubmit={(body) =>
+            submit("/events", withVerifiedActor(body), () => {
+              if (verifiedActor) setVerifiedActor(null);
+            })
+          }
+        />
+      )}
+    </section>
+  );
 
   return (
     <AdminShell user={user}>
@@ -109,6 +168,7 @@ export default function SessionDetailPage() {
       </div>
 
       <ErrorNote message={error} className="mt-4" />
+      {notice && <p className="mt-4 text-sm text-warning">{notice}</p>}
 
       {/* Pre-Dialysis */}
       {!session && canPreRecord && (
@@ -119,15 +179,28 @@ export default function SessionDetailPage() {
         <section className="mt-4 rounded-lg border border-border bg-surface p-6">
           <h2 className="mb-2 text-sm font-semibold text-muted">{t("تقييم ما قبل الديلزة", "Pre-dialysis assessment")}</h2>
           <VitalsSummary session={session} />
-          {canPreRecord && (
-            <button
-              onClick={() => submit("/supplies-ready", {})}
-              disabled={busy}
-              className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
-            >
-              {t("تأكيد جاهزية المستلزمات", "Confirm supplies ready")}
-            </button>
+          {editingVitals && (
+            <PreDialysisForm busy={busy} session={session} onSubmit={(body) => submit("/pre-dialysis", body, () => setEditingVitals(false))} />
           )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link href={`/admin/care/sessions/${params.id}/supplies`} className="text-sm font-medium text-accent hover:underline">
+              {t("صرف المستلزمات", "Issue supplies")}
+            </Link>
+            {canPreRecord && !editingVitals && (
+              <button onClick={() => setEditingVitals(true)} className="text-sm text-muted hover:underline">
+                {t("تعديل القياسات", "Edit vitals")}
+              </button>
+            )}
+            {canPreRecord && (
+              <button
+                onClick={() => submit("/supplies-ready", {})}
+                disabled={busy}
+                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
+              >
+                {t("تأكيد جاهزية المستلزمات", "Confirm supplies ready")}
+              </button>
+            )}
+          </div>
         </section>
       )}
 
@@ -139,6 +212,15 @@ export default function SessionDetailPage() {
               ? t("بانتظار تعيين/الموافقة على جهاز - راجع شاشة الجدول أو الردهات.", "Awaiting machine assignment or approval — check the schedule or wards page.")
               : t("المستلزمات جاهزة - بانتظار تعيين جهاز.", "Supplies are ready — awaiting machine assignment.")}
           </p>
+          {canAssign && (
+            <button
+              onClick={assignMachine}
+              disabled={busy}
+              className="mt-4 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
+            >
+              {t("تعيين جهاز", "Assign machine")}
+            </button>
+          )}
         </section>
       )}
 
@@ -152,8 +234,22 @@ export default function SessionDetailPage() {
         </>
       )}
 
-      {session && (session.status === "IN_DIALYSIS" || session.status === "POST_DIALYSIS") && (
+      {session && live && (
         <>
+          {session.status === "INTERRUPTED" && (
+            <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger bg-surface-secondary p-4 text-sm text-danger">
+              <span>{t("الجلسة متوقفة - استأنفها، أو بدّل الجهاز، أو أنهِها.", "Session is interrupted — resume it, swap the machine, or end it.")}</span>
+              {canStart && (
+                <button
+                  onClick={() => submit("/resume", {})}
+                  disabled={busy}
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
+                >
+                  {t("استئناف الجلسة", "Resume session")}
+                </button>
+              )}
+            </section>
+          )}
           <section className="mt-4 rounded-lg border border-border bg-surface p-6">
             <VitalsSummary session={session} />
             <p className="mt-2 text-sm text-muted">
@@ -196,7 +292,7 @@ export default function SessionDetailPage() {
                 }
               />
             )}
-            {canReading && !amendingId && (
+            {canReading && !amendingId && session.status === "IN_DIALYSIS" && (
               <ReadingForm
                 busy={busy}
                 onSubmit={(body) =>
@@ -208,38 +304,24 @@ export default function SessionDetailPage() {
             )}
           </section>
 
-          <section className="mt-4 rounded-lg border border-border bg-surface p-6">
-            <h2 className="mb-3 text-sm font-semibold text-muted">{t("أحداث الجلسة", "Session events")}</h2>
-            <ul className="space-y-1 text-sm">
-              {events.map((e) => (
-                <li key={e.id} className="border-b border-border-soft py-1">
-                  <span className="font-medium text-foreground">[{eventTypeLabel[e.type]}]</span>{" "}
-                  {formatDate(e.recordedAt, { hour: "2-digit", minute: "2-digit" })} {e.note ? `— ${e.note}` : ""}
-                </li>
-              ))}
-              {events.length === 0 && <li className="text-muted">{t("لا توجد أحداث بعد", "No events yet")}</li>}
-            </ul>
-            {canEvent && (
-              <EventForm
-                busy={busy}
-                onSubmit={(body) =>
-                  submit("/events", withVerifiedActor(body), () => {
-                    if (verifiedActor) setVerifiedActor(null);
-                  })
-                }
-              />
-            )}
-          </section>
+          {eventsSection}
 
           <PinBanner verifiedActor={verifiedActor} onVerified={setVerifiedActor} />
 
-          {canReassign && session.status === "IN_DIALYSIS" && (
+          {canReassign && (
             <ReassignMachineForm busy={busy} machines={machines} onSubmit={(body) => submit("/machine", body)} />
           )}
 
           {canEnd && session.status === "IN_DIALYSIS" && (
-            <EndDialysisForm busy={busy} onSubmit={(body) => submit("/end", body)} />
+            <ReasonForm
+              busy={busy}
+              title={t("إيقاف الجلسة مؤقتاً", "Interrupt session")}
+              button={t("إيقاف", "Interrupt")}
+              onSubmit={(reason) => submit("/interrupt", { reason })}
+            />
           )}
+
+          {canEnd && <EndDialysisForm busy={busy} onSubmit={(body) => submit("/end", body)} />}
         </>
       )}
 
@@ -265,10 +347,22 @@ export default function SessionDetailPage() {
         </section>
       )}
 
-      {session && session.status === "INTERRUPTED" && (
-        <section className="mt-4 rounded-lg border border-danger bg-surface-secondary p-6 text-sm text-danger">
-          {t("توقفت هذه الجلسة قبل اكتمالها.", "This session was interrupted before completion.")}
+      {session && session.status === "COMPLETED" && eventsSection}
+
+      {overview.status === "CANCELLED" && (
+        <section className="mt-4 rounded-lg border border-border bg-surface-secondary p-6 text-sm text-muted">
+          {t("أُلغيت هذه الجلسة قبل بدء الديلزة.", "This session was cancelled before dialysis started.")}
         </section>
+      )}
+
+      {preStart && canEnd && (
+        <ReasonForm
+          busy={busy}
+          danger
+          title={t("إلغاء الجلسة (المريض لن يُغسل اليوم)", "Cancel session (patient won’t be dialysed today)")}
+          button={t("إلغاء الجلسة", "Cancel session")}
+          onSubmit={(reason) => submit("/cancel", { reason })}
+        />
       )}
     </AdminShell>
   );
@@ -287,7 +381,7 @@ function VitalsSummary({ session }: { session: SessionOverview["session"] }) {
   );
 }
 
-function PreDialysisForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: unknown) => void }) {
+function PreDialysisForm({ busy, onSubmit, session }: { busy: boolean; onSubmit: (body: unknown) => void; session?: SessionOverview["session"] }) {
   const { t } = useI18n();
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -305,13 +399,13 @@ function PreDialysisForm({ busy, onSubmit }: { busy: boolean; onSubmit: (body: u
   return (
     <form onSubmit={handleSubmit} className="mt-4 max-w-lg space-y-2 rounded-lg border border-border bg-surface p-4">
       <h2 className="text-sm font-semibold text-muted">{t("تقييم ما قبل الديلزة", "Pre-dialysis assessment")}</h2>
-      <input name="weight" type="number" step="0.1" required placeholder={t("الوزن", "Weight")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-      <input name="bp" required placeholder={t("ضغط الدم (مثال: 120/80)", "Blood pressure (e.g. 120/80)")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-      <input name="pulse" type="number" required placeholder={t("النبض", "Pulse")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-      <input name="temperature" type="number" step="0.1" placeholder={t("الحرارة", "Temperature")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-      <input name="glucose" type="number" step="0.1" placeholder={t("السكر", "Blood glucose")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-      <input name="dryWeight" type="number" step="0.1" placeholder={t("الوزن الجاف", "Dry weight")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
-      <input name="notes" placeholder={t("ملاحظات", "Notes")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="weight" type="number" step="0.1" required defaultValue={session?.preWeight ?? undefined} placeholder={t("الوزن", "Weight")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="bp" required defaultValue={session?.preBP ?? undefined} placeholder={t("ضغط الدم (مثال: 120/80)", "Blood pressure (e.g. 120/80)")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="pulse" type="number" required defaultValue={session?.prePulse ?? undefined} placeholder={t("النبض", "Pulse")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="temperature" type="number" step="0.1" defaultValue={session?.preTemperature ?? undefined} placeholder={t("الحرارة", "Temperature")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="glucose" type="number" step="0.1" defaultValue={session?.preGlucose ?? undefined} placeholder={t("السكر", "Blood glucose")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="dryWeight" type="number" step="0.1" defaultValue={session?.dryWeight ?? undefined} placeholder={t("الوزن الجاف", "Dry weight")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <input name="notes" defaultValue={session?.preNotes ?? undefined} placeholder={t("ملاحظات", "Notes")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
       <button type="submit" disabled={busy} className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground disabled:opacity-50">
         {t("حفظ", "Save")}
       </button>
@@ -571,5 +665,34 @@ function PinBanner({
         </form>
       )}
     </div>
+  );
+}
+
+function ReasonForm({
+  busy,
+  title,
+  button,
+  danger,
+  onSubmit,
+}: {
+  busy: boolean;
+  title: string;
+  button: string;
+  danger?: boolean;
+  onSubmit: (reason: string) => void;
+}) {
+  const { t } = useI18n();
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    onSubmit(String(new FormData(e.currentTarget).get("reason")));
+  }
+  return (
+    <form onSubmit={handleSubmit} className={`mt-4 max-w-lg space-y-2 rounded-lg border bg-surface-secondary p-4 ${danger ? "border-danger" : "border-border"}`}>
+      <h2 className={`text-sm font-semibold ${danger ? "text-danger" : "text-muted"}`}>{title}</h2>
+      <input name="reason" required placeholder={t("السبب", "Reason")} className="w-full rounded-md border border-border px-3 py-1.5 text-sm" />
+      <button type="submit" disabled={busy} className={`rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${danger ? "bg-danger text-white" : "bg-accent text-accent-foreground"}`}>
+        {button}
+      </button>
+    </form>
   );
 }

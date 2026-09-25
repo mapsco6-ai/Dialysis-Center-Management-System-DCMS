@@ -76,6 +76,7 @@ export const ROUTE_PAIRS: [string, string][] = [
   ["POST /appointments/{id}/session/discharge", "POST /sessions/{id}/discharge"],
   ["POST /appointments/{id}/session/interrupt", "POST /sessions/{id}/interrupt"],
   ["POST /appointments/{id}/session/resume", "POST /sessions/{id}/resume"],
+  ["POST /appointments/{id}/session/cancel", "POST /sessions/{id}/cancel"],
   ["GET /appointments/{id}/session/readings", "GET /sessions/{id}/readings"],
   ["POST /appointments/{id}/session/readings", "POST /sessions/{id}/readings"],
   ["POST /appointments/{id}/session/readings/{readingId}/amendments", "POST /sessions/{id}/readings/{readingId}/amend"],

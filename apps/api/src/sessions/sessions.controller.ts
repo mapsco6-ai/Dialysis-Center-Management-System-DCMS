@@ -62,6 +62,12 @@ export class SessionsController {
     return this.sessionsService.interrupt(id, dto.reason, actor);
   }
 
+  @Post("cancel")
+  @RequirePermissions("dialysis.end")
+  cancel(@Param("id") id: string, @Body() dto: InterruptSessionDto, @CurrentUser() actor: AuthenticatedUser) {
+    return this.sessionsService.cancel(id, dto.reason, actor);
+  }
+
   @Post("resume")
   @RequirePermissions("dialysis.start")
   resume(@Param("id") id: string, @CurrentUser() actor: AuthenticatedUser) {

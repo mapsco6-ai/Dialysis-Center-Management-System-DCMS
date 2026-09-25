@@ -225,7 +225,7 @@ export default function NursingPage() {
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        <Link href={`/admin/care/sessions/${m.session.id}`} className="text-xs font-medium text-accent hover:underline">
+                        <Link href={`/admin/care/sessions/${m.session.scheduleId}`} className="text-xs font-medium text-accent hover:underline">
                           {t("فتح الجلسة", "Open session")}
                         </Link>
                       </td>

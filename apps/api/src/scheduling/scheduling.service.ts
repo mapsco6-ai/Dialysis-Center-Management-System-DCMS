@@ -400,7 +400,9 @@ export class SchedulingService {
     if (!old) {
       throw new NotFoundException("Schedule entry not found");
     }
-    if (!["SCHEDULED", "LATE", "ABSENT"].includes(old.status)) {
+    // Checked-in entries (ARRIVED/LATE) are closed with a session cancel
+    // instead - moving them would leave a "checked in" record behind.
+    if (!["SCHEDULED", "ABSENT"].includes(old.status)) {
       throw new ConflictException(`Cannot reschedule an entry that is ${old.status}`);
     }
     if (old.session) {

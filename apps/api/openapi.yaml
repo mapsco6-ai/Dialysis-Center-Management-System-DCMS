@@ -24,6 +24,21 @@ paths:
           description: ''
       tags:
         - Auth
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: AuthController_forgotPassword
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordDto'
+      responses:
+        '200':
+          description: ''
+      tags:
+        - Auth
   /api/v1/auth/logout:
     post:
       operationId: AuthController_logout
@@ -2264,6 +2279,30 @@ paths:
   /api/v1/sessions/{id}/interrupt:
     post:
       operationId: SessionsController_interrupt
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterruptSessionDto'
+      responses:
+        '201':
+          description: ''
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.end
+  /api/v1/sessions/{id}/cancel:
+    post:
+      operationId: SessionsController_cancel
       parameters:
         - name: id
           required: true
@@ -4798,6 +4837,13 @@ components:
       required:
         - username
         - password
+    ForgotPasswordDto:
+      type: object
+      properties:
+        username:
+          type: string
+      required:
+        - username
     ChangePasswordDto:
       type: object
       properties:

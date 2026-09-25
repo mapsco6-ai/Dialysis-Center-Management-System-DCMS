@@ -290,7 +290,8 @@ export type DialysisSessionStatus =
   | "POST_DIALYSIS"
   | "COMPLETED"
   | "DISCHARGED"
-  | "INTERRUPTED";
+  | "INTERRUPTED"
+  | "CANCELLED";
 
 export type DialysisEventType =
   | "NORMAL"
@@ -300,6 +301,10 @@ export type DialysisEventType =
   | "MEDICATION_GIVEN"
   | "PHYSICIAN_CALLED"
   | "SESSION_INTERRUPTED"
+  | "CRAMPS"
+  | "BLEEDING"
+  | "CHEST_PAIN"
+  | "CLOTTING"
   | "OTHER";
 
 export interface DialysisSession {
@@ -368,6 +373,7 @@ export interface DialysisEvent {
 
 export interface WardDashboardMachineSession {
   id: string;
+  scheduleId: string;
   status: DialysisSessionStatus;
   patientId: string;
   patient: { id: string; fullName: string; patientCode: string };

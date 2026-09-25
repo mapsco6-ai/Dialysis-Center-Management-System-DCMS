@@ -38,7 +38,7 @@ interface Board { total: number; needsAttention: number; byStep: Record<string, 
 const ACTION_HREF: Record<string, (id: string) => string> = {
   "check-in": () => "/admin/care/reception",
   "record-pre-dialysis": (id) => `/admin/care/sessions/${id}`,
-  "confirm-supplies": (id) => `/admin/care/sessions/${id}/supplies`,
+  "confirm-supplies": (id) => `/admin/care/sessions/${id}`,
   "assign-machine": (id) => `/admin/care/sessions/${id}`,
   "start-dialysis": (id) => `/admin/care/sessions/${id}`,
   "resume-dialysis": (id) => `/admin/care/sessions/${id}`,

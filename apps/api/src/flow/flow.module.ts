@@ -110,7 +110,8 @@ export class FlowService {
         machineCode: session?.machine?.machineCode ?? null,
         steps: flow.steps,
         current: flow.current,
-        attention: flow.attention ?? (schedule.status === "LATE" ? "LATE" : null),
+        // Lateness only matters while the patient is still in the journey.
+        attention: flow.attention ?? (schedule.status === "LATE" && flow.current ? "LATE" : null),
         nextAction: flow.action ? { key: flow.action, permission: ACTIONS[flow.action].permission, allowed } : null,
         // How long the patient has been at this stage (drives "who waits longest").
         minutesInStep: since ? Math.max(0, Math.round((now - since.getTime()) / 60_000)) : null,

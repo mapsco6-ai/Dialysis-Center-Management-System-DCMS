@@ -38,6 +38,15 @@ const ALLOWED_GENERIC_TRANSITIONS: Partial<Record<MachineStatus, MachineStatus[]
   RETIRED: [],
 };
 
+// A machine held for a patient who hasn't arrived stays RESERVED if they never
+// show - the automatic absence marking has no machine to release - so only a
+// checked-in patient can claim one (same rule as issuing supplies).
+function requireCheckedIn(status: string) {
+  if (status !== "ARRIVED" && status !== "LATE") {
+    throw new ConflictException(`Patient must be checked in before a machine is assigned (schedule is ${status})`);
+  }
+}
+
 @Injectable()
 export class MachinesService implements OnModuleInit, OnModuleDestroy {
   private expiryTimer?: NodeJS.Timeout;
@@ -144,7 +153,13 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
     actor: AuthenticatedUser,
     reason: string,
   ) {
-    await tx.machine.update({ where: { id: machine.id }, data: { status: toStatus } });
+    // Conditional on the status the caller just read: two concurrent flows
+    // (e.g. two assignments of the same AVAILABLE machine, or a double
+    // "start") can't both win - the loser's transaction rolls back.
+    const result = await tx.machine.updateMany({ where: { id: machine.id, status: machine.status }, data: { status: toStatus } });
+    if (result.count === 0) {
+      throw new ConflictException("Machine status changed since it was read - refresh and retry");
+    }
     await tx.machineStatusHistory.create({
       data: {
         machineId: machine.id,
@@ -217,6 +232,16 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
       where: { scheduleId, status: { in: ["SUPPLIES_READY", "WAITING_MACHINE"] } },
       data: { machineId, status: "ASSIGNED" },
     });
+  }
+
+  // Claims the schedule for this machine only if it still has none - a
+  // concurrent assignment or an approval decided after a direct assignment
+  // must not silently overwrite (and leak) the machine already held.
+  private async claimSchedule(tx: PrismaTx, scheduleId: string, machineId: string) {
+    const result = await tx.dialysisSchedule.updateMany({ where: { id: scheduleId, machineId: null }, data: { machineId } });
+    if (result.count === 0) {
+      throw new ConflictException("This session already has a machine assigned");
+    }
   }
 
   private async syncSessionOnApprovalRequired(tx: PrismaTx, scheduleId: string) {
@@ -311,6 +336,7 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
     if (!schedule) {
       throw new NotFoundException("Schedule entry not found");
     }
+    requireCheckedIn(schedule.status);
     if (schedule.machineId) {
       throw new ConflictException("This session already has a machine assigned");
     }
@@ -348,7 +374,7 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
 
     return this.prisma.$transaction(async (tx) => {
       await this.transitionStatus(tx, machine, newStatus, actor, reason);
-      await tx.dialysisSchedule.update({ where: { id: schedule.id }, data: { machineId: machine.id } });
+      await this.claimSchedule(tx, schedule.id, machine.id);
       await this.syncSessionOnAssigned(tx, schedule.id, machine.id);
 
       await this.auditService.log(
@@ -433,7 +459,7 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
 
     return this.prisma.$transaction(async (tx) => {
       await this.transitionStatus(tx, machine, newStatus, actor, reason);
-      await tx.dialysisSchedule.update({ where: { id: schedule.id }, data: { machineId: machine.id } });
+      await this.claimSchedule(tx, schedule.id, machine.id);
       await this.syncSessionOnAssigned(tx, schedule.id, machine.id);
 
       await this.auditService.log(
@@ -539,6 +565,7 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
     if (!schedule) {
       throw new NotFoundException("Schedule entry not found");
     }
+    requireCheckedIn(schedule.status);
     if (schedule.machineId) {
       throw new ConflictException("This session already has a machine assigned");
     }
@@ -621,10 +648,7 @@ export class MachinesService implements OnModuleInit, OnModuleDestroy {
           actor,
           dto.reason ?? `Approved by ${actor.fullName}`,
         );
-        await tx.dialysisSchedule.update({
-          where: { id: approval.scheduleId },
-          data: { machineId: approval.machineId },
-        });
+        await this.claimSchedule(tx, approval.scheduleId, approval.machineId);
         await this.syncSessionOnAssigned(tx, approval.scheduleId, approval.machineId);
       } else if (machineStillPending) {
         // Rejected: machine goes back to the pool, the schedule stays

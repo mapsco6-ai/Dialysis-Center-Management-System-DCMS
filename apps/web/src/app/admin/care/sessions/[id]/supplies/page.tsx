@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
@@ -91,6 +92,9 @@ export default function SessionSuppliesPage() {
 
   return (
     <AdminShell user={user}>
+      <Link href={`/admin/care/sessions/${params.id}`} className="text-sm text-muted hover:underline">
+        {t("→ العودة إلى الجلسة", "← Back to session")}
+      </Link>
       <h1 className="text-xl font-semibold text-foreground">{t("مستلزمات الجلسة", "Session supplies")}</h1>
 
       <ErrorNote message={error} className="mt-4" />

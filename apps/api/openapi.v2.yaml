@@ -54,6 +54,36 @@ paths:
       tags:
         - Auth
       x-v1-equivalent: POST /api/v1/auth/login
+  /api/v2/auth/forgot-password:
+    post:
+      operationId: AuthController_forgotPasswordV2
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordDto'
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data: {}
+                  meta:
+                    type: object
+                    additionalProperties: true
+                    description: >-
+                      Pagination and collection metadata (total, page, limit,
+                      aggregates) when provided by the resource.
+      tags:
+        - Auth
+      x-v1-equivalent: POST /api/v1/auth/forgot-password
   /api/v2/auth/sessions/current:
     delete:
       operationId: AuthController_logoutV2
@@ -3839,6 +3869,45 @@ paths:
       x-required-permissions:
         - dialysis.end
       x-v1-equivalent: POST /api/v1/sessions/{id}/interrupt
+  /api/v2/appointments/{id}/session/cancel:
+    post:
+      operationId: SessionsController_cancelV2
+      parameters:
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InterruptSessionDto'
+      responses:
+        '201':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data: {}
+                  meta:
+                    type: object
+                    additionalProperties: true
+                    description: >-
+                      Pagination and collection metadata (total, page, limit,
+                      aggregates) when provided by the resource.
+      security:
+        - bearer: []
+      tags:
+        - Dialysis Sessions
+      x-required-permissions:
+        - dialysis.end
+      x-v1-equivalent: POST /api/v1/sessions/{id}/cancel
   /api/v2/appointments/{id}/session/resume:
     post:
       operationId: SessionsController_resumeV2
@@ -7832,6 +7901,13 @@ components:
       required:
         - username
         - password
+    ForgotPasswordDto:
+      type: object
+      properties:
+        username:
+          type: string
+      required:
+        - username
     ChangePasswordDto:
       type: object
       properties:

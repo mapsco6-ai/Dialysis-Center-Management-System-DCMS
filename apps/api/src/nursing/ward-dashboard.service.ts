@@ -103,6 +103,8 @@ export class WardDashboardService {
       const sessionView = visible && session
         ? {
             id: session.id,
+            // The session page is keyed by appointment (schedule) id.
+            scheduleId: session.scheduleId,
             status: session.status,
             patientId: session.patientId,
             patient: session.patient,

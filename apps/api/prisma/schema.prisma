@@ -890,6 +890,8 @@ enum DialysisSessionStatus {
   COMPLETED
   DISCHARGED
   INTERRUPTED
+  // Arrived but never put on the machine (SessionsService.cancel).
+  CANCELLED
 }
 
 enum DialysisEventType {

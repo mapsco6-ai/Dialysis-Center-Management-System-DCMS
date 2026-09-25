@@ -52,6 +52,7 @@ const GROUPS = {
     COMPLETED: { ar: "مكتملة", en: "Completed", tone: "success" },
     DISCHARGED: { ar: "مُخرج", en: "Discharged", tone: "muted" },
     INTERRUPTED: { ar: "مُقاطَعة", en: "Interrupted", tone: "danger" },
+    CANCELLED: { ar: "ملغاة", en: "Cancelled", tone: "muted" },
   },
   machine: {
     AVAILABLE: { ar: "متاح", en: "Available", tone: "success" },

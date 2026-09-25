@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { DialysisSession, Prisma } from "@prisma/client";
+import { DialysisSession, DialysisSessionStatus, Prisma } from "@prisma/client";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -9,6 +9,7 @@ import { PinProofService } from "../nursing/pin-proof.service";
 import { toAuthenticatedUser, USER_WITH_ROLES_INCLUDE } from "../auth/auth.utils";
 import { AuthenticatedUser } from "../common/types/authenticated-user";
 import { todayDateOnly } from "../scheduling/date.util";
+import { isUniqueConstraintOn } from "../patients/prisma-errors.util";
 import { PreDialysisDto } from "./dto/pre-dialysis.dto";
 import { StartDialysisDto } from "./dto/start-dialysis.dto";
 import { EndDialysisDto } from "./dto/end-dialysis.dto";
@@ -18,6 +19,8 @@ import { CreateEventDto } from "./dto/create-event.dto";
 import { ReassignMachineDto } from "./dto/reassign-machine.dto";
 
 const ARRIVABLE_SCHEDULE_STATUSES = ["ARRIVED", "LATE"];
+// Arrived but not on the machine yet - the only stages a session can be cancelled from.
+const PRE_START_STATUSES: DialysisSessionStatus[] = ["PRE_DIALYSIS", "SUPPLIES_READY", "WAITING_MACHINE", "ASSIGNED"];
 
 @Injectable()
 export class SessionsService {
@@ -149,6 +152,24 @@ export class SessionsService {
     return session;
   }
 
+  // The one place a session's status changes (schema.prisma: "All state
+  // transitions go through SessionsService.transition()"). Conditional on the
+  // status just read, like SchedulingService.checkIn: a double-click or a
+  // retried request finds the row already moved, gets a 409, and its
+  // transaction (machine change, audit, timeline) rolls back with it.
+  private async transition(
+    tx: Prisma.TransactionClient,
+    sessionId: string,
+    from: DialysisSessionStatus[],
+    data: Prisma.DialysisSessionUncheckedUpdateManyInput,
+  ) {
+    const result = await tx.dialysisSession.updateMany({ where: { id: sessionId, status: { in: from } }, data });
+    if (result.count === 0) {
+      throw new ConflictException("Session changed since it was read - refresh and retry");
+    }
+    return tx.dialysisSession.findUniqueOrThrow({ where: { id: sessionId } });
+  }
+
   // --- Pre-Dialysis -> Supplies Ready ----------------------------------------
 
   async preDialysis(scheduleId: string, dto: PreDialysisDto, actor: AuthenticatedUser) {
@@ -165,6 +186,7 @@ export class SessionsService {
     if (schedule.session && schedule.session.status !== "PRE_DIALYSIS") {
       throw new ConflictException(`Session already advanced past Pre-Dialysis (${schedule.session.status})`);
     }
+    await this.enforceNursingAssignment(schedule.patientId, schedule.shiftId, schedule.session?.wardId ?? null, actor);
 
     const vitals = {
       preWeight: dto.weight,
@@ -176,23 +198,47 @@ export class SessionsService {
       preNotes: dto.notes,
     };
 
-    const session = await this.prisma.dialysisSession.upsert({
-      where: { scheduleId },
-      update: vitals,
-      create: { scheduleId, patientId: schedule.patientId, ...vitals },
-    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // First save creates the session; a later save (vitals corrected
+        // before supplies are confirmed) may only touch it while it is still
+        // PRE_DIALYSIS.
+        const session = schedule.session
+          ? await this.transition(tx, schedule.session.id, ["PRE_DIALYSIS"], vitals)
+          : await tx.dialysisSession.create({ data: { scheduleId, patientId: schedule.patientId, ...vitals } });
 
-    await this.auditService.log({
-      actorId: actor.id,
-      actorRole: actor.roles[0] ?? "UNKNOWN",
-      action: "DIALYSIS_PRE_RECORDED",
-      entityType: "DialysisSession",
-      entityId: session.id,
-      newValue: vitals,
-    });
+        await this.auditService.log(
+          {
+            actorId: actor.id,
+            actorRole: actor.roles[0] ?? "UNKNOWN",
+            action: "DIALYSIS_PRE_RECORDED",
+            entityType: "DialysisSession",
+            entityId: session.id,
+            newValue: vitals,
+          },
+          tx,
+        );
 
-    this.emitSessionChanged();
-    return session;
+        await tx.patientTimelineEvent.create({
+          data: {
+            patientId: session.patientId,
+            type: "DIALYSIS_PRE_RECORDED",
+            payload: { sessionId: session.id, weight: dto.weight, bp: dto.bp, pulse: dto.pulse },
+            performedById: actor.id,
+            sourceModule: "sessions",
+          },
+        });
+
+        this.emitSessionChanged();
+        return session;
+      });
+    } catch (error) {
+      // Two first saves raced: the other one created the session.
+      if (isUniqueConstraintOn(error, "scheduleId")) {
+        throw new ConflictException("Pre-Dialysis was just recorded by another request - refresh and retry");
+      }
+      throw error;
+    }
   }
 
   async confirmSuppliesReady(scheduleId: string, actor: AuthenticatedUser) {
@@ -200,6 +246,7 @@ export class SessionsService {
     if (session.status !== "PRE_DIALYSIS") {
       throw new ConflictException(`Cannot confirm supplies ready from ${session.status}`);
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
     // Every item the patient's supply profile (plus any session override)
     // actually requires must be ISSUED or SUBSTITUTED - a still-UNAVAILABLE
@@ -232,19 +279,34 @@ export class SessionsService {
       ? { status: "ASSIGNED" as const, machineId: schedule.machineId }
       : { status: "SUPPLIES_READY" as const };
 
-    const updated = await this.prisma.dialysisSession.update({ where: { id: session.id }, data });
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await this.transition(tx, session.id, ["PRE_DIALYSIS"], data);
 
-    await this.auditService.log({
-      actorId: actor.id,
-      actorRole: actor.roles[0] ?? "UNKNOWN",
-      action: "DIALYSIS_SUPPLIES_READY",
-      entityType: "DialysisSession",
-      entityId: session.id,
-      newValue: data,
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "DIALYSIS_SUPPLIES_READY",
+          entityType: "DialysisSession",
+          entityId: session.id,
+          newValue: data,
+        },
+        tx,
+      );
+
+      await tx.patientTimelineEvent.create({
+        data: {
+          patientId: session.patientId,
+          type: "DIALYSIS_SUPPLIES_READY",
+          payload: { sessionId: session.id },
+          performedById: actor.id,
+          sourceModule: "sessions",
+        },
+      });
+
+      this.emitSessionChanged();
+      return updated;
     });
-
-    this.emitSessionChanged();
-    return updated;
   }
 
   // --- Start / End -------------------------------------------------------------
@@ -256,6 +318,7 @@ export class SessionsService {
         `Cannot start dialysis from ${session.status} - a machine must be ASSIGNED first`,
       );
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
     const missing: string[] = [];
     if (session.preWeight == null) missing.push("preWeight");
@@ -294,22 +357,21 @@ export class SessionsService {
     const startTime = new Date();
 
     return this.prisma.$transaction(async (tx) => {
-      await this.machinesService.transitionStatus(tx, machine, "IN_USE", actor, "Dialysis started");
-
-      const updated = await tx.dialysisSession.update({
-        where: { id: session.id },
-        data: {
-          status: "IN_DIALYSIS",
-          nurseId,
-          wardId: machine.wardId,
-          dialyzerType: dto.dialyzerType,
-          bloodLineType: dto.bloodLineType,
-          prescribedDurationMinutes: dto.prescribedDurationMinutes,
-          requiredUF: dto.requiredUF,
-          accessInfo: dto.accessInfo as Prisma.InputJsonValue | undefined,
-          startTime,
-        },
+      // Session first: a losing concurrent start stops here, before it
+      // touches the machine or writes a second audit/timeline entry.
+      const updated = await this.transition(tx, session.id, ["ASSIGNED"], {
+        status: "IN_DIALYSIS",
+        nurseId,
+        wardId: machine.wardId,
+        dialyzerType: dto.dialyzerType,
+        bloodLineType: dto.bloodLineType,
+        prescribedDurationMinutes: dto.prescribedDurationMinutes,
+        requiredUF: dto.requiredUF,
+        accessInfo: dto.accessInfo as Prisma.InputJsonValue | undefined,
+        startTime,
       });
+
+      await this.machinesService.transitionStatus(tx, machine, "IN_USE", actor, "Dialysis started");
 
       await this.auditService.log(
         {
@@ -346,6 +408,7 @@ export class SessionsService {
     if (session.status !== "IN_DIALYSIS" && session.status !== "INTERRUPTED") {
       throw new ConflictException(`Cannot end dialysis from ${session.status}`);
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
     const endTime = new Date();
     const actualDurationMinutes = session.startTime
@@ -353,25 +416,26 @@ export class SessionsService {
       : null;
 
     return this.prisma.$transaction(async (tx) => {
+      const updated = await this.transition(tx, session.id, ["IN_DIALYSIS", "INTERRUPTED"], {
+        status: "COMPLETED",
+        postWeight: dto.postWeight,
+        postBP: dto.postBP,
+        postPulse: dto.postPulse,
+        actualUF: dto.actualUF,
+        complications: dto.complications,
+        finalNote: dto.finalNote,
+        endTime,
+        actualDurationMinutes,
+      });
+
       if (session.machineId) {
         const machine = await tx.machine.findUniqueOrThrow({ where: { id: session.machineId } });
-        await this.machinesService.transitionStatus(tx, machine, "WAITING_CLEANING", actor, "Dialysis session ended");
+        // A machine a fault report already took OUT_OF_SERVICE mid-session
+        // stays there - only its maintenance ticket may return it.
+        if (machine.status === "IN_USE") {
+          await this.machinesService.transitionStatus(tx, machine, "WAITING_CLEANING", actor, "Dialysis session ended");
+        }
       }
-
-      const updated = await tx.dialysisSession.update({
-        where: { id: session.id },
-        data: {
-          status: "COMPLETED",
-          postWeight: dto.postWeight,
-          postBP: dto.postBP,
-          postPulse: dto.postPulse,
-          actualUF: dto.actualUF,
-          complications: dto.complications,
-          finalNote: dto.finalNote,
-          endTime,
-          actualDurationMinutes,
-        },
-      });
 
       await this.auditService.log(
         {
@@ -405,23 +469,36 @@ export class SessionsService {
     if (session.status !== "COMPLETED") {
       throw new ConflictException(`Cannot discharge from ${session.status}`);
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
-    const updated = await this.prisma.dialysisSession.update({
-      where: { id: session.id },
-      data: { status: "DISCHARGED" },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await this.transition(tx, session.id, ["COMPLETED"], { status: "DISCHARGED" });
+
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "DIALYSIS_DISCHARGED",
+          entityType: "DialysisSession",
+          entityId: session.id,
+          newValue: { status: "DISCHARGED" },
+        },
+        tx,
+      );
+
+      await tx.patientTimelineEvent.create({
+        data: {
+          patientId: session.patientId,
+          type: "DIALYSIS_DISCHARGED",
+          payload: { sessionId: session.id },
+          performedById: actor.id,
+          sourceModule: "sessions",
+        },
+      });
+
+      this.emitSessionChanged();
+      return updated;
     });
-
-    await this.auditService.log({
-      actorId: actor.id,
-      actorRole: actor.roles[0] ?? "UNKNOWN",
-      action: "DIALYSIS_DISCHARGED",
-      entityType: "DialysisSession",
-      entityId: session.id,
-      newValue: { status: "DISCHARGED" },
-    });
-
-    this.emitSessionChanged();
-    return updated;
   }
 
   async interrupt(scheduleId: string, reason: string, actor: AuthenticatedUser) {
@@ -429,12 +506,10 @@ export class SessionsService {
     if (session.status !== "IN_DIALYSIS") {
       throw new ConflictException(`Cannot interrupt a session that is ${session.status}`);
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.dialysisSession.update({
-        where: { id: session.id },
-        data: { status: "INTERRUPTED" },
-      });
+      const updated = await this.transition(tx, session.id, ["IN_DIALYSIS"], { status: "INTERRUPTED" });
 
       await tx.dialysisEvent.create({
         data: { sessionId: session.id, type: "SESSION_INTERRUPTED", note: reason, recordedById: actor.id },
@@ -474,23 +549,131 @@ export class SessionsService {
     if (session.status !== "INTERRUPTED") {
       throw new ConflictException(`Cannot resume a session that is ${session.status}`);
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
-    const updated = await this.prisma.dialysisSession.update({
-      where: { id: session.id },
-      data: { status: "IN_DIALYSIS" },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await this.transition(tx, session.id, ["INTERRUPTED"], { status: "IN_DIALYSIS" });
+
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "DIALYSIS_RESUMED",
+          entityType: "DialysisSession",
+          entityId: session.id,
+          newValue: { status: "IN_DIALYSIS" },
+        },
+        tx,
+      );
+
+      await tx.patientTimelineEvent.create({
+        data: {
+          patientId: session.patientId,
+          type: "DIALYSIS_RESUMED",
+          payload: { sessionId: session.id },
+          performedById: actor.id,
+          sourceModule: "sessions",
+        },
+      });
+
+      this.emitSessionChanged();
+      return updated;
     });
+  }
 
-    await this.auditService.log({
-      actorId: actor.id,
-      actorRole: actor.roles[0] ?? "UNKNOWN",
-      action: "DIALYSIS_RESUMED",
-      entityType: "DialysisSession",
-      entityId: session.id,
-      newValue: { status: "IN_DIALYSIS" },
+  // --- Cancel before start -----------------------------------------------------
+
+  // The patient arrived but won't be dialysed today (left, transferred,
+  // clinically unfit). Without this the appointment could never close and
+  // any machine reserved for it stayed RESERVED for good - reschedule only
+  // takes not-yet-arrived entries and interrupt only a running session.
+  async cancel(scheduleId: string, reason: string, actor: AuthenticatedUser) {
+    const schedule = await this.prisma.dialysisSchedule.findUnique({
+      where: { id: scheduleId },
+      include: { session: true },
     });
+    if (!schedule) {
+      throw new NotFoundException("Schedule entry not found");
+    }
+    if (!ARRIVABLE_SCHEDULE_STATUSES.includes(schedule.status)) {
+      throw new ConflictException(`Cannot cancel an appointment that is ${schedule.status}`);
+    }
+    const session = schedule.session;
+    if (session && !PRE_START_STATUSES.includes(session.status)) {
+      throw new ConflictException(`Session is ${session.status} - dialysis already started, use interrupt or end instead`);
+    }
+    await this.enforceNursingAssignment(schedule.patientId, schedule.shiftId, session?.wardId ?? null, actor);
 
-    this.emitSessionChanged();
-    return updated;
+    // ponytail: supplies already issued for this session are not returned to
+    // stock here - that is a separate inventory adjustment.
+    return this.prisma.$transaction(async (tx) => {
+      const closed = await tx.dialysisSchedule.updateMany({
+        where: { id: scheduleId, status: { in: ["ARRIVED", "LATE"] } },
+        data: { status: "CANCELLED", machineId: null },
+      });
+      if (closed.count === 0) {
+        throw new ConflictException(`Cannot cancel an appointment that is ${schedule.status}`);
+      }
+      if (session) {
+        await this.transition(tx, session.id, PRE_START_STATUSES, { status: "CANCELLED", machineId: null });
+      }
+
+      // Release the machine held for this appointment, if any.
+      if (schedule.machineId) {
+        const machine = await tx.machine.findUniqueOrThrow({ where: { id: schedule.machineId } });
+        if (machine.status === "RESERVED" || machine.status === "EMERGENCY_RESERVED") {
+          await this.machinesService.transitionStatus(tx, machine, "AVAILABLE", actor, `Session cancelled: ${reason}`);
+        }
+      }
+
+      // Close any approval still pending for it; a machine held only by
+      // those requests goes back to the pool (same rule as expiry).
+      const pending = await tx.machineUsageApprovalRequest.findMany({ where: { scheduleId, decision: "PENDING" } });
+      if (pending.length > 0) {
+        await tx.machineUsageApprovalRequest.updateMany({
+          where: { scheduleId, decision: "PENDING" },
+          data: { decision: "REJECTED", decidedById: actor.id, decidedAt: new Date() },
+        });
+        for (const approval of pending) {
+          const machine = await tx.machine.findUniqueOrThrow({ where: { id: approval.machineId } });
+          const otherPending = await tx.machineUsageApprovalRequest.count({
+            where: { machineId: approval.machineId, decision: "PENDING" },
+          });
+          if (machine.status === "APPROVAL_REQUIRED" && otherPending === 0) {
+            await this.machinesService.transitionStatus(tx, machine, "AVAILABLE", actor, `Session cancelled: ${reason}`);
+          }
+        }
+      }
+
+      await this.auditService.log(
+        {
+          actorId: actor.id,
+          actorRole: actor.roles[0] ?? "UNKNOWN",
+          action: "DIALYSIS_CANCELLED",
+          entityType: "DialysisSchedule",
+          entityId: scheduleId,
+          patientId: schedule.patientId,
+          oldValue: { status: schedule.status, sessionStatus: session?.status ?? null, machineId: schedule.machineId },
+          newValue: { status: "CANCELLED" },
+          reason,
+        },
+        tx,
+      );
+
+      await tx.patientTimelineEvent.create({
+        data: {
+          patientId: schedule.patientId,
+          type: "DIALYSIS_CANCELLED",
+          payload: { scheduleId, sessionId: session?.id ?? null, reason },
+          performedById: actor.id,
+          sourceModule: "sessions",
+        },
+      });
+
+      this.eventEmitter.emit("live.update", { entity: "schedule" });
+      this.emitSessionChanged();
+      return tx.dialysisSchedule.findUniqueOrThrow({ where: { id: scheduleId }, include: { session: true } });
+    });
   }
 
   // --- Readings (Append-or-Amend) ---------------------------------------------
@@ -619,7 +802,9 @@ export class SessionsService {
 
   async addEvent(scheduleId: string, dto: CreateEventDto, actor: AuthenticatedUser) {
     const session = await this.requireSession(scheduleId);
-    if (session.status !== "IN_DIALYSIS" && session.status !== "POST_DIALYSIS") {
+    // COMPLETED too: complications right after coming off the machine (e.g.
+    // access-site bleeding) belong on the session's own log.
+    if (!["IN_DIALYSIS", "INTERRUPTED", "COMPLETED"].includes(session.status)) {
       throw new ConflictException(`Cannot record an event while the session is ${session.status}`);
     }
     const performer = await this.resolvePerformer(actor, dto.verifiedActorToken, "dialysis.event.create");
@@ -667,6 +852,7 @@ export class SessionsService {
     if (dto.newMachineId === session.machineId) {
       throw new BadRequestException("New machine must be different from the current one");
     }
+    await this.enforceNursingAssignmentForSession(session, actor);
 
     const schedule = await this.prisma.dialysisSchedule.findUniqueOrThrow({ where: { id: scheduleId } });
     const oldMachine = await this.prisma.machine.findUniqueOrThrow({ where: { id: session.machineId } });
@@ -690,17 +876,26 @@ export class SessionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // The old machine failed - it isn't returned to the pool, it goes to
-      // OUT_OF_SERVICE pending maintenance.
-      await this.machinesService.transitionStatus(tx, oldMachine, "OUT_OF_SERVICE", actor, `Reassigned away during session: ${dto.reason}`);
-      await this.machinesService.transitionStatus(tx, newMachine, "IN_USE", actor, `Reassigned into session: ${dto.reason}`);
-
+      // Session first, and only if it is still on the machine just read - a
+      // second concurrent swap gets a 409 instead of moving it twice.
       // A working machine resolves the interruption too, if that's what
       // this session was in (docs review DCMS-053).
-      const updated = await tx.dialysisSession.update({
-        where: { id: session.id },
+      const moved = await tx.dialysisSession.updateMany({
+        where: { id: session.id, status: { in: ["IN_DIALYSIS", "INTERRUPTED"] }, machineId: session.machineId },
         data: { machineId: newMachine.id, wardId: newMachine.wardId, status: "IN_DIALYSIS" },
       });
+      if (moved.count === 0) {
+        throw new ConflictException("Session changed since it was read - refresh and retry");
+      }
+      const updated = await tx.dialysisSession.findUniqueOrThrow({ where: { id: session.id } });
+
+      // The old machine failed - it isn't returned to the pool, it goes to
+      // OUT_OF_SERVICE pending maintenance (unless a fault report already
+      // put it there).
+      if (oldMachine.status !== "OUT_OF_SERVICE") {
+        await this.machinesService.transitionStatus(tx, oldMachine, "OUT_OF_SERVICE", actor, `Reassigned away during session: ${dto.reason}`);
+      }
+      await this.machinesService.transitionStatus(tx, newMachine, "IN_USE", actor, `Reassigned into session: ${dto.reason}`);
 
       await tx.dialysisSchedule.update({ where: { id: scheduleId }, data: { machineId: newMachine.id } });
 
